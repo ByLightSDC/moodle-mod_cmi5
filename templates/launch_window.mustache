@@ -1,0 +1,32 @@
+{{!
+    @template mod_cmi5/launch_window
+
+    Launch page for new-window mode. Opens the AU in a new tab and shows a back link.
+
+    Context variables required:
+    * launchurl - the AU launch URL
+    * title - AU title
+    * backurl - URL to go back (course page or AU list)
+}}
+
+<div class="mod-cmi5-launch-window text-center py-5">
+    <h3>{{title}}</h3>
+    <p class="mt-3">
+        <a href="{{launchurl}}" target="_blank" rel="noopener" class="btn btn-primary btn-lg" id="cmi5-launch-btn">
+            {{#str}}launchau, cmi5{{/str}}
+        </a>
+    </p>
+    <p class="mt-4">
+        <a href="{{backurl}}">{{#str}}backtocourse, cmi5{{/str}}</a>
+    </p>
+</div>
+
+<script>
+    // Auto-open the AU on page load.
+    document.addEventListener('DOMContentLoaded', function() {
+        var btn = document.getElementById('cmi5-launch-btn');
+        if (btn) {
+            window.open(btn.href, '_blank', 'noopener');
+        }
+    });
+</script>

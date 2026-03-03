@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="mod/cmi5/db" VERSION="2026030200" COMMENT="XMLDB file for mod_cmi5"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+
+    <TABLE NAME="cmi5" COMMENT="Activity module instances">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="course" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="intro" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="introformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="packagefile" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="File ID of uploaded cmi5 ZIP"/>
+        <FIELD NAME="packagefilename" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="packageid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="FK to cmi5_packages if created from library; null for legacy"/>
+        <FIELD NAME="packageversionid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="FK to cmi5_package_versions; authoritative link for structure and content serving"/>
+        <FIELD NAME="courseid_iri" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Course ID IRI from cmi5.xml"/>
+        <FIELD NAME="grademethod" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="0=highest, 1=average, 2=first, 3=last"/>
+        <FIELD NAME="maxgrade" TYPE="number" LENGTH="10" DECIMALS="5" NOTNULL="true" DEFAULT="100" SEQUENCE="false"/>
+        <FIELD NAME="launchmethod" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="0=newwindow, 1=iframe"/>
+        <FIELD NAME="sessiontimeout" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="3600" SEQUENCE="false"/>
+        <FIELD NAME="lrsendpoint" TYPE="char" LENGTH="1333" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="lrskey" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="lrssecret" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="lrsmode" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="0=local, 1=forward, 2=lrs_only"/>
+        <FIELD NAME="launchparameters" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Launch parameters override passed to AU via LMS.LaunchData"/>
+        <FIELD NAME="profileid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="FK to cmi5_launch_profiles for default launch parameters"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="course" UNIQUE="false" FIELDS="course"/>
+        <INDEX NAME="packageid" UNIQUE="false" FIELDS="packageid"/>
+        <INDEX NAME="packageversionid" UNIQUE="false" FIELDS="packageversionid"/>
+        <INDEX NAME="profileid" UNIQUE="false" FIELDS="profileid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_launch_profiles" COMMENT="Named launch parameter profiles for reuse across activities">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="parameters" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+    </TABLE>
+
+    <TABLE NAME="cmi5_packages" COMMENT="Centralized content library - site-wide cmi5 packages">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="title" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="description" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="latestversion" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="FK to cmi5_package_versions.id - denormalized pointer to current version"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="latestversion" UNIQUE="false" FIELDS="latestversion"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_package_versions" COMMENT="Version history for content library packages">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="packageid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="versionnumber" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="source" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="0=zip_upload, 1=external_url, 2=api_registered"/>
+        <FIELD NAME="externalurl" TYPE="char" LENGTH="1333" NOTNULL="false" SEQUENCE="false" COMMENT="External package URL if source=1"/>
+        <FIELD NAME="sha256hash" TYPE="char" LENGTH="64" NOTNULL="false" SEQUENCE="false" COMMENT="Hash of uploaded ZIP"/>
+        <FIELD NAME="courseid_iri" TYPE="char" LENGTH="1333" NOTNULL="false" SEQUENCE="false" COMMENT="Course ID IRI from cmi5.xml"/>
+        <FIELD NAME="profileid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="FK to cmi5_launch_profiles"/>
+        <FIELD NAME="usagecount" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Denormalized count of activities using this version"/>
+        <FIELD NAME="status" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="0=disabled, 1=active"/>
+        <FIELD NAME="changelog" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON changelog vs previous version"/>
+        <FIELD NAME="createdby" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="packageid" TYPE="foreign" FIELDS="packageid" REFTABLE="cmi5_packages" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="packageid_versionnumber" UNIQUE="true" FIELDS="packageid, versionnumber"/>
+        <INDEX NAME="sha256hash" UNIQUE="false" FIELDS="sha256hash"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_package_aus" COMMENT="AUs parsed from library package versions">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="versionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="auid" TYPE="char" LENGTH="1333" NOTNULL="true" SEQUENCE="false" COMMENT="AU IRI"/>
+        <FIELD NAME="title" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="description" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="url" TYPE="char" LENGTH="1333" NOTNULL="true" SEQUENCE="false" COMMENT="Relative URL within package or absolute external URL"/>
+        <FIELD NAME="launchmethod" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="AnyWindow" SEQUENCE="false"/>
+        <FIELD NAME="moveoncriteria" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="NotApplicable" SEQUENCE="false"/>
+        <FIELD NAME="masteryscore" TYPE="number" LENGTH="10" DECIMALS="7" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="launchparameters" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="entitlementkey" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="parentblockid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="isexternal" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="1 if AU URL is absolute/external"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="versionid" TYPE="foreign" FIELDS="versionid" REFTABLE="cmi5_package_versions" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="versionid_sortorder" UNIQUE="false" FIELDS="versionid, sortorder"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_package_blocks" COMMENT="Blocks parsed from library package versions">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="versionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="blockid" TYPE="char" LENGTH="1333" NOTNULL="true" SEQUENCE="false" COMMENT="Block IRI"/>
+        <FIELD NAME="title" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="description" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="parentblockid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="versionid" TYPE="foreign" FIELDS="versionid" REFTABLE="cmi5_package_versions" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="versionid_sortorder" UNIQUE="false" FIELDS="versionid, sortorder"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_aus" COMMENT="Assignable Units parsed from cmi5.xml">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="cmi5id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="auid" TYPE="char" LENGTH="1333" NOTNULL="true" SEQUENCE="false" COMMENT="AU IRI from cmi5.xml"/>
+        <FIELD NAME="title" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="description" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="url" TYPE="char" LENGTH="1333" NOTNULL="true" SEQUENCE="false" COMMENT="Relative URL within package"/>
+        <FIELD NAME="launchmethod" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="AnyWindow" SEQUENCE="false"/>
+        <FIELD NAME="moveoncriteria" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="NotApplicable" SEQUENCE="false"/>
+        <FIELD NAME="masteryscore" TYPE="number" LENGTH="10" DECIMALS="7" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="launchparameters" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="entitlementkey" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="parentblockid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="cmi5id" TYPE="foreign" FIELDS="cmi5id" REFTABLE="cmi5" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="cmi5id_sortorder" UNIQUE="false" FIELDS="cmi5id, sortorder"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_blocks" COMMENT="Block hierarchy from cmi5.xml">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="cmi5id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="blockid" TYPE="char" LENGTH="1333" NOTNULL="true" SEQUENCE="false" COMMENT="Block IRI from cmi5.xml"/>
+        <FIELD NAME="title" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="description" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="parentblockid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="cmi5id" TYPE="foreign" FIELDS="cmi5id" REFTABLE="cmi5" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="cmi5id_sortorder" UNIQUE="false" FIELDS="cmi5id, sortorder"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_registrations" COMMENT="Per-user enrollment registrations">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="cmi5id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="registrationid" TYPE="char" LENGTH="36" NOTNULL="true" SEQUENCE="false" COMMENT="UUID"/>
+        <FIELD NAME="coursesatisfied" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="cmi5id" TYPE="foreign" FIELDS="cmi5id" REFTABLE="cmi5" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="cmi5id_userid" UNIQUE="true" FIELDS="cmi5id, userid"/>
+        <INDEX NAME="registrationid" UNIQUE="true" FIELDS="registrationid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_au_status" COMMENT="Per-user AU progress tracking">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="registrationid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="auid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="completed" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="passed" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="failed" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="satisfied" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="waived" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="score_scaled" TYPE="number" LENGTH="10" DECIMALS="7" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="registrationid" TYPE="foreign" FIELDS="registrationid" REFTABLE="cmi5_registrations" REFFIELDS="id"/>
+        <KEY NAME="auid" TYPE="foreign" FIELDS="auid" REFTABLE="cmi5_aus" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="registrationid_auid" UNIQUE="true" FIELDS="registrationid, auid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_sessions" COMMENT="Per-launch session tracking">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="registrationid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="auid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="sessionid" TYPE="char" LENGTH="36" NOTNULL="true" SEQUENCE="false" COMMENT="UUID"/>
+        <FIELD NAME="launchmode" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="Normal" SEQUENCE="false"/>
+        <FIELD NAME="launchurl" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="initialized" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="terminated" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="abandoned" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="registrationid" TYPE="foreign" FIELDS="registrationid" REFTABLE="cmi5_registrations" REFFIELDS="id"/>
+        <KEY NAME="auid" TYPE="foreign" FIELDS="auid" REFTABLE="cmi5_aus" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="sessionid" UNIQUE="true" FIELDS="sessionid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_tokens" COMMENT="Auth tokens for fetch URL">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="sessionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="token" TYPE="char" LENGTH="64" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="fetched" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Single-use: set to 1 after first fetch"/>
+        <FIELD NAME="expiry" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="sessionid" TYPE="foreign" FIELDS="sessionid" REFTABLE="cmi5_sessions" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="token" UNIQUE="true" FIELDS="token"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_statements" COMMENT="Local xAPI statement store">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="sessionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="statementid" TYPE="char" LENGTH="36" NOTNULL="true" SEQUENCE="false" COMMENT="xAPI statement UUID"/>
+        <FIELD NAME="verb" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Verb IRI"/>
+        <FIELD NAME="statement_json" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="is_cmi5_defined" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="forwarded" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="stored" TYPE="char" LENGTH="30" NOTNULL="false" SEQUENCE="false" COMMENT="ISO 8601 server timestamp"/>
+        <FIELD NAME="authority_json" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON authority Agent"/>
+        <FIELD NAME="voided" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Set when a voiding statement targets this"/>
+        <FIELD NAME="actor_hash" TYPE="char" LENGTH="40" NOTNULL="false" SEQUENCE="false" COMMENT="SHA1 of actor for agent queries"/>
+        <FIELD NAME="activity_id" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="object.id for activity filtering"/>
+        <FIELD NAME="registration" TYPE="char" LENGTH="36" NOTNULL="false" SEQUENCE="false" COMMENT="context.registration for filtering"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="sessionid" TYPE="foreign" FIELDS="sessionid" REFTABLE="cmi5_sessions" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="statementid" UNIQUE="true" FIELDS="statementid"/>
+        <INDEX NAME="sessionid_verb" UNIQUE="false" FIELDS="sessionid, verb"/>
+        <INDEX NAME="actor_hash" UNIQUE="false" FIELDS="actor_hash"/>
+        <INDEX NAME="activity_id" UNIQUE="false" FIELDS="activity_id"/>
+        <INDEX NAME="registration" UNIQUE="false" FIELDS="registration"/>
+        <INDEX NAME="verb" UNIQUE="false" FIELDS="verb"/>
+        <INDEX NAME="timecreated" UNIQUE="false" FIELDS="timecreated"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_block_status" COMMENT="Per-user block satisfaction">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="registrationid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="blockid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="satisfied" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="registrationid" TYPE="foreign" FIELDS="registrationid" REFTABLE="cmi5_registrations" REFFIELDS="id"/>
+        <KEY NAME="blockid" TYPE="foreign" FIELDS="blockid" REFTABLE="cmi5_blocks" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="registrationid_blockid" UNIQUE="true" FIELDS="registrationid, blockid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_state_documents" COMMENT="Persisted xAPI state documents per registration">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="registrationid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="activityid" TYPE="text" NOTNULL="true" SEQUENCE="false" COMMENT="xAPI activityId parameter (full IRI)"/>
+        <FIELD NAME="activityidhash" TYPE="char" LENGTH="40" NOTNULL="true" SEQUENCE="false" COMMENT="SHA1 of activityid for indexing"/>
+        <FIELD NAME="stateid" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="xAPI stateId parameter"/>
+        <FIELD NAME="document" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="etag" TYPE="char" LENGTH="40" NOTNULL="false" SEQUENCE="false" COMMENT="SHA1 of document for concurrency"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="registrationid" TYPE="foreign" FIELDS="registrationid" REFTABLE="cmi5_registrations" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="reg_acthash_state" UNIQUE="true" FIELDS="registrationid, activityidhash, stateid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_agent_profiles" COMMENT="Persisted xAPI agent profile documents per user">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="profileid" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="xAPI profileId parameter"/>
+        <FIELD NAME="document" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="etag" TYPE="char" LENGTH="40" NOTNULL="false" SEQUENCE="false" COMMENT="SHA1 of document for concurrency"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="userid_profileid" UNIQUE="true" FIELDS="userid, profileid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="cmi5_activity_profiles" COMMENT="Persisted xAPI activity profile documents">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="activityid" TYPE="text" NOTNULL="true" SEQUENCE="false" COMMENT="xAPI activityId (full IRI)"/>
+        <FIELD NAME="activityidhash" TYPE="char" LENGTH="40" NOTNULL="true" SEQUENCE="false" COMMENT="SHA1 of activityid for indexing"/>
+        <FIELD NAME="profileid" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="xAPI profileId parameter"/>
+        <FIELD NAME="document" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="etag" TYPE="char" LENGTH="40" NOTNULL="false" SEQUENCE="false" COMMENT="SHA1 of document for concurrency"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="acthash_profileid" UNIQUE="true" FIELDS="activityidhash, profileid"/>
+      </INDEXES>
+    </TABLE>
+
+  </TABLES>
+</XMLDB>

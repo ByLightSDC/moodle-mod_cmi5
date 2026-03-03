@@ -1,0 +1,150 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/view
+
+    Main activity view template showing AU list with status and metrics tab.
+
+    Context variables required:
+    * hasaus - boolean, whether there are any AUs
+    * aus - array of AU data
+    * canlaunch - boolean, whether user can launch AUs
+    * coursesatisfied - boolean, whether course is satisfied
+    * cmid - course module id
+    * cmi5id - activity instance id
+    * launchmethod - 0=newwindow, 1=iframe
+    * isteacher - boolean, whether user has viewreports capability
+    * ismetrics - boolean, whether metrics tab should be active
+}}
+<div class="mod-cmi5-view" data-cmid="{{cmid}}" data-cmi5id="{{cmi5id}}">
+    {{#updateavailable}}
+    <div class="alert alert-info">
+        {{#str}}library:updateavailable, cmi5, {{latestversionnumber}}{{/str}}
+        {{#changelogsummary}} ({{changelogsummary}}){{/changelogsummary}}
+        <a href="{{syncurl}}" class="btn btn-sm btn-outline-primary ml-2">
+            {{#str}}library:reviewandupdate, cmi5{{/str}}
+        </a>
+        {{#haschangelog}}
+        <details class="mt-2">
+            <summary>{{changelogsummary}}</summary>
+            <ul>
+                {{#changelogentries}}
+                <li>{{description}}</li>
+                {{/changelogentries}}
+            </ul>
+        </details>
+        {{/haschangelog}}
+    </div>
+    {{/updateavailable}}
+
+    {{#coursesatisfied}}
+    <div class="alert alert-success">
+        {{#str}}coursesatisfied, cmi5{{/str}}
+    </div>
+    {{/coursesatisfied}}
+
+    <ul class="nav nav-tabs mb-3" id="cmi5-view-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{^ismetrics}}active{{/ismetrics}}" id="cmi5-tab-activity"
+                    data-bs-toggle="tab" data-bs-target="#cmi5-pane-activity" type="button"
+                    role="tab" aria-controls="cmi5-pane-activity"
+                    aria-selected="{{^ismetrics}}true{{/ismetrics}}{{#ismetrics}}false{{/ismetrics}}">
+                {{#str}}aulist, cmi5{{/str}}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{#ismetrics}}active{{/ismetrics}}" id="cmi5-tab-metrics"
+                    data-bs-toggle="tab" data-bs-target="#cmi5-pane-metrics" type="button"
+                    role="tab" aria-controls="cmi5-pane-metrics"
+                    aria-selected="{{#ismetrics}}true{{/ismetrics}}{{^ismetrics}}false{{/ismetrics}}">
+                {{#str}}metrics:tab, cmi5{{/str}}
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="cmi5-view-tab-content">
+        <div class="tab-pane fade {{^ismetrics}}show active{{/ismetrics}}" id="cmi5-pane-activity"
+             role="tabpanel" aria-labelledby="cmi5-tab-activity">
+            {{#hasaus}}
+            <div class="mod-cmi5-au-list">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>{{#str}}name{{/str}}</th>
+                            <th>{{#str}}austatus, cmi5{{/str}}</th>
+                            <th>{{#str}}auscore, cmi5{{/str}}</th>
+                            {{#canlaunch}}
+                            <th>{{#str}}actions{{/str}}</th>
+                            {{/canlaunch}}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#aus}}
+                        <tr class="mod-cmi5-au mod-cmi5-au-{{statusclass}}" data-auid="{{id}}">
+                            <td>
+                                <strong>{{title}}</strong>
+                                {{#description}}
+                                <br><small class="text-muted">{{description}}</small>
+                                {{/description}}
+                            </td>
+                            <td>
+                                <span class="badge badge-{{statusclass}} bg-{{statusclass}}">{{statustext}}</span>
+                            </td>
+                            <td>
+                                {{#hasscore}}
+                                {{score}}
+                                {{/hasscore}}
+                                {{^hasscore}}
+                                -
+                                {{/hasscore}}
+                            </td>
+                            {{#canlaunch}}
+                            <td>
+                                <a href="{{launchurl}}" class="btn btn-primary btn-sm mod-cmi5-launch-btn"
+                                   data-auid="{{id}}" data-launchmethod="{{launchmethod}}">
+                                    {{#str}}launchau, cmi5{{/str}}
+                                </a>
+                            </td>
+                            {{/canlaunch}}
+                        </tr>
+                        {{/aus}}
+                    </tbody>
+                </table>
+            </div>
+            {{/hasaus}}
+
+            {{^hasaus}}
+            <div class="alert alert-info">
+                {{#str}}noaus, cmi5{{/str}}
+            </div>
+            {{/hasaus}}
+        </div>
+
+        <div class="tab-pane fade {{#ismetrics}}show active{{/ismetrics}}" id="cmi5-pane-metrics"
+             role="tabpanel" aria-labelledby="cmi5-tab-metrics">
+            {{> mod_cmi5/metrics}}
+        </div>
+    </div>
+</div>
+{{#js}}
+require(['mod_cmi5/launcher'], function(launcher) {
+    launcher.init({{cmid}}, {{launchmethod}});
+});
+require(['mod_cmi5/metrics'], function(metrics) {
+    metrics.init({{cmid}}, {{#isteacher}}true{{/isteacher}}{{^isteacher}}false{{/isteacher}}, {{#ismetrics}}true{{/ismetrics}}{{^ismetrics}}false{{/ismetrics}});
+});
+{{/js}}

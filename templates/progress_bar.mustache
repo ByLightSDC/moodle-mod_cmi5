@@ -1,0 +1,25 @@
+{{!
+    @template mod_cmi5/progress_bar
+
+    Progress bar showing overall AU completion.
+
+    Context variables:
+    * percentage - completion percentage (0-100)
+    * completed - number of AUs satisfied
+    * total - total number of AUs
+}}
+<div class="mod-cmi5-progress mb-3">
+    <div class="d-flex justify-content-between mb-1">
+        <small>{{completed}} / {{total}} {{#str}}aulist, cmi5{{/str}}</small>
+        <small>{{percentage}}%</small>
+    </div>
+    <div class="progress">
+        <div class="progress-bar bg-success"
+             role="progressbar"
+             style="width: {{percentage}}%"
+             aria-valuenow="{{percentage}}"
+             aria-valuemin="0"
+             aria-valuemax="100">
+        </div>
+    </div>
+</div>

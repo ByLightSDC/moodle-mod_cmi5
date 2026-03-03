@@ -1,0 +1,5 @@
+# Pass Authorization header through to PHP.
+# Apache mod_php consumes Basic auth headers by default, which
+# breaks the @xapi/cmi5 library's "Basic {token}" auth scheme.
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+CGIPassAuth On

@@ -1,0 +1,188 @@
+{{!
+    @template mod_cmi5/library
+
+    Content Library management page template.
+
+    Context variables required:
+    * haspackages - bool
+    * packages - array of package objects
+    * search - current search string
+    * searchurl - form action URL
+    * uploadurl - upload action URL
+    * registerauurl - register AU action URL
+    * sesskey - session key
+    * draftitemid - draft item ID for file upload
+}}
+
+<div class="mod-cmi5-library">
+
+    {{! Search bar }}
+    <form method="get" action="{{searchurl}}" class="mb-3">
+        <div class="input-group">
+            <input type="text" name="search" value="{{search}}" class="form-control"
+                   placeholder="{{#str}}search{{/str}}...">
+            <div class="input-group-append">
+                <button type="submit" class="btn btn-outline-secondary">{{#str}}search{{/str}}</button>
+            </div>
+        </div>
+    </form>
+
+    {{! Action buttons }}
+    <div class="mb-3 d-flex gap-2">
+        <button type="button" class="btn btn-primary" data-toggle="collapse" data-target="#upload-form"
+                data-bs-toggle="collapse" data-bs-target="#upload-form">
+            {{#str}}library:uploadpackage, cmi5{{/str}}
+        </button>
+        <button type="button" class="btn btn-secondary" data-toggle="collapse" data-target="#register-au-form"
+                data-bs-toggle="collapse" data-bs-target="#register-au-form">
+            {{#str}}library:registerexternalau, cmi5{{/str}}
+        </button>
+    </div>
+
+    {{! Upload form (collapsed) }}
+    <div id="upload-form" class="collapse card card-body mb-3">
+        <h4>{{#str}}library:uploadpackage, cmi5{{/str}}</h4>
+        <form method="post" action="{{uploadurl}}" enctype="multipart/form-data">
+            <input type="hidden" name="sesskey" value="{{sesskey}}">
+            <div class="form-group">
+                <label for="upload-title">{{#str}}library:title, cmi5{{/str}}</label>
+                <input type="text" name="title" id="upload-title" class="form-control"
+                       placeholder="{{#str}}library:title, cmi5{{/str}} (leave blank to auto-detect)">
+            </div>
+            <div class="form-group">
+                <label for="upload-desc">{{#str}}library:description, cmi5{{/str}}</label>
+                <textarea name="description" id="upload-desc" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="upload-file">{{#str}}packagefile, cmi5{{/str}}</label>
+                <input type="file" name="packagezip" id="upload-file" class="form-control" accept=".zip">
+            </div>
+            {{#hasprofiles}}
+            <div class="form-group">
+                <label for="upload-profileid">{{#str}}library:launchprofile, cmi5{{/str}}</label>
+                <select name="profileid" id="upload-profileid" class="form-control">
+                    <option value="0">{{#str}}profile:none, cmi5{{/str}}</option>
+                    {{#profiles}}
+                    <option value="{{id}}">{{name}}</option>
+                    {{/profiles}}
+                </select>
+            </div>
+            {{/hasprofiles}}
+            <button type="submit" class="btn btn-primary">{{#str}}library:uploadpackage, cmi5{{/str}}</button>
+        </form>
+    </div>
+
+    {{! Register external AU form (collapsed) }}
+    <div id="register-au-form" class="collapse card card-body mb-3">
+        <h4>{{#str}}library:registerexternalau, cmi5{{/str}}</h4>
+        <form method="post" action="{{registerauurl}}">
+            <input type="hidden" name="sesskey" value="{{sesskey}}">
+            <div class="form-group">
+                <label for="au-title">{{#str}}library:title, cmi5{{/str}} *</label>
+                <input type="text" name="autitle" id="au-title" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="au-iri">{{#str}}library:auid, cmi5{{/str}} *</label>
+                <input type="text" name="auirid" id="au-iri" class="form-control"
+                       placeholder="https://example.com/au/my-activity" required>
+            </div>
+            <div class="form-group">
+                <label for="au-url">{{#str}}library:auurl, cmi5{{/str}} *</label>
+                <input type="url" name="auurl" id="au-url" class="form-control"
+                       placeholder="https://content.example.com/activity/index.html" required>
+            </div>
+            <div class="form-group">
+                <label for="au-desc">{{#str}}library:description, cmi5{{/str}}</label>
+                <textarea name="audescription" id="au-desc" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label for="au-launch">{{#str}}launchmethod, cmi5{{/str}}</label>
+                    <select name="aulaunchmethod" id="au-launch" class="form-control">
+                        <option value="AnyWindow">AnyWindow</option>
+                        <option value="OwnWindow">OwnWindow</option>
+                    </select>
+                </div>
+                <div class="form-group col-md-6">
+                    <label for="au-moveon">{{#str}}library:moveoncriteria, cmi5{{/str}}</label>
+                    <select name="aumoveoncriteria" id="au-moveon" class="form-control">
+                        <option value="NotApplicable">NotApplicable</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Passed">Passed</option>
+                        <option value="CompletedAndPassed">CompletedAndPassed</option>
+                        <option value="CompletedOrPassed">CompletedOrPassed</option>
+                    </select>
+                </div>
+            </div>
+            {{#hasprofiles}}
+            <div class="form-group">
+                <label for="au-profileid">{{#str}}library:launchprofile, cmi5{{/str}}</label>
+                <select name="profileid" id="au-profileid" class="form-control">
+                    <option value="0">{{#str}}profile:none, cmi5{{/str}}</option>
+                    {{#profiles}}
+                    <option value="{{id}}">{{name}}</option>
+                    {{/profiles}}
+                </select>
+            </div>
+            {{/hasprofiles}}
+            <button type="submit" class="btn btn-primary">{{#str}}library:registerexternalau, cmi5{{/str}}</button>
+        </form>
+    </div>
+
+    {{! Package list }}
+    {{#haspackages}}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>{{#str}}library:title, cmi5{{/str}}</th>
+                <th>{{#str}}library:source, cmi5{{/str}}</th>
+                <th>{{#str}}library:status, cmi5{{/str}}</th>
+                <th>{{#str}}library:usagecount, cmi5{{/str}}</th>
+                <th>{{#str}}library:timecreated, cmi5{{/str}}</th>
+                <th>{{#str}}library:actions, cmi5{{/str}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#packages}}
+            <tr>
+                <td>
+                    <a href="{{viewurl}}">{{title}}</a>
+                    {{#versioncount}}
+                    <span class="badge badge-secondary bg-secondary ml-1">v{{versioncount}}</span>
+                    {{/versioncount}}
+                </td>
+                <td>{{source}}</td>
+                <td>
+                    {{#statusactive}}
+                        <span class="badge badge-success">{{#str}}library:status_active, cmi5{{/str}}</span>
+                    {{/statusactive}}
+                    {{^statusactive}}
+                        <span class="badge badge-secondary">{{#str}}library:status_disabled, cmi5{{/str}}</span>
+                    {{/statusactive}}
+                </td>
+                <td>{{usagecount}}</td>
+                <td>{{timecreated}}</td>
+                <td>
+                    <a href="{{viewurl}}" class="btn btn-sm btn-outline-primary">
+                        {{#str}}library:viewdetails, cmi5{{/str}}
+                    </a>
+                    {{#candelete}}
+                    <a href="{{deleteurl}}" class="btn btn-sm btn-outline-danger"
+                       onclick="return confirm('{{#str}}library:deleteconfirm, cmi5, {{title}}{{/str}}');">
+                        {{#str}}library:delete, cmi5{{/str}}
+                    </a>
+                    {{/candelete}}
+                </td>
+            </tr>
+            {{/packages}}
+        </tbody>
+    </table>
+    {{/haspackages}}
+
+    {{^haspackages}}
+    <div class="alert alert-info">
+        {{#str}}library:nopackages, cmi5{{/str}}
+    </div>
+    {{/haspackages}}
+
+</div>

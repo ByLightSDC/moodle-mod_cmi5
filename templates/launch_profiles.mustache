@@ -1,0 +1,99 @@
+{{!
+    @template mod_cmi5/launch_profiles
+
+    Launch Parameter Profiles management page template.
+
+    Context variables required:
+    * showform - bool, whether to show the create/edit form
+    * isedit - bool, editing existing profile
+    * profileid - int, profile ID (for edit)
+    * formname - string, pre-populated name (for edit)
+    * formparameters - string, pre-populated parameters (for edit)
+    * formaction - string, form action URL
+    * sesskey - string
+    * showlist - bool, whether to show the profiles list
+    * hasprofiles - bool
+    * profiles - array of profile objects
+}}
+
+<div class="mod-cmi5-launch-profiles">
+
+    {{#showform}}
+    <div class="card card-body mb-3">
+        <h4>
+            {{#isedit}}
+                {{#str}}profile:edit, cmi5{{/str}}
+            {{/isedit}}
+            {{^isedit}}
+                {{#str}}profile:create, cmi5{{/str}}
+            {{/isedit}}
+        </h4>
+        <form method="post" action="{{formaction}}">
+            <input type="hidden" name="sesskey" value="{{sesskey}}">
+            <div class="form-group">
+                <label for="profile-name">{{#str}}profile:name, cmi5{{/str}}</label>
+                <input type="text" name="name" id="profile-name" class="form-control" required
+                       value="{{formname}}">
+            </div>
+            <div class="form-group">
+                <label for="profile-parameters">{{#str}}profile:parameters, cmi5{{/str}}</label>
+                <textarea name="parameters" id="profile-parameters" class="form-control" rows="6">{{formparameters}}</textarea>
+                <small class="form-text text-muted">{{#str}}profile:parameters_help, cmi5{{/str}}</small>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                {{#isedit}}
+                    {{#str}}profile:edit, cmi5{{/str}}
+                {{/isedit}}
+                {{^isedit}}
+                    {{#str}}profile:create, cmi5{{/str}}
+                {{/isedit}}
+            </button>
+            {{#isedit}}
+            <a href="{{backurl}}" class="btn btn-secondary ml-2">{{#str}}cancel{{/str}}</a>
+            {{/isedit}}
+        </form>
+    </div>
+    {{/showform}}
+
+    {{#showlist}}
+    {{#hasprofiles}}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>{{#str}}profile:name, cmi5{{/str}}</th>
+                <th>{{#str}}profile:parameters, cmi5{{/str}}</th>
+                <th>{{#str}}library:usagecount, cmi5{{/str}}</th>
+                <th>{{#str}}library:actions, cmi5{{/str}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#profiles}}
+            <tr>
+                <td>{{name}}</td>
+                <td><code>{{parameterspreview}}</code></td>
+                <td>{{usagecount}}</td>
+                <td>
+                    <a href="{{editurl}}" class="btn btn-sm btn-outline-primary">
+                        {{#str}}profile:edit, cmi5{{/str}}
+                    </a>
+                    {{#candelete}}
+                    <a href="{{deleteurl}}" class="btn btn-sm btn-outline-danger"
+                       onclick="return confirm('{{#str}}profile:deleteconfirm, cmi5, {{name}}{{/str}}');">
+                        {{#str}}profile:delete, cmi5{{/str}}
+                    </a>
+                    {{/candelete}}
+                </td>
+            </tr>
+            {{/profiles}}
+        </tbody>
+    </table>
+    {{/hasprofiles}}
+
+    {{^hasprofiles}}
+    <div class="alert alert-info">
+        {{#str}}profile:noprofiles, cmi5{{/str}}
+    </div>
+    {{/hasprofiles}}
+    {{/showlist}}
+
+</div>

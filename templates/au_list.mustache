@@ -1,0 +1,35 @@
+{{!
+    @template mod_cmi5/au_list
+
+    AU listing partial with status indicators.
+
+    Context variables:
+    * aus - array of AU data objects
+    * canlaunch - boolean
+}}
+{{#aus}}
+<div class="mod-cmi5-au-item d-flex align-items-center p-2 border-bottom" data-auid="{{id}}">
+    <div class="flex-grow-1">
+        <span class="mod-cmi5-au-title font-weight-bold">{{title}}</span>
+        {{#description}}
+        <br><small class="text-muted">{{description}}</small>
+        {{/description}}
+    </div>
+    <div class="mx-2">
+        <span class="badge badge-{{statusclass}} bg-{{statusclass}}">{{statustext}}</span>
+    </div>
+    {{#hasscore}}
+    <div class="mx-2">
+        <span class="mod-cmi5-au-score">{{score}}</span>
+    </div>
+    {{/hasscore}}
+    {{#canlaunch}}
+    <div>
+        <a href="{{launchurl}}" class="btn btn-sm btn-primary mod-cmi5-launch-btn"
+           data-auid="{{id}}">
+            {{#str}}launchau, cmi5{{/str}}
+        </a>
+    </div>
+    {{/canlaunch}}
+</div>
+{{/aus}}

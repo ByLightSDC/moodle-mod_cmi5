@@ -1,0 +1,79 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/metrics
+
+    Metrics tab content with sub-view pills.
+
+    Context variables required:
+    * isteacher - boolean, whether user has viewreports capability
+}}
+<div id="mod-cmi5-metrics" data-region="metrics">
+    <ul class="nav nav-pills mb-3" id="cmi5-metrics-pills" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="cmi5-pill-overview" data-bs-toggle="pill"
+                    data-bs-target="#cmi5-metrics-overview" type="button" role="tab"
+                    aria-controls="cmi5-metrics-overview" aria-selected="true">
+                {{#str}}metrics:overview, cmi5{{/str}}
+            </button>
+        </li>
+        {{#isteacher}}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="cmi5-pill-learners" data-bs-toggle="pill"
+                    data-bs-target="#cmi5-metrics-learners" type="button" role="tab"
+                    aria-controls="cmi5-metrics-learners" aria-selected="false">
+                {{#str}}metrics:learners, cmi5{{/str}}
+            </button>
+        </li>
+        {{/isteacher}}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="cmi5-pill-auanalytics" data-bs-toggle="pill"
+                    data-bs-target="#cmi5-metrics-auanalytics" type="button" role="tab"
+                    aria-controls="cmi5-metrics-auanalytics" aria-selected="false">
+                {{#str}}metrics:auanalytics, cmi5{{/str}}
+            </button>
+        </li>
+    </ul>
+    <div class="tab-content" id="cmi5-metrics-pills-content">
+        <div class="tab-pane fade show active" id="cmi5-metrics-overview" role="tabpanel"
+             aria-labelledby="cmi5-pill-overview">
+            <div class="d-flex justify-content-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">{{#str}}loading{{/str}}</span>
+                </div>
+            </div>
+        </div>
+        {{#isteacher}}
+        <div class="tab-pane fade" id="cmi5-metrics-learners" role="tabpanel"
+             aria-labelledby="cmi5-pill-learners">
+            <div class="d-flex justify-content-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">{{#str}}loading{{/str}}</span>
+                </div>
+            </div>
+        </div>
+        {{/isteacher}}
+        <div class="tab-pane fade" id="cmi5-metrics-auanalytics" role="tabpanel"
+             aria-labelledby="cmi5-pill-auanalytics">
+            <div class="d-flex justify-content-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">{{#str}}loading{{/str}}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
