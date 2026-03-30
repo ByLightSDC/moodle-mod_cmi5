@@ -1,0 +1,37 @@
+name: Release Moodle Plugin
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version info
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          RELEASE=$(php -r "require 'version.php'; echo \$plugin->release;")
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
+
+      - name: Build plugin ZIP
+        run: |
+          mkdir -p /tmp/cmi5
+          rsync -a --exclude='.git' --exclude='.github' --exclude='.gitignore' --exclude='CLAUDE.md' --exclude='.claude' . /tmp/cmi5/
+          cd /tmp
+          zip -r moodle-mod_cmi5.zip cmi5/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.version.outputs.tag }}
+          files: /tmp/moodle-mod_cmi5.zip
+          generate_release_notes: true
