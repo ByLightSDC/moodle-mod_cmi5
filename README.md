@@ -54,7 +54,7 @@ An external LRS is **optional** — the plugin can operate in three modes:
 
 ```bash
 cd /path/to/moodle
-git clone git@github.com:dropte/moodle-mod_cmi5.git mod/cmi5
+git clone git@github.com:bylightsdc/moodle-mod_cmi5.git mod/cmi5
 ```
 
 Then visit your Moodle site as an admin to trigger the database upgrade, or run:
