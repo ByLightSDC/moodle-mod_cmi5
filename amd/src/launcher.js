@@ -137,5 +137,8 @@ const getStatusClass = (au) => {
     if (au.completed) {
         return 'completed';
     }
-    return 'inprogress';
+    if (au.inprogress) {
+        return 'inprogress';
+    }
+    return 'notstarted';
 };
