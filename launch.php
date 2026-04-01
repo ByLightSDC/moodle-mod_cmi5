@@ -77,12 +77,6 @@ if ($cmi5->launchmethod == 1) {
     ]);
     echo $OUTPUT->footer();
 } else {
-    // New window - show launch page that opens AU and provides back link.
-    echo $OUTPUT->header();
-    echo $OUTPUT->render_from_template('mod_cmi5/launch_window', [
-        'launchurl' => $launchurl,
-        'title' => format_string($au->title),
-        'backurl' => $backurl->out(false),
-    ]);
-    echo $OUTPUT->footer();
+    // New window - redirect straight to AU content.
+    redirect($launchurl);
 }
