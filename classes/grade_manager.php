@@ -142,13 +142,13 @@ class grade_manager {
         $grades = $this->get_user_grades($userid);
 
         if ($grades) {
-            cmi5_grade_item_update($this->cmi5, $grades);
+            \cmi5_grade_item_update($this->cmi5, $grades);
         } else {
             // No scores; set null grade.
             $grade = new \stdClass();
             $grade->userid = $userid;
             $grade->rawgrade = null;
-            cmi5_grade_item_update($this->cmi5, [$userid => $grade]);
+            \cmi5_grade_item_update($this->cmi5, [$userid => $grade]);
         }
     }
 

@@ -39,6 +39,7 @@ define('AJAX_SCRIPT', true);
 define('NO_OUTPUT_BUFFERING', true);
 
 require_once(__DIR__ . '/../../config.php');
+require_once(__DIR__ . '/lib.php');
 
 // CORS headers - must be sent before any output.
 header('Access-Control-Allow-Origin: *');
@@ -162,10 +163,15 @@ try {
         // Statements API - store.
         $body = file_get_contents('php://input');
         $statementids = $proxy->handle_statements($body);
-
-        header('Content-Type: application/json');
-        http_response_code(200);
-        echo json_encode($statementids);
+    
+        // Some content requires PUT to return 204 not 200
+        if ($method === 'PUT') {
+            http_response_code(204);
+        } else {
+            header('Content-Type: application/json');
+            http_response_code(200);
+            echo json_encode($statementids);
+        }
 
         // Forward to external LRS if configured.
         $registration = $DB->get_record('cmi5_registrations', ['id' => $session->registrationid]);
