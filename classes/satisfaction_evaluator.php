@@ -103,9 +103,14 @@ class satisfaction_evaluator {
             'registrationid' => $registration->id,
             'auid' => $au->id,
         ]);
-
+        
+        $moveon = $au->moveoncriteria ?? 'NotApplicable';
+        
         if (!$austatus) {
-            // No status record yet; create one. Only NotApplicable would be satisfied.
+            if ($moveon !== 'NotApplicable') {
+                return; // AU hasn't been launched yet, nothing to evaluate.
+            }
+            // Create record only for NotApplicable AUs — they're satisfied immediately.
             $austatus = new \stdClass();
             $austatus->registrationid = $registration->id;
             $austatus->auid = $au->id;
@@ -125,7 +130,7 @@ class satisfaction_evaluator {
             return;
         }
 
-        $moveon = $au->moveoncriteria ?? 'NotApplicable';
+        
         $issatisfied = $this->check_moveon($moveon, $austatus);
 
         if ($issatisfied) {
