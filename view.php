@@ -129,7 +129,7 @@ foreach ($aus as $au) {
     $audata[] = [
         'id' => $au->id,
         'title' => format_string($au->title),
-        'description' => format_text($au->description ?? '', FORMAT_PLAIN),
+        'description' => format_text($au->description ?? '', FORMAT_MOODLE),
         'statustext' => $statustext,
         'statusclass' => $statusclass,
         // Change score display to more human friendly 
