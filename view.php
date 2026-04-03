@@ -132,7 +132,8 @@ foreach ($aus as $au) {
         'description' => format_text($au->description ?? '', FORMAT_PLAIN),
         'statustext' => $statustext,
         'statusclass' => $statusclass,
-        'score' => $status ? $status->score_scaled : null,
+        // Change score display to more human friendly 
+        'score' => $status && $status->score_scaled !== null ? round($status->score_scaled * 100, 2) : null,
         'hasscore' => $status && $status->score_scaled !== null,
         'canlaunch' => $canlaunch,
         'launchurl' => $launchurl ? $launchurl->out(false) : null,
