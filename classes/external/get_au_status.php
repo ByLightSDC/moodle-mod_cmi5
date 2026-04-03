@@ -136,6 +136,7 @@ class get_au_status extends external_api {
                 'satisfied' => $satisfied,
                 'score_scaled' => $scorescaled,
                 'statustext' => $statustext,
+                'inprogress' => ($austatus && !$completed && !$passed && !$failed && !$satisfied) ? 1 : 0,
             ];
         }
 
@@ -186,7 +187,8 @@ class get_au_status extends external_api {
                 'satisfied' => new external_value(PARAM_INT, '1 if AU is satisfied, 0 otherwise'),
                 'score_scaled' => new external_value(PARAM_FLOAT, 'Scaled score (-1 to 1), or null', VALUE_OPTIONAL),
                 'statustext' => new external_value(PARAM_TEXT, 'Human-readable status text'),
-            ])
+                'inprogress' => new external_value(PARAM_INT, '1 if AU is in progress, 0 otherwise'),
+                ])
         );
     }
 }
