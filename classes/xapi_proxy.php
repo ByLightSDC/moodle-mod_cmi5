@@ -41,7 +41,8 @@ defined('MOODLE_INTERNAL') || die();
  * @copyright  2026 David Ropte
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class xapi_proxy {
+class xapi_proxy
+{
 
     /** @var \stdClass The session record from cmi5_sessions. */
     private $session;
@@ -70,7 +71,8 @@ class xapi_proxy {
      *
      * @param \stdClass $sessionrecord The session record from the cmi5_sessions table.
      */
-    public function __construct(\stdClass $sessionrecord) {
+    public function __construct(\stdClass $sessionrecord)
+    {
         $this->session = $sessionrecord;
     }
 
@@ -86,7 +88,8 @@ class xapi_proxy {
      * @return array Array of stored statement UUIDs.
      * @throws \moodle_exception On validation or lifecycle rule violations.
      */
-    public function handle_statements(string $statementsjson): array {
+    public function handle_statements(string $statementsjson): array
+    {
         global $DB, $CFG;
 
         $decoded = json_decode($statementsjson);
@@ -170,6 +173,10 @@ class xapi_proxy {
             // Update session flags based on verb.
             $this->update_session_flags($verbid);
 
+            if ($verbid === 'http://adlnet.gov/expapi/verbs/progressed') {
+                $this->update_progress_score($statement);
+            }
+
             // Update AU status based on cmi5-defined verbs.
             if ($iscmi5defined) {
                 $this->update_au_status($verbid, $statement);
@@ -193,7 +200,8 @@ class xapi_proxy {
      * @param string $body The request body content.
      * @return string|null The response body, or null for write operations.
      */
-    public function handle_state_request(string $method, array $params, string $body = ''): ?string {
+    public function handle_state_request(string $method, array $params, string $body = ''): ?string
+    {
         global $DB;
 
         $stateid = $params['stateId'] ?? '';
@@ -311,7 +319,8 @@ class xapi_proxy {
      * @param string $body The request body content.
      * @return string|null The response body, or null for write operations.
      */
-    public function handle_agent_profile_request(string $method, array $params, string $body = ''): ?string {
+    public function handle_agent_profile_request(string $method, array $params, string $body = ''): ?string
+    {
         global $DB;
 
         $profileid = $params['profileId'] ?? '';
@@ -411,7 +420,8 @@ class xapi_proxy {
      * @param string $verbid The verb IRI to check.
      * @return bool True if the verb is cmi5-defined.
      */
-    private function is_cmi5_defined_verb(string $verbid): bool {
+    private function is_cmi5_defined_verb(string $verbid): bool
+    {
         return array_key_exists($verbid, self::CMI5_VERBS);
     }
 
@@ -425,15 +435,20 @@ class xapi_proxy {
      * @param string $verbid The verb IRI of the current statement.
      * @throws \moodle_exception On lifecycle rule violations.
      */
-    private function enforce_session_rules(string $verbid): void {
+    private function enforce_session_rules(string $verbid): void
+    {
         // Reload session to get current state.
         global $DB;
         $this->session = $DB->get_record('cmi5_sessions', ['id' => $this->session->id], '*', MUST_EXIST);
 
         // No statements after terminated.
         if ($this->session->terminated) {
-            throw new \moodle_exception('sessionterminated', 'mod_cmi5', '',
-                'Session has been terminated. No further statements are accepted.');
+            throw new \moodle_exception(
+                'sessionterminated',
+                'mod_cmi5',
+                '',
+                'Session has been terminated. No further statements are accepted.'
+            );
         }
 
         // Check cmi5-defined verb rules.
@@ -442,14 +457,22 @@ class xapi_proxy {
 
             // Initialized must come first (before any other cmi5-defined verb).
             if ($verbname !== 'initialized' && !$this->session->initialized) {
-                throw new \moodle_exception('notinitialised', 'mod_cmi5', '',
-                    'Session must be initialized before sending other cmi5-defined statements.');
+                throw new \moodle_exception(
+                    'notinitialised',
+                    'mod_cmi5',
+                    '',
+                    'Session must be initialized before sending other cmi5-defined statements.'
+                );
             }
 
             // Only one initialized per session.
             if ($verbname === 'initialized' && $this->session->initialized) {
-                throw new \moodle_exception('alreadyinitialised', 'mod_cmi5', '',
-                    'Session has already been initialized.');
+                throw new \moodle_exception(
+                    'alreadyinitialised',
+                    'mod_cmi5',
+                    '',
+                    'Session has already been initialized.'
+                );
             }
         }
     }
@@ -462,7 +485,8 @@ class xapi_proxy {
      *
      * @param string $verbid The verb IRI.
      */
-    private function update_session_flags(string $verbid): void {
+    private function update_session_flags(string $verbid): void
+    {
         if ($verbid === 'http://adlnet.gov/expapi/verbs/initialized') {
             session::mark_initialized($this->session->id);
             $this->session->initialized = 1;
@@ -481,7 +505,8 @@ class xapi_proxy {
      * @param string $verbid The verb IRI.
      * @param \stdClass $statement The decoded statement object.
      */
-    private function update_au_status(string $verbid, \stdClass $statement): void {
+    private function update_au_status(string $verbid, \stdClass $statement): void
+    {
         global $DB;
 
         $registration = $this->get_registration_record();
@@ -547,11 +572,63 @@ class xapi_proxy {
     }
 
     /**
+     * Apply a score from a progress (non-cmi5-defined) statement to au_status.
+     *
+     * Only writes the score if no score from a passed/failed statement has been
+     * recorded yet. This means passed/failed scores always take precedence.
+     *
+     * @param \stdClass $statement The decoded statement object.
+     */
+    private function update_progress_score(\stdClass $statement): void
+    {
+        global $DB;
+
+        $registration = $this->get_registration_record();
+        // Progress extension is 0–100 (integer percent); normalize to 0.0–1.0 to match score_scaled range.
+        // Extensions are decoded as stdClass, so use object property access (not array syntax).
+        $progressext = 'https://w3id.org/xapi/cmi5/result/extensions/progress';
+        $rawprogress = $statement->result->extensions->{$progressext} ?? null;
+        $score = $rawprogress !== null ? (float) $rawprogress / 100.0 : null;
+        $austatus = $DB->get_record('cmi5_au_status', [
+            'registrationid' => $registration->id,
+            'auid' => $this->session->auid,
+        ]);
+
+        if ($austatus) {
+            // Don't overwrite a score already set by a passed/failed statement.
+            if ($austatus->score_scaled !== null && ($austatus->passed || $austatus->failed)) {
+                return;
+            }
+            // Nothing to store if the extension was absent.
+            if ($score === null) {
+                return;
+            }
+            $austatus->score_scaled = $score;
+            $austatus->timemodified = time();
+            $DB->update_record('cmi5_au_status', $austatus);
+        } else if ($score !== null) {
+            $austatus = new \stdClass();
+            $austatus->registrationid = $registration->id;
+            $austatus->auid = $this->session->auid;
+            $austatus->completed = 0;
+            $austatus->passed = 0;
+            $austatus->failed = 0;
+            $austatus->satisfied = 0;
+            $austatus->waived = 0;
+            $austatus->score_scaled = $score;
+            $austatus->timecreated = time();
+            $austatus->timemodified = time();
+            $DB->insert_record('cmi5_au_status', $austatus);
+        }
+    }
+
+    /**
      * Process a voiding statement by marking the target statement as voided.
      *
      * @param \stdClass $statement The voiding statement (verb = voided).
      */
-    private function process_voiding(\stdClass $statement): void {
+    private function process_voiding(\stdClass $statement): void
+    {
         global $DB;
 
         // Voiding statement must reference a StatementRef.
@@ -577,12 +654,17 @@ class xapi_proxy {
      *
      * @return \stdClass The registration record from cmi5_registrations.
      */
-    private function get_registration_record(): \stdClass {
+    private function get_registration_record(): \stdClass
+    {
         global $DB;
 
         if ($this->registration === null) {
-            $this->registration = $DB->get_record('cmi5_registrations',
-                ['id' => $this->session->registrationid], '*', MUST_EXIST);
+            $this->registration = $DB->get_record(
+                'cmi5_registrations',
+                ['id' => $this->session->registrationid],
+                '*',
+                MUST_EXIST
+            );
         }
 
         return $this->registration;
