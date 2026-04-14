@@ -59,20 +59,20 @@
 
     <ul class="nav nav-tabs mb-3" id="cmi5-view-tabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link {{^ismetrics}}active{{/ismetrics}}" id="cmi5-tab-activity"
-                    data-bs-toggle="tab" data-bs-target="#cmi5-pane-activity" type="button"
-                    role="tab" aria-controls="cmi5-pane-activity"
-                    aria-selected="{{^ismetrics}}true{{/ismetrics}}{{#ismetrics}}false{{/ismetrics}}">
+            <a class="nav-link {{^ismetrics}}active{{/ismetrics}}"
+            href="?id={{cmid}}&tab=aus"
+            role="tab"
+            aria-selected="{{^ismetrics}}true{{/ismetrics}}{{#ismetrics}}false{{/ismetrics}}">
                 {{#str}}aulist, cmi5{{/str}}
-            </button>
+            </a>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link {{#ismetrics}}active{{/ismetrics}}" id="cmi5-tab-metrics"
-                    data-bs-toggle="tab" data-bs-target="#cmi5-pane-metrics" type="button"
-                    role="tab" aria-controls="cmi5-pane-metrics"
-                    aria-selected="{{#ismetrics}}true{{/ismetrics}}{{^ismetrics}}false{{/ismetrics}}">
+            <a class="nav-link {{#ismetrics}}active{{/ismetrics}}"
+            href="?id={{cmid}}&tab=metrics"
+            role="tab"
+            aria-selected="{{#ismetrics}}true{{/ismetrics}}{{^ismetrics}}false{{/ismetrics}}">
                 {{#str}}metrics:tab, cmi5{{/str}}
-            </button>
+            </a>
         </li>
     </ul>
 

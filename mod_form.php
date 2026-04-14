@@ -60,8 +60,18 @@ class mod_cmi5_mod_form extends moodleform_mod {
         $mform->setDefault('packagesource', 'upload');
 
         // Upload option.
-        $mform->addElement('filepicker', 'packagefile', get_string('packagefile', 'cmi5'), null,
-            ['maxbytes' => 0, 'accepted_types' => ['.zip']]);
+        $filemanageroptions = [];
+        $filemanageroptions['accepted_types'] = ['.zip'];
+        $filemanageroptions['maxbytes'] = 0;
+        $filemanageroptions['maxfiles'] = 1;
+        $filemanageroptions['subdirs'] = 0;
+        $mform->addElement(
+            'filemanager',
+            'packagefile',
+            get_string('cmi5package', 'cmi5launch'),
+            null,
+            $filemanageroptions
+        );
         $mform->addHelpButton('packagefile', 'packagefile', 'cmi5');
         $mform->hideIf('packagefile', 'packagesource', 'ne', 'upload');
 
