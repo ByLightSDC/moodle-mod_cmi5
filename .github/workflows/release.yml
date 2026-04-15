@@ -2,8 +2,8 @@ name: Release Moodle Plugin
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -13,16 +13,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Get version info
         id: version
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
           RELEASE=$(php -r "require 'version.php'; echo \$plugin->release;")
+          TAG="v$RELEASE"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
+          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Tag $TAG already exists — skipping release."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
 
       - name: Build plugin ZIP
+        if: steps.version.outputs.exists == 'false'
         run: |
           mkdir -p /tmp/cmi5
           rsync -a --exclude='.git' --exclude='.github' --exclude='.gitignore' --exclude='CLAUDE.md' --exclude='.claude' . /tmp/cmi5/
@@ -30,8 +47,10 @@ jobs:
           zip -r moodle-mod_cmi5.zip cmi5/
 
       - name: Create release
+        if: steps.version.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
           files: /tmp/moodle-mod_cmi5.zip
           generate_release_notes: true
