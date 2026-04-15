@@ -19,7 +19,7 @@ jobs:
       - name: Get version info
         id: version
         run: |
-          RELEASE=$(php -r "require 'version.php'; echo \$plugin->release;")
+          RELEASE=$(php -r "define('MOODLE_INTERNAL', true); require 'version.php'; echo \$plugin->release;")
           TAG="v$RELEASE"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
