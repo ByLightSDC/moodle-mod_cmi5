@@ -50,11 +50,31 @@ jobs:
           cd /tmp
           zip -r moodle-mod_cmi5.zip cmi5/
 
+      - name: Build release notes
+        if: steps.version.outputs.exists == 'false'
+        id: notes
+        run: |
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${{ steps.version.outputs.tag }}$" | head -1)
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+          NOTES=$(git log "$RANGE" --pretty=format:"- %s" --no-merges)
+          {
+            echo "body<<EOF"
+            echo "## What's Changed"
+            echo ""
+            echo "$NOTES"
+            echo ""
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create release
         if: steps.version.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
+          body: ${{ steps.notes.outputs.body }}
           files: /tmp/moodle-mod_cmi5.zip
-          generate_release_notes: true
