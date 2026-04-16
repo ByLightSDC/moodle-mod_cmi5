@@ -158,4 +158,4 @@ The plugin exposes 13 AJAX-enabled web service functions for frontend interactio
 
 This plugin is licensed under the [GNU GPL v3 or later](http://www.gnu.org/copyleft/gpl.html).
 
-Copyright 2026 David Ropte
+Copyright 2026 Bylight

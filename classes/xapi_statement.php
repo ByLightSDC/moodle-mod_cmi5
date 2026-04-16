@@ -21,7 +21,7 @@
  * (Satisfied, Abandoned) and for validating incoming statements.
  *
  * @package    mod_cmi5
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -36,7 +36,7 @@ defined('MOODLE_INTERNAL') || die();
  * and validation of AU-originated statements against cmi5 rules.
  *
  * @package    mod_cmi5
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class xapi_statement {

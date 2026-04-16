@@ -21,7 +21,7 @@
  * constructing AU launch URLs.
  *
  * @package    mod_cmi5
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -33,7 +33,7 @@ defined('MOODLE_INTERNAL') || die();
  * Generates URLs for cmi5 content files and AU launch entry points.
  *
  * @package    mod_cmi5
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class content_server {

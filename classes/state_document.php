@@ -21,7 +21,7 @@
  * cmi5 specification.
  *
  * @package    mod_cmi5
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -37,7 +37,7 @@ defined('MOODLE_INTERNAL') || die();
  * launch mode, moveOn criteria, and optional mastery score.
  *
  * @package    mod_cmi5
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class state_document {

@@ -21,7 +21,7 @@
  * methods for exporting and deleting that data per GDPR requirements.
  *
  * @package    mod_cmi5
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -43,7 +43,7 @@ use core_privacy\local\request\writer;
  * export and deletion handlers.
  *
  * @package    mod_cmi5
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class provider implements

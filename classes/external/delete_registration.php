@@ -18,7 +18,7 @@
  * External function to delete a learner's registration (cascade).
  *
  * @package    mod_cmi5
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -35,7 +35,7 @@ use core_external\external_value;
  * External function to delete a learner's registration and all related data.
  *
  * @package    mod_cmi5
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class delete_registration extends external_api {

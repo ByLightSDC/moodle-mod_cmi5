@@ -17,7 +17,7 @@
  * Live progress updates for AU status.
  *
  * @module     mod_cmi5/progress
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 

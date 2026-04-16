@@ -17,7 +17,7 @@
  * Metrics dashboard - AJAX loading, Chart.js rendering, sub-view switching.
  *
  * @module     mod_cmi5/metrics
- * @copyright  2026 David Ropte
+ * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
