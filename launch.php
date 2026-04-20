@@ -68,6 +68,7 @@ $PAGE->set_context($context);
 if ($cmi5->launchmethod == 1) {
     // Iframe - show launch frame template.
     $PAGE->set_pagelayout('embedded');
+    $PAGE->activityheader->disable();
 
     echo $OUTPUT->header();
     echo $OUTPUT->render_from_template('mod_cmi5/launch_frame', [
