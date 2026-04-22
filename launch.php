@@ -52,14 +52,6 @@ $event = \mod_cmi5\event\au_launched::create([
 ]);
 $event->trigger();
 
-// Determine the "back" URL: course page for single-AU, view page for multi-AU.
-$aucount = $DB->count_records('cmi5_aus', ['cmi5id' => $cmi5->id]);
-if ($aucount <= 1) {
-    $backurl = new moodle_url('/course/view.php', ['id' => $course->id]);
-} else {
-    $backurl = new moodle_url('/mod/cmi5/view.php', ['id' => $cm->id]);
-}
-
 $PAGE->set_url('/mod/cmi5/launch.php', ['id' => $id, 'auid' => $auid]);
 $PAGE->set_title(format_string($au->title));
 $PAGE->set_heading(format_string($course->fullname));
@@ -73,8 +65,6 @@ if ($cmi5->launchmethod == 1) {
     echo $OUTPUT->header();
     echo $OUTPUT->render_from_template('mod_cmi5/launch_frame', [
         'launchurl' => $launchurl,
-        'title' => format_string($au->title),
-        'returnurl' => $backurl->out(false),
     ]);
     echo $OUTPUT->footer();
 } else {

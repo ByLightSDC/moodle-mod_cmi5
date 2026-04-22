@@ -39,8 +39,11 @@ $cm = get_coursemodule_from_instance('cmi5', $cmi5->id, $cmi5->course, false, MU
 
 require_login($cmi5->course, true, $cm);
 
-// If session was initialized but not terminated, the AU exited without sending Terminated.
-// The scheduled task will handle abandonment after timeout.
-
-// Redirect back to the activity view.
-redirect(new moodle_url('/mod/cmi5/view.php', ['id' => $cm->id]));
+// Signal the parent frame to navigate to the activity view so the learner sees
+// their grade and AU satisfaction status. postMessage keeps iframe teardown owned
+// by the parent (launch_frame.mustache) rather than a navigation inside the frame.
+$desturl = (new moodle_url('/mod/cmi5/view.php', ['id' => $cm->id]))->out(false);
+$message = json_encode(['type' => 'cmi5_return', 'url' => $desturl]);
+header('Content-Type: text/html; charset=utf-8');
+echo "<!DOCTYPE html><html><body><script>window.parent.postMessage({$message}, window.location.origin);</script></body></html>";
+exit;

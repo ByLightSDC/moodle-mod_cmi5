@@ -102,7 +102,7 @@ class launch_manager {
             ],
         ], JSON_UNESCAPED_SLASHES);
 
-        // Assemble the five cmi5 launch parameters.
+        // Assemble the cmi5 launch parameters.
         // The endpoint must be a clean base URL without query params because
         // the @xapi/cmi5 library appends paths like /statements, /activities/state etc.
         $params = [
@@ -111,6 +111,7 @@ class launch_manager {
             'actor' => $actor,
             'activityId' => $au->auid,
             'registration' => $registration->registrationid,
+            'returnURL' => $CFG->wwwroot . '/mod/cmi5/return.php?sessionid=' . $session->sessionid,
         ];
 
         // Append parameters to the launch URL.
