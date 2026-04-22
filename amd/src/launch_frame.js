@@ -30,7 +30,7 @@ export const init = () => {
             return;
         }
         if (e.data && e.data.type === 'cmi5_return') {
-            window.location.href = e.data.url;
+            window.location.replace(e.data.url);
         }
     });
 };
