@@ -5,20 +5,23 @@
 
     Context variables:
     * launchurl - full launch URL for the AU
-    * title - AU title
-    * returnurl - URL to return to activity view
 }}
-<div class="mod-cmi5-launch-frame">
-    <div class="d-flex justify-content-between align-items-center p-2 bg-light border-bottom">
-        <h4 class="m-0">{{title}}</h4>
-        <a href="{{returnurl}}" class="btn btn-secondary btn-sm">
-            {{#str}}back{{/str}}
-        </a>
-    </div>
+<style>
+html, body { overflow: hidden; margin: 0; padding: 0; }
+#maincontent { display: block; height: 0; overflow: hidden; }
+/* activity-header renders empty in embedded layout, hide it */
+.activity-header { display: none; }
+</style>
+<div class="mod-cmi5-launch-frame vh-100" style="overflow: hidden;">
     <iframe src="{{launchurl}}"
-            class="mod-cmi5-iframe w-100"
-            style="height: calc(100vh - 60px); border: none;"
+            class="mod-cmi5-iframe w-100 h-100"
+            style="border: none; display: block;"
             allowfullscreen
             allow="microphone; camera; autoplay; encrypted-media">
     </iframe>
 </div>
+{{#js}}
+require(['mod_cmi5/launch_frame'], function(LaunchFrame) {
+    LaunchFrame.init();
+});
+{{/js}}
