@@ -47,8 +47,6 @@ export const init = (courseModuleId, launchMethod) => {
  * @param {Event} e Click event.
  */
 const handleLaunch = (e) => {
-    // For new window launches, let the default link behavior handle it.
-    // For iframe launches, the server-side handles the redirect.
     if (defaultLaunchMethod === 0) {
         // New window - open in a popup-style window.
         e.preventDefault();
@@ -67,13 +65,69 @@ const handleLaunch = (e) => {
                 }
             }, 2000);
         }
+    } else {
+        // Iframe mode — launch in a full-screen overlay so the browser URL
+        // stays at view.php. The overlay is torn down when the AU navigates
+        // to return.php which redirects to view.php (same-origin, readable).
+        e.preventDefault();
+        const auid = e.currentTarget.dataset.auid;
+        openIframeOverlay(auid);
     }
-    // For iframe (launchMethod=1), the default link behavior redirects to launch.php
-    // which renders the iframe template.
 };
 
 /**
- * Refresh AU status after a launch window closes.
+ * Launch an AU in a full-screen overlay iframe.
+ * Keeps the browser URL at view.php throughout the session.
+ *
+ * @param {string|number} auid The AU database ID.
+ */
+const openIframeOverlay = (auid) => {
+    Ajax.call([{
+        methodname: 'mod_cmi5_get_launch_url',
+        args: {cmid: cmid, auid: parseInt(auid)},
+        done: (response) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'mod-cmi5-overlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:#000;';
+
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+            iframe.setAttribute('allow', 'microphone; camera; autoplay; encrypted-media');
+            iframe.allowFullscreen = true;
+
+            // return.php (same-origin) redirects to view.php when the AU exits.
+            // Cross-origin AU frames throw on location access — catch and ignore.
+            // Once the iframe lands on view.php we can read the href, which is
+            // the signal to tear down the overlay and refresh the status row.
+            iframe.addEventListener('load', () => {
+                try {
+                    const href = iframe.contentWindow.location.href;
+                    if (href.indexOf('/mod/cmi5/view.php') !== -1) {
+                        overlay.parentNode.removeChild(overlay);
+                        refreshAuStatus(auid);
+                    }
+                } catch (ex) {
+                    // Cross-origin AU frame — still running, nothing to do.
+                }
+            });
+
+            iframe.src = response.launchurl;
+            overlay.appendChild(iframe);
+            document.body.appendChild(overlay);
+        },
+        fail: () => {
+            // AJAX failed — fall back to navigating directly to launch.php.
+            const btn = document.querySelector('[data-auid="' + auid + '"] .mod-cmi5-launch-btn') ||
+                        document.querySelector('.mod-cmi5-launch-btn[data-auid="' + auid + '"]');
+            if (btn) {
+                window.location.href = btn.getAttribute('href');
+            }
+        },
+    }]);
+};
+
+/**
+ * Refresh AU status after a launch session ends.
  *
  * @param {number} auid The AU database ID.
  */
@@ -106,7 +160,6 @@ const updateAuDisplay = (au) => {
     const badge = row.querySelector('.badge');
     if (badge) {
         badge.textContent = au.statustext;
-        // Remove old status classes and add new one.
         badge.className = badge.className.replace(/badge-\S+/g, '').replace(/bg-\S+/g, '');
         const statusclass = getStatusClass(au);
         badge.classList.add('badge', 'badge-' + statusclass, 'bg-' + statusclass);

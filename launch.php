@@ -52,22 +52,6 @@ $event = \mod_cmi5\event\au_launched::create([
 ]);
 $event->trigger();
 
-$PAGE->set_url('/mod/cmi5/launch.php', ['id' => $id, 'auid' => $auid]);
-$PAGE->set_title(format_string($au->title));
-$PAGE->set_heading(format_string($course->fullname));
-$PAGE->set_context($context);
-
-if ($cmi5->launchmethod == 1) {
-    // Iframe - show launch frame template.
-    $PAGE->set_pagelayout('embedded');
-    $PAGE->activityheader->disable();
-
-    echo $OUTPUT->header();
-    echo $OUTPUT->render_from_template('mod_cmi5/launch_frame', [
-        'launchurl' => $launchurl,
-    ]);
-    echo $OUTPUT->footer();
-} else {
-    // New window - redirect straight to AU content.
-    redirect($launchurl);
-}
+// Redirect straight to the AU content. For iframe mode the overlay in launcher.js
+// handles the session normally via AJAX; this page is only reached as a JS fallback.
+redirect($launchurl);
