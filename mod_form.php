@@ -68,7 +68,7 @@ class mod_cmi5_mod_form extends moodleform_mod {
         $mform->addElement(
             'filemanager',
             'packagefile',
-            get_string('cmi5package', 'cmi5launch'),
+            get_string('packagefile', 'cmi5'),
             null,
             $filemanageroptions
         );
