@@ -29,19 +29,22 @@ require_once($CFG->dirroot . '/mod/cmi5/backup/moodle2/backup_cmi5_stepslib.php'
 /**
  * Provides the steps to perform one complete backup of the cmi5 instance.
  */
-class backup_cmi5_activity_task extends backup_activity_task {
+class backup_cmi5_activity_task extends backup_activity_task
+{
 
     /**
      * No particular settings for this activity.
      */
-    protected function define_my_settings() {
+    protected function define_my_settings()
+    {
         // No particular settings.
     }
 
     /**
      * Define backup steps.
      */
-    protected function define_my_steps() {
+    protected function define_my_steps()
+    {
         $this->add_step(new backup_cmi5_activity_structure_step('cmi5_structure', 'cmi5.xml'));
     }
 
@@ -51,7 +54,8 @@ class backup_cmi5_activity_task extends backup_activity_task {
      * @param string $content
      * @return string
      */
-    public static function encode_content_links($content) {
+    public static function encode_content_links($content)
+    {
         global $CFG;
 
         $base = preg_quote($CFG->wwwroot, '/');
