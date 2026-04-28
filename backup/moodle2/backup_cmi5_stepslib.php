@@ -27,64 +27,116 @@ defined('MOODLE_INTERNAL') || die();
 /**
  * Define the complete cmi5 structure for backup.
  */
-class backup_cmi5_activity_structure_step extends backup_activity_structure_step {
+class backup_cmi5_activity_structure_step extends backup_activity_structure_step
+{
 
     /**
      * Define the structure.
      *
      * @return backup_nested_element
      */
-    protected function define_structure() {
+    protected function define_structure()
+    {
         $userinfo = $this->get_setting_value('userinfo');
 
         // Define elements.
         $cmi5 = new backup_nested_element('cmi5', ['id'], [
-            'course', 'name', 'intro', 'introformat', 'packagefilename',
-            'packageid', 'packageversionid',
-            'courseid_iri', 'grademethod', 'maxgrade', 'launchmethod',
-            'sessiontimeout', 'lrsendpoint', 'lrskey', 'lrssecret', 'lrsmode',
-            'launchparameters', 'profileid',
-            'timecreated', 'timemodified',
+            'course',
+            'name',
+            'intro',
+            'introformat',
+            'packagefilename',
+            'packageid',
+            'packageversionid',
+            'courseid_iri',
+            'grademethod',
+            'maxgrade',
+            'launchmethod',
+            'sessiontimeout',
+            'lrsendpoint',
+            'lrskey',
+            'lrssecret',
+            'lrsmode',
+            'launchparameters',
+            'profileid',
+            'timecreated',
+            'timemodified',
         ]);
 
         $aus = new backup_nested_element('aus');
         $au = new backup_nested_element('au', ['id'], [
-            'auid', 'title', 'description', 'url', 'launchmethod',
-            'moveoncriteria', 'masteryscore', 'launchparameters',
-            'entitlementkey', 'parentblockid', 'sortorder',
+            'auid',
+            'title',
+            'description',
+            'url',
+            'launchmethod',
+            'moveoncriteria',
+            'masteryscore',
+            'launchparameters',
+            'entitlementkey',
+            'parentblockid',
+            'sortorder',
         ]);
 
         $blocks = new backup_nested_element('blocks');
         $block = new backup_nested_element('block', ['id'], [
-            'blockid', 'title', 'description', 'parentblockid', 'sortorder',
+            'blockid',
+            'title',
+            'description',
+            'parentblockid',
+            'sortorder',
         ]);
 
         $registrations = new backup_nested_element('registrations');
         $registration = new backup_nested_element('registration', ['id'], [
-            'userid', 'registrationid', 'coursesatisfied', 'timecreated', 'timemodified',
+            'userid',
+            'registrationid',
+            'coursesatisfied',
+            'timecreated',
+            'timemodified',
         ]);
 
         $austatuses = new backup_nested_element('au_statuses');
         $austatus = new backup_nested_element('au_status', ['id'], [
-            'auid', 'completed', 'passed', 'failed', 'satisfied', 'waived',
-            'score_scaled', 'timecreated', 'timemodified',
+            'auid',
+            'completed',
+            'passed',
+            'failed',
+            'satisfied',
+            'waived',
+            'score_scaled',
+            'timecreated',
+            'timemodified',
         ]);
 
         $sessions = new backup_nested_element('sessions');
         $session = new backup_nested_element('session', ['id'], [
-            'auid', 'sessionid', 'launchmode', 'initialized', 'terminated',
-            'abandoned', 'timecreated', 'timemodified',
+            'auid',
+            'sessionid',
+            'launchmode',
+            'initialized',
+            'terminated',
+            'abandoned',
+            'timecreated',
+            'timemodified',
         ]);
 
         $statements = new backup_nested_element('statements');
         $statement = new backup_nested_element('statement', ['id'], [
-            'statementid', 'verb', 'statement_json', 'is_cmi5_defined',
-            'forwarded', 'timecreated',
+            'statementid',
+            'verb',
+            'statement_json',
+            'is_cmi5_defined',
+            'forwarded',
+            'timecreated',
         ]);
 
         $blockstatuses = new backup_nested_element('block_statuses');
         $blockstatus = new backup_nested_element('block_status', ['id'], [
-            'blockid', 'satisfied', 'timecreated', 'timemodified',
+            'blockid',
+            'satisfied',
+            'timecreated',
+            'timemodified',
         ]);
 
         // Build the tree.
@@ -130,10 +182,14 @@ class backup_cmi5_activity_structure_step extends backup_activity_structure_step
         }
 
         // Define file annotations.
-        $cmi5->annotate_files('mod_cmi5', 'package', null);
-        $cmi5->annotate_files('mod_cmi5', 'content', null);
         $cmi5->annotate_files('mod_cmi5', 'intro', null);
-
+        // Package ZIP stored with itemid=0; use null so itemid is not filtered.
+        $cmi5->annotate_files('mod_cmi5', 'package', null);
+        // Content files stored in module context with cmi5.id as itemid.
+        $cmi5->annotate_files('mod_cmi5', 'content', 'id');
+        // Library content lives in SYSTEM context, keyed by packageversionid (not packageid).
+        $cmi5->annotate_files('mod_cmi5', 'library_content', 'packageversionid',
+            \context_system::instance()->id);
         return $this->prepare_activity_structure($cmi5);
     }
 }
