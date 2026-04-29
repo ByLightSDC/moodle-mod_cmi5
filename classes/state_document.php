@@ -121,14 +121,13 @@ class state_document {
             ];
         }
 
-        // Add the return URL pointing back to the activity view page.
-        // We need the course module ID (not the cmi5 instance ID).
-        $cm = get_coursemodule_from_instance('cmi5', $cmi5->id);
-        if ($cm) {
-            $launchdata['returnURL'] = $CFG->wwwroot . '/mod/cmi5/view.php?id=' . $cm->id;
-        } else {
-            $launchdata['returnURL'] = $CFG->wwwroot;
-        }
+        // Previously this always set returnUrl regardless of what we tried to pass back as flag,
+        // Now it checks launch method.
+        // Iframe: AU navigates to return.php on exit so the session can be resolved.
+        // New window: omit returnURL so the AU doesn't navigate away from the popup.
+        $launchdata['returnURL'] = $cmi5->launchmethod == 1
+            ? $CFG->wwwroot . '/mod/cmi5/return.php?sessionid=' . $session->sessionid
+            : '';
 
         return json_encode($launchdata, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
     }

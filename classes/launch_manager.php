@@ -105,16 +105,18 @@ class launch_manager {
         // Assemble the cmi5 launch parameters.
         // The endpoint must be a clean base URL without query params because
         // the @xapi/cmi5 library appends paths like /statements, /activities/state etc.
-        // PAss returnUrl so AUs know where to go on close.
+        // If this is inframe, pass the returnurl so it can navigate back, if this is not (a popup) pass blank string
+        // so the player knows not to navigate but to close.
         $params = [
             'endpoint' => $CFG->wwwroot . '/mod/cmi5/proxy.php/' . $session->sessionid . '/',
             'fetch' => $CFG->wwwroot . '/mod/cmi5/fetch.php?token=' . $fetchtoken,
             'actor' => $actor,
             'activityId' => $au->auid,
             'registration' => $registration->registrationid,
-            'returnURL' => $CFG->wwwroot . '/mod/cmi5/return.php?sessionid=' . $session->sessionid,
+            'returnURL' => $this->cmi5->launchmethod == 1
+                ? $CFG->wwwroot . '/mod/cmi5/return.php?sessionid=' . $session->sessionid
+                : '',
         ];
-
         // Append parameters to the launch URL.
         $separator = (strpos($launchurl, '?') !== false) ? '&' : '?';
         $launchurl .= $separator . http_build_query($params, '', '&');
