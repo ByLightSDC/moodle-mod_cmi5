@@ -1,0 +1,4 @@
+/* Override Moodle core #maincontent height to remove gap above iframe, leaves accessibility use in tact*/
+#maincontent {
+    height: 0 !important;
+}
