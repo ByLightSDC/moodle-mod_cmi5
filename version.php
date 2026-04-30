@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'mod_cmi5';
-$plugin->version = 2026041403;
+$plugin->version = 2026041404;
 $plugin->requires = 2022112800; // Moodle 4.1+.
 $plugin->maturity = MATURITY_ALPHA;
-$plugin->release = '0.0.4';
+$plugin->release = '0.0.6';
