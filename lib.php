@@ -50,6 +50,8 @@ function cmi5_supports($feature) {
             return false;
         case FEATURE_GROUPS:
             return false;
+        case FEATURE_MOD_PURPOSE:
+            return MOD_PURPOSE_INTERACTIVECONTENT;
         default:
             return null;
     }
@@ -497,4 +499,14 @@ function cmi5_get_extra_capabilities() {
  */
 function cmi5_cm_info_view(cm_info $cm) {
     // No dynamic info on course page.
+}
+
+/**
+ * Whether the activity is branded.
+ * Returning true prevents Moodle's theme from applying a recolor filter to the icon.
+ *
+ * @return bool
+ */
+function cmi5_is_branded(): bool {
+    return true;
 }
