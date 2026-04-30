@@ -1,4 +1,16 @@
-/* Override Moodle core #maincontent height to remove gap above iframe, leaves accessibility use in tact*/
+/* Override Moodle core #maincontent height to remove gap above iframe, leaves accessibility use intact */
 #maincontent {
     height: 0 !important;
+}
+
+/* cmi5 icon: #43589D in light mode */
+.modicon_cmi5 .activityicon,
+.activityiconcontainer.isbranded.interactivecontent .activityicon {
+    filter: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"><filter id="recolor" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0.2627450980 0 0 0 0 0.3450980392 0 0 0 0 0.6156862745 0 0 0 1 0 "/></filter></svg>#recolor') !important;
+}
+
+/* cmi5 icon: #7795F8 in dark mode */
+[data-bs-theme=dark] .modicon_cmi5 .activityicon,
+[data-bs-theme=dark] .activityiconcontainer.isbranded.interactivecontent .activityicon {
+    filter: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"><filter id="recolor" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0.4666666667 0 0 0 0 0.5843137255 0 0 0 0 0.9725490196 0 0 0 1 0 "/></filter></svg>#recolor') !important;
 }
