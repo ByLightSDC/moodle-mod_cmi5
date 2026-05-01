@@ -295,10 +295,12 @@ class mod_cmi5_mod_form extends moodleform_mod {
 
         $mform->addElement('text', 'lrskey', get_string('lrskey', 'cmi5'), ['size' => '40']);
         $mform->setType('lrskey', PARAM_TEXT);
+        $mform->setDefault('lrskey', get_config('mod_cmi5', 'lrskey'));
         $mform->hideIf('lrskey', 'lrsmode', 'eq', 0);
 
         $mform->addElement('passwordunmask', 'lrssecret', get_string('lrssecret', 'cmi5'), ['size' => '40']);
         $mform->setType('lrssecret', PARAM_TEXT);
+        $mform->setDefault('lrssecret', get_config('mod_cmi5', 'lrssecret'));
         $mform->hideIf('lrssecret', 'lrsmode', 'eq', 0);
 
         // Standard elements.
