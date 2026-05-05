@@ -343,7 +343,7 @@ class mod_cmi5_mod_form extends moodleform_mod {
                 if (empty($draftfiles)) {
                     $errors['packagefile'] = get_string('required');
                 }
-            // This is when packagesoure is library    
+            // This is when packagesource is library.   
             } else {
                 if (empty($data['packageid'])) {
                     $errors['packageid'] = get_string('required');
