@@ -48,98 +48,95 @@ class mod_cmi5_mod_form extends moodleform_mod {
 
         $this->standard_intro_elements();
 
-        // Package section.
-        $mform->addElement('header', 'packagehdr', get_string('cmi5fieldset', 'cmi5'));
+        // Package section — only shown when creating a new activity.
+        // $this->current->instance is the ID of an existing activity record in cmi5 DB.
+        if (empty($this->current->instance)) {
+            $mform->addElement('header', 'packagehdr', get_string('cmi5fieldset', 'cmi5'));
 
-        // Package source: upload or library.
-        $sourceoptions = [
-            'upload' => get_string('packagesource_upload', 'cmi5'),
-            'library' => get_string('packagesource_library', 'cmi5'),
-        ];
-        $mform->addElement('select', 'packagesource', get_string('packagesource', 'cmi5'), $sourceoptions);
-        $mform->setDefault('packagesource', 'upload');
+            // Package source: upload or library.
+            $sourceoptions = [
+                'upload' => get_string('packagesource_upload', 'cmi5'),
+                'library' => get_string('packagesource_library', 'cmi5'),
+            ];
+            $mform->addElement('select', 'packagesource', get_string('packagesource', 'cmi5'), $sourceoptions);
+            $mform->setDefault('packagesource', 'upload');
 
-        // Upload option.
-        $filemanageroptions = [];
-        $filemanageroptions['accepted_types'] = ['.zip'];
-        $filemanageroptions['maxbytes'] = 0;
-        $filemanageroptions['maxfiles'] = 1;
-        $filemanageroptions['subdirs'] = 0;
-        $mform->addElement(
-            'filemanager',
-            'packagefile',
-            get_string('packagefile', 'cmi5'),
-            null,
-            $filemanageroptions
-        );
-        $mform->addHelpButton('packagefile', 'packagefile', 'cmi5');
-        $mform->hideIf('packagefile', 'packagesource', 'ne', 'upload');
+            // Upload option.
+            $filemanageroptions = [];
+            $filemanageroptions['accepted_types'] = ['.zip'];
+            $filemanageroptions['maxbytes'] = 0;
+            $filemanageroptions['maxfiles'] = 1;
+            $filemanageroptions['subdirs'] = 0;
+            $mform->addElement(
+                'filemanager',
+                'packagefile',
+                get_string('packagefile', 'cmi5'),
+                null,
+                $filemanageroptions
+            );
+            $mform->addHelpButton('packagefile', 'packagefile', 'cmi5');
+            $mform->hideIf('packagefile', 'packagesource', 'ne', 'upload');
 
-        // Library picker option.
-        $libraryoptions = ['' => get_string('selectpackage', 'cmi5')];
-        $packages = \mod_cmi5\content_library::list_packages('', 1, 0, 200);
-        // Build AU lookup keyed by package for the AU picker.
-        $ausByPackage = [];
-        foreach ($packages as $pkg) {
-            $libraryoptions[$pkg->id] = format_string($pkg->title);
-            $details = \mod_cmi5\content_library::get_package_details((int) $pkg->id);
-            $ausByPackage[$pkg->id] = $details->aus ?? [];
-        }
-        $mform->addElement('select', 'packageid', get_string('librarypackage', 'cmi5'), $libraryoptions);
-        $mform->addHelpButton('packageid', 'librarypackage', 'cmi5');
-        $mform->hideIf('packageid', 'packagesource', 'ne', 'library');
-
-        // AU picker — select which AU from the package (or "all").
-        $auoptions = ['' => get_string('library:allaus', 'cmi5')];
-        // Build a JSON map for JS to use when switching packages.
-        $aujsonmap = [];
-        foreach ($ausByPackage as $pkgid => $aus) {
-            $aujsonmap[$pkgid] = [];
-            foreach ($aus as $au) {
-                $key = $pkgid . ':' . $au->id;
-                $auoptions[$key] = format_string($au->title);
-                $aujsonmap[$pkgid][] = ['key' => $key, 'title' => format_string($au->title)];
+            // Library picker option.
+            $libraryoptions = ['' => get_string('selectpackage', 'cmi5')];
+            $packages = \mod_cmi5\content_library::list_packages('', 1, 0, 200);
+            $ausByPackage = [];
+            foreach ($packages as $pkg) {
+                $libraryoptions[$pkg->id] = format_string($pkg->title);
+                $details = \mod_cmi5\content_library::get_package_details((int) $pkg->id);
+                $ausByPackage[$pkg->id] = $details->aus ?? [];
             }
-        }
-        $mform->addElement('select', 'libraryauid', get_string('library:selectau', 'cmi5'), $auoptions);
-        $mform->addHelpButton('libraryauid', 'library:selectau', 'cmi5');
-        $mform->hideIf('libraryauid', 'packagesource', 'ne', 'library');
+            $mform->addElement('select', 'packageid', get_string('librarypackage', 'cmi5'), $libraryoptions);
+            $mform->addHelpButton('packageid', 'librarypackage', 'cmi5');
+            $mform->hideIf('packageid', 'packagesource', 'ne', 'library');
 
-        // Inline JS to filter AU options based on selected package.
-        $aujson = json_encode($aujsonmap);
-        $allauslabel = get_string('library:allaus', 'cmi5');
-        $mform->addElement('html', "<script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var pkgSelect = document.getElementById('id_packageid');
-            var auSelect = document.getElementById('id_libraryauid');
-            var auMap = {$aujson};
-            var allLabel = " . json_encode($allauslabel) . ";
-            if (!pkgSelect || !auSelect) return;
-            function updateAuOptions() {
-                var pkgId = pkgSelect.value;
-                var currentVal = auSelect.value;
-                auSelect.innerHTML = '';
-                var opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = allLabel;
-                auSelect.appendChild(opt);
-                if (pkgId && auMap[pkgId]) {
-                    auMap[pkgId].forEach(function(au) {
-                        var o = document.createElement('option');
-                        o.value = au.key;
-                        o.textContent = au.title;
-                        if (au.key === currentVal) o.selected = true;
-                        auSelect.appendChild(o);
-                    });
+            // AU picker — select which AU from the package (or "all").
+            $auoptions = ['' => get_string('library:allaus', 'cmi5')];
+            $aujsonmap = [];
+            foreach ($ausByPackage as $pkgid => $aus) {
+                $aujsonmap[$pkgid] = [];
+                foreach ($aus as $au) {
+                    $key = $pkgid . ':' . $au->id;
+                    $auoptions[$key] = format_string($au->title);
+                    $aujsonmap[$pkgid][] = ['key' => $key, 'title' => format_string($au->title)];
                 }
             }
-            pkgSelect.addEventListener('change', updateAuOptions);
-            updateAuOptions();
-        });
-        </script>");
+            $mform->addElement('select', 'libraryauid', get_string('library:selectau', 'cmi5'), $auoptions);
+            $mform->addHelpButton('libraryauid', 'library:selectau', 'cmi5');
+            $mform->hideIf('libraryauid', 'packagesource', 'ne', 'library');
 
-        if (empty($this->current->instance)) {
-            // Validation is handled in validation() — one of the two must be provided.
+            // Inline JS to filter AU options based on selected package.
+            $aujson = json_encode($aujsonmap);
+            $allauslabel = get_string('library:allaus', 'cmi5');
+            $mform->addElement('html', "<script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var pkgSelect = document.getElementById('id_packageid');
+                var auSelect = document.getElementById('id_libraryauid');
+                var auMap = {$aujson};
+                var allLabel = " . json_encode($allauslabel) . ";
+                if (!pkgSelect || !auSelect) return;
+                function updateAuOptions() {
+                    var pkgId = pkgSelect.value;
+                    var currentVal = auSelect.value;
+                    auSelect.innerHTML = '';
+                    var opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = allLabel;
+                    auSelect.appendChild(opt);
+                    if (pkgId && auMap[pkgId]) {
+                        auMap[pkgId].forEach(function(au) {
+                            var o = document.createElement('option');
+                            o.value = au.key;
+                            o.textContent = au.title;
+                            if (au.key === currentVal) o.selected = true;
+                            auSelect.appendChild(o);
+                        });
+                    }
+                }
+                pkgSelect.addEventListener('change', updateAuOptions);
+                updateAuOptions();
+            });
+            </script>");
         }
 
         // Version selector — when editing an existing library-linked instance.
@@ -331,14 +328,22 @@ class mod_cmi5_mod_form extends moodleform_mod {
      * @return array
      */
     public function validation($data, $files) {
+        global $USER;
         $errors = parent::validation($data, $files);
 
         // On create, require either a package upload or a library selection.
         if (empty($this->current->instance)) {
             if (($data['packagesource'] ?? 'upload') === 'upload') {
-                if (empty($data['packagefile'])) {
+                //Check if a file is uploaded.
+                $fs = get_file_storage();
+                $usercontext = context_user::instance($USER->id);
+                $draftfiles = $fs->get_area_files(
+                    $usercontext->id, 'user', 'draft', $data['packagefile'], 'id', false
+                );
+                if (empty($draftfiles)) {
                     $errors['packagefile'] = get_string('required');
                 }
+            // This is when packagesource is library.   
             } else {
                 if (empty($data['packageid'])) {
                     $errors['packageid'] = get_string('required');

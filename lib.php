@@ -215,24 +215,23 @@ function cmi5_update_instance($data, $mform = null) {
         }
     }
 
-    // Handle file re-upload if changed.
-    if ($mform && !empty($draftitemid)) {
-        $cmid = $data->coursemodule;
-        $context = context_module::instance($cmid);
-
-        file_save_draft_area_files(
-            $draftitemid,
-            $context->id,
-            'mod_cmi5',
-            'package',
-            0,
-            ['maxfiles' => 1, 'accepted_types' => ['.zip']]
-        );
-
-        // Re-parse the package.
-        $package = new \mod_cmi5\cmi5_package($context, $data->id);
-        $package->process_uploaded_package();
-    }
+    // Package re-upload on edit is disabled to prevent orphaning learner data (AU IDs change on re-parse).
+    // Uncomment if a team decision is made to support intentional package replacement.
+    // I cannot think of a use case this is needed, will check -MB
+    // if ($mform && !empty($draftitemid)) {
+    //     $cmid = $data->coursemodule;
+    //     $context = context_module::instance($cmid);
+    //     file_save_draft_area_files(
+    //         $draftitemid,
+    //         $context->id,
+    //         'mod_cmi5',
+    //         'package',
+    //         0,
+    //         ['maxfiles' => 1, 'accepted_types' => ['.zip']]
+    //     );
+    //     $package = new \mod_cmi5\cmi5_package($context, $data->id);
+    //     $package->process_uploaded_package();
+    // }
 
     cmi5_grade_item_update($data);
 
