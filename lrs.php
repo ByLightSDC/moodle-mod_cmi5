@@ -406,8 +406,10 @@ function forward_to_external_lrs(\stdClass $session, string $body, array $statem
         try {
             $lrs = new \mod_cmi5\lrs_client($cmi5->lrsendpoint, $cmi5->lrskey, $cmi5->lrssecret);
             $lrs->send_statement($body);
-            foreach ($statementids as $sid) {
-                $DB->set_field('cmi5_statements', 'forwarded', 1, ['statementid' => $sid]);
+            if ($cmi5->lrsmode !== 2) {
+                foreach ($statementids as $sid) {
+                    $DB->set_field('cmi5_statements', 'forwarded', 1, ['statementid' => $sid]);
+                }
             }
         } catch (\Exception $e) {
             debugging('LRS forwarding failed: ' . $e->getMessage(), DEBUG_DEVELOPER);

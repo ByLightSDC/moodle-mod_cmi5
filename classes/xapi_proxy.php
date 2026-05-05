@@ -106,6 +106,9 @@ class xapi_proxy
         $expectedactor = xapi_statement::get_actor($registration->userid);
         $expectedregistration = $registration->registrationid;
 
+        $cmi5record = $DB->get_record('cmi5', ['id' => $registration->cmi5id]);
+        $lrsmode = $cmi5record ? (int)$cmi5record->lrsmode : 0;
+
         $statementids = [];
 
         // Build authority agent.
@@ -147,23 +150,23 @@ class xapi_proxy
             }
             $stmtregistration = $statement->context->registration ?? null;
 
-            // Store the statement.
-            $record = new \stdClass();
-            $record->sessionid = $this->session->id;
-            $record->statementid = $statementuuid;
-            $record->verb = $verbid;
-            $record->statement_json = json_encode($statement, JSON_UNESCAPED_SLASHES);
-            $record->is_cmi5_defined = $iscmi5defined;
-            $record->forwarded = 0;
-            $record->stored = $storediso;
-            $record->authority_json = json_encode($authority, JSON_UNESCAPED_SLASHES);
-            $record->voided = 0;
-            $record->actor_hash = $actorhash;
-            $record->activity_id = $activityid;
-            $record->registration = $stmtregistration;
-            $record->timecreated = $now;
-
-            $DB->insert_record('cmi5_statements', $record);
+            if ($lrsmode !== 2) {
+                $record = new \stdClass();
+                $record->sessionid = $this->session->id;
+                $record->statementid = $statementuuid;
+                $record->verb = $verbid;
+                $record->statement_json = json_encode($statement, JSON_UNESCAPED_SLASHES);
+                $record->is_cmi5_defined = $iscmi5defined;
+                $record->forwarded = 0;
+                $record->stored = $storediso;
+                $record->authority_json = json_encode($authority, JSON_UNESCAPED_SLASHES);
+                $record->voided = 0;
+                $record->actor_hash = $actorhash;
+                $record->activity_id = $activityid;
+                $record->registration = $stmtregistration;
+                $record->timecreated = $now;
+                $DB->insert_record('cmi5_statements', $record);
+            }
 
             // Handle voiding: if this is a voiding statement, mark the target as voided.
             if ($verbid === 'http://adlnet.gov/expapi/verbs/voided') {
