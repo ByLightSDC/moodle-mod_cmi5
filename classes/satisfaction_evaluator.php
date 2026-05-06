@@ -371,6 +371,16 @@ class satisfaction_evaluator {
      */
     private function store_satisfied_locally(\stdClass $statement, string $statementjson, \stdClass $latestsession): int {
         global $DB;
+
+        // Stored this way to make query more efficient and not need to parse JSON every time.
+        $actorhash = null;
+        if (isset($statement->actor->account->homePage, $statement->actor->account->name)) {
+            $actorhash = sha1($statement->actor->account->homePage . '|' . $statement->actor->account->name);
+        }
+        $activityid = isset($statement->object->id)
+            ? (\strlen($statement->object->id) > 255 ? substr($statement->object->id, 0, 255) : $statement->object->id)
+            : null;
+
         $record = new \stdClass();
         $record->sessionid = $latestsession->id;
         $record->statementid = $statement->id;
@@ -378,6 +388,12 @@ class satisfaction_evaluator {
         $record->statement_json = $statementjson;
         $record->is_cmi5_defined = 1;
         $record->forwarded = 0;
+        $record->stored = $statement->stored ?? gmdate('Y-m-d\TH:i:s.000\Z');
+        $record->authority_json = isset($statement->authority) ? json_encode($statement->authority, JSON_UNESCAPED_SLASHES) : null;
+        $record->voided = 0;
+        $record->actor_hash = $actorhash;
+        $record->activity_id = $activityid;
+        $record->registration = $statement->context->registration ?? null;
         $record->timecreated = time();
         return $DB->insert_record('cmi5_statements', $record);
     }
