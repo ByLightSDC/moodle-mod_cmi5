@@ -339,17 +339,68 @@ class satisfaction_evaluator {
         );
         $latestsession = !empty($sessions) ? reset($sessions) : null;
 
-        if ($latestsession) {
-            $record = new \stdClass();
-            $record->sessionid = $latestsession->id;
-            $record->statementid = $statement->id;
-            $record->verb = 'https://w3id.org/xapi/adl/verbs/satisfied';
-            $record->statement_json = $statementjson;
-            $record->is_cmi5_defined = 1;
-            $record->forwarded = 0;
-            $record->timecreated = time();
+        $lrsmode = (int)$this->cmi5->lrsmode;
 
-            $DB->insert_record('cmi5_statements', $record);
+        switch ($lrsmode) {
+            case 0:
+                if ($latestsession) {
+                    $this->store_satisfied_locally($statement, $statementjson, $latestsession);
+                }
+                break;
+
+            case 1:
+                if ($latestsession) {
+                    $insertid = $this->store_satisfied_locally($statement, $statementjson, $latestsession);
+                    $this->forward_satisfied_to_lrs($statementjson, $insertid);
+                }
+                break;
+
+            case 2:
+                $this->forward_satisfied_to_lrs($statementjson);
+                break;
+        }
+    }
+
+    /**
+     * Insert a Satisfied statement into the local cmi5_statements table.
+     *
+     * @param \stdClass $statement Decoded statement object.
+     * @param string $statementjson Encoded statement JSON.
+     * @param \stdClass $latestsession The session record to attach the statement to.
+     * @return int The inserted record ID.
+     */
+    private function store_satisfied_locally(\stdClass $statement, string $statementjson, \stdClass $latestsession): int {
+        global $DB;
+        $record = new \stdClass();
+        $record->sessionid = $latestsession->id;
+        $record->statementid = $statement->id;
+        $record->verb = 'https://w3id.org/xapi/adl/verbs/satisfied';
+        $record->statement_json = $statementjson;
+        $record->is_cmi5_defined = 1;
+        $record->forwarded = 0;
+        $record->timecreated = time();
+        return $DB->insert_record('cmi5_statements', $record);
+    }
+
+    /**
+     * Forward a Satisfied statement to the external LRS.
+     *
+     * @param string $statementjson Encoded statement JSON.
+     * @param int|null $localid Local cmi5_statements record ID to mark as forwarded, or null for lrsmode 2.
+     */
+    private function forward_satisfied_to_lrs(string $statementjson, ?int $localid = null): void {
+        global $DB;
+        if (empty($this->cmi5->lrsendpoint)) {
+            return;
+        }
+        try {
+            $lrs = new lrs_client($this->cmi5->lrsendpoint, $this->cmi5->lrskey, $this->cmi5->lrssecret);
+            $lrs->send_statement($statementjson);
+            if ($localid !== null) {
+                $DB->set_field('cmi5_statements', 'forwarded', 1, ['id' => $localid]);
+            }
+        } catch (\Exception $e) {
+            debugging('LRS forwarding of Satisfied statement failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
     }
 }
