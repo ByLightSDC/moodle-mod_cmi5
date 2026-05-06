@@ -106,6 +106,7 @@ class xapi_proxy
         $expectedactor = xapi_statement::get_actor($registration->userid);
         $expectedregistration = $registration->registrationid;
 
+        // Retrieve record and check LRS mode.
         $cmi5record = $DB->get_record('cmi5', ['id' => $registration->cmi5id]);
         $lrsmode = $cmi5record ? (int)$cmi5record->lrsmode : 0;
 
@@ -150,6 +151,7 @@ class xapi_proxy
             }
             $stmtregistration = $statement->context->registration ?? null;
 
+            // If LRS mode is not "LRS Only", save to local DB.
             if ($lrsmode !== 2) {
                 $record = new \stdClass();
                 $record->sessionid = $this->session->id;

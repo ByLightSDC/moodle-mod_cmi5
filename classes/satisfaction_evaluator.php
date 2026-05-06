@@ -339,6 +339,7 @@ class satisfaction_evaluator {
         );
         $latestsession = !empty($sessions) ? reset($sessions) : null;
 
+        // Check LRS mode and send accordingly.
         $lrsmode = (int)$this->cmi5->lrsmode;
 
         switch ($lrsmode) {
