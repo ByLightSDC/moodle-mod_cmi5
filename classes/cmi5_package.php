@@ -59,6 +59,72 @@ class cmi5_package {
     }
 
     /**
+     * Detect AUs in a draft ZIP that have no matching record in cmi5_aus for this activity.
+     *
+     * Reads the uploaded draft file, extracts and parses cmi5.xml, then compares
+     * the AU IRIs against existing cmi5_aus records for this cmi5id. Returns an array
+     * of AU objects (with title and auid) that are new — i.e. their IRI does not match
+     * any existing record. An empty array means all AUs matched (safe update).
+     *
+     * Returns an empty array if the draft is empty, unreadable, or unparseable —
+     * the caller should treat those cases as "no mismatches" and let later processing
+     * produce a real error if needed.
+     *
+     * @param int $draftitemid The filemanager draft item ID from the form submission.
+     * @param int $cmi5id The cmi5 activity instance ID.
+     * @param int $userid The submitting user's ID.
+     * @return array Array of stdClass objects with ->title and ->auid for each unmatched AU.
+     */
+    public static function detect_au_mismatches_from_draft(int $draftitemid, int $cmi5id, int $userid): array {
+        global $DB;
+
+        $fs = get_file_storage();
+        $usercontext = \context_user::instance($userid);
+        $draftfiles = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'id', false);
+
+        if (empty($draftfiles)) {
+            return [];
+        }
+
+        $draftfile = reset($draftfiles);
+        $tempdir = make_request_directory();
+        $packer = get_file_packer('application/zip');
+        $draftfile->extract_to_pathname($packer, $tempdir);
+
+        $cmi5xmlpath = $tempdir . '/cmi5.xml';
+        if (!file_exists($cmi5xmlpath)) {
+            return [];
+        }
+
+        $xmlcontent = file_get_contents($cmi5xmlpath);
+        if ($xmlcontent === false) {
+            return [];
+        }
+
+        try {
+            $structure = self::parse_cmi5_xml_static($xmlcontent);
+        } catch (\Exception $e) {
+            return [];
+        }
+
+        // Index existing AU IRIs for this activity.
+        $existingaumap = [];
+        foreach ($DB->get_records('cmi5_aus', ['cmi5id' => $cmi5id]) as $rec) {
+            $existingaumap[trim($rec->auid)] = true;
+        }
+
+        // Collect AUs whose IRI does not match anything already in the activity.
+        $mismatches = [];
+        foreach ($structure->aus as $au) {
+            if (!isset($existingaumap[trim($au->auid)])) {
+                $mismatches[] = (object)['title' => $au->title, 'auid' => $au->auid];
+            }
+        }
+
+        return $mismatches;
+    }
+
+    /**
      * Process an uploaded cmi5 ZIP package.
      *
      * Retrieves the uploaded ZIP from the Moodle file API, extracts it to a
@@ -271,23 +337,34 @@ class cmi5_package {
     /**
      * Save the parsed course structure to the database.
      *
-     * Clears any existing blocks and AUs for this activity, then inserts the
-     * new structure. Handles nested blocks by resolving parent block IDs from
-     * the cmi5.xml block id attributes to database record IDs.
+     * On first upload this inserts all blocks and AUs. On re-upload it matches
+     * existing records by their IRI string (blockid / auid from cmi5.xml) and
+     * updates them in place, keeping the same database IDs. This is important
+     * because cmi5_au_status, cmi5_sessions, and cmi5_block_status all reference
+     * those IDs — replacing them would orphan learner progress data. Only records
+     * that no longer exist in the new package and have no learner data are deleted.
      *
      * @param \stdClass $structure The parsed course structure from parse_cmi5_xml().
      */
     public function save_course_structure(\stdClass $structure): void {
         global $DB;
 
-        // Clear existing records for this activity.
-        $DB->delete_records('cmi5_aus', ['cmi5id' => $this->cmi5id]);
-        $DB->delete_records('cmi5_blocks', ['cmi5id' => $this->cmi5id]);
+        // Load existing records keyed by their IRI string for fast insert-or-update lookup.
+        // Fetch all fields (not a restricted list) to avoid DML indexing quirks, and trim
+        // the IRI values to guard against any whitespace differences between stored and parsed values.
+        $existingaumap = [];    // auid IRI => DB id
+        foreach ($DB->get_records('cmi5_aus', ['cmi5id' => $this->cmi5id]) as $rec) {
+            $existingaumap[trim($rec->auid)] = (int) $rec->id;
+        }
+        $existingblockmap = []; // blockid IRI => DB id
+        foreach ($DB->get_records('cmi5_blocks', ['cmi5id' => $this->cmi5id]) as $rec) {
+            $existingblockmap[trim($rec->blockid)] = (int) $rec->id;
+        }
 
-        // Map of cmi5.xml block IDs to database record IDs.
+        // Maps cmi5.xml IRI => DB id for resolving parent references within this run.
         $blockidmap = [];
 
-        // Insert blocks.
+        // Insert new blocks or update existing ones in place.
         foreach ($structure->blocks as $block) {
             $record = new \stdClass();
             $record->cmi5id = $this->cmi5id;
@@ -297,16 +374,21 @@ class cmi5_package {
             $record->parentblockid = null;
             $record->sortorder = $block->sortorder;
 
-            // Resolve parent block ID if this is a nested block.
             if ($block->parentblockid !== null && isset($blockidmap[$block->parentblockid])) {
                 $record->parentblockid = $blockidmap[$block->parentblockid];
             }
 
-            $recordid = $DB->insert_record('cmi5_blocks', $record);
-            $blockidmap[$block->blockid] = $recordid;
+            if (isset($existingblockmap[trim($block->blockid)])) {
+                $record->id = $existingblockmap[trim($block->blockid)];
+                $DB->update_record('cmi5_blocks', $record);
+                $blockidmap[$block->blockid] = $record->id;
+            } else {
+                $dbid = $DB->insert_record('cmi5_blocks', $record);
+                $blockidmap[$block->blockid] = $dbid;
+            }
         }
 
-        // Insert AUs.
+        // Insert new AUs or update existing ones in place.
         foreach ($structure->aus as $au) {
             $record = new \stdClass();
             $record->cmi5id = $this->cmi5id;
@@ -320,15 +402,25 @@ class cmi5_package {
             $record->launchparameters = $au->launchparameters;
             $record->entitlementkey = $au->entitlementkey;
             $record->sortorder = $au->sortorder;
-
-            // Resolve parent block ID.
             $record->parentblockid = null;
             if ($au->parentblockid !== null && isset($blockidmap[$au->parentblockid])) {
                 $record->parentblockid = $blockidmap[$au->parentblockid];
             }
 
-            $DB->insert_record('cmi5_aus', $record);
+            if (isset($existingaumap[trim($au->auid)])) {
+                // Update in place — keeps the DB id stable so cmi5_au_status
+                // and cmi5_sessions references remain valid.
+                $record->id = $existingaumap[trim($au->auid)];
+                $DB->update_record('cmi5_aus', $record);
+            } else {
+                $DB->insert_record('cmi5_aus', $record);
+            }
         }
+
+        // AUs and blocks removed from the new package are intentionally left in the database.
+        // Their absence is itself data — an instructor may need to know a student was enrolled
+        // in an activity that contained an AU they never launched. Cleanup of removed AUs
+        // should be a deliberate admin action, not something that happens silently on re-upload.
     }
 
     /**

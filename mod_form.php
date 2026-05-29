@@ -48,9 +48,9 @@ class mod_cmi5_mod_form extends moodleform_mod {
 
         $this->standard_intro_elements();
 
-        // Package section — only shown when creating a new activity.
-        // $this->current->instance is the ID of an existing activity record in cmi5 DB.
+        // Package section.
         if (empty($this->current->instance)) {
+            // Create mode: full package source selector (upload or library).
             $mform->addElement('header', 'packagehdr', get_string('cmi5fieldset', 'cmi5'));
 
             // Package source: upload or library.
@@ -137,6 +137,23 @@ class mod_cmi5_mod_form extends moodleform_mod {
                 updateAuOptions();
             });
             </script>");
+        } else if (empty($this->current->packageid)) {
+            // Edit mode for upload-based instance: optional package replacement.
+            $mform->addElement('header', 'packagehdr', get_string('cmi5fieldset', 'cmi5'));
+            $filemanageroptions = [
+                'accepted_types' => ['.zip'],
+                'maxbytes' => 0,
+                'maxfiles' => 1,
+                'subdirs' => 0,
+            ];
+            $mform->addElement(
+                'filemanager',
+                'packagefile',
+                get_string('packagefile_replace', 'cmi5'),
+                null,
+                $filemanageroptions
+            );
+            $mform->addHelpButton('packagefile', 'packagefile_replace', 'cmi5');
         }
 
         // Version selector — when editing an existing library-linked instance.
@@ -306,6 +323,66 @@ class mod_cmi5_mod_form extends moodleform_mod {
     }
 
     /**
+     * After form data is set, detect AU IRI mismatches in the uploaded draft package
+     * and inject a warning block + confirmation checkbox so the instructor sees them
+     * before the form processes.
+     *
+     * This runs after definition() and after form data is available, so it can read
+     * the submitted draft item ID and query the database. Only active on edit of
+     * upload-based instances when a file has actually been staged in the file manager.
+     */
+    public function definition_after_data() {
+        global $USER;
+        parent::definition_after_data();
+
+        // Only relevant on edit of upload-based (non-library) instances.
+        if (empty($this->current->instance) || !empty($this->current->packageid)) {
+            return;
+        }
+
+        if (!$this->is_submitted()) {
+            return;
+        }
+
+        $mform = $this->_form;
+        if (!$mform->elementExists('packagefile')) {
+            return;
+        }
+
+        $draftitemid = optional_param('packagefile', 0, PARAM_INT);
+        if (empty($draftitemid)) {
+            return;
+        }
+
+        $mismatches = \mod_cmi5\cmi5_package::detect_au_mismatches_from_draft(
+            $draftitemid, (int) $this->current->instance, (int) $USER->id
+        );
+
+        if (empty($mismatches)) {
+            return;
+        }
+
+        // Build the AU list for the warning.
+        $aulist = '<ul>';
+        foreach ($mismatches as $au) {
+            $aulist .= '<li><strong>' . s($au->title) . '</strong>'
+                . ' <code class="small">' . s($au->auid) . '</code></li>';
+        }
+        $aulist .= '</ul>';
+
+        $warninghtml = '<div class="alert alert-warning mt-2">'
+            . '<p class="mb-1"><strong>' . get_string('packagemismatch:warningtitle', 'cmi5') . '</strong></p>'
+            . '<p class="mb-1">' . get_string('packagemismatch:warningbody', 'cmi5') . '</p>'
+            . $aulist
+            . '<p class="mb-0">' . get_string('packagemismatch:recommendation', 'cmi5') . '</p>'
+            . '</div>';
+
+        $mform->addElement('static', 'packagemismatchwarning', '', $warninghtml);
+        $mform->addElement('advcheckbox', 'packagemismatchconfirmed', '',
+            get_string('packagemismatch:confirm', 'cmi5'));
+    }
+
+    /**
      * Pre-populate form defaults when editing an existing instance.
      *
      * @param array|stdClass $defaultvalues
@@ -349,6 +426,20 @@ class mod_cmi5_mod_form extends moodleform_mod {
                     $errors['packageid'] = get_string('required');
                 }
                 // libraryauid is optional — empty means "all AUs".
+            }
+        }
+
+        // On edit of upload-based instance, block save when mismatched AU IRIs are detected
+        // and the instructor has not confirmed they want to proceed.
+        if (!empty($this->current->instance) && empty($this->current->packageid)) {
+            $draftitemid = (int) ($data['packagefile'] ?? 0);
+            if (!empty($draftitemid)) {
+                $mismatches = \mod_cmi5\cmi5_package::detect_au_mismatches_from_draft(
+                    $draftitemid, (int) $this->current->instance, $USER->id
+                );
+                if (!empty($mismatches) && empty($data['packagemismatchconfirmed'])) {
+                    $errors['packagemismatchconfirmed'] = get_string('packagemismatch:confirmerror', 'cmi5');
+                }
             }
         }
 

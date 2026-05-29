@@ -181,7 +181,7 @@ function cmi5_add_instance($data, $mform = null) {
  * @return bool
  */
 function cmi5_update_instance($data, $mform = null) {
-    global $DB;
+    global $DB, $USER;
 
     $data->id = $data->instance;
     $draftitemid = $data->packagefile ?? 0;
@@ -215,23 +215,30 @@ function cmi5_update_instance($data, $mform = null) {
         }
     }
 
-    // Package re-upload on edit is disabled to prevent orphaning learner data (AU IDs change on re-parse).
-    // Uncomment if a team decision is made to support intentional package replacement.
-    // I cannot think of a use case this is needed, will check -MB
-    // if ($mform && !empty($draftitemid)) {
-    //     $cmid = $data->coursemodule;
-    //     $context = context_module::instance($cmid);
-    //     file_save_draft_area_files(
-    //         $draftitemid,
-    //         $context->id,
-    //         'mod_cmi5',
-    //         'package',
-    //         0,
-    //         ['maxfiles' => 1, 'accepted_types' => ['.zip']]
-    //     );
-    //     $package = new \mod_cmi5\cmi5_package($context, $data->id);
-    //     $package->process_uploaded_package();
-    // }
+    // Handle package re-upload if a replacement file was provided.
+    if ($mform && !empty($draftitemid)) {
+        $cmid = $data->coursemodule;
+        $context = context_module::instance($cmid);
+
+        // Only process if the user actually uploaded a file — an empty file manager
+        // still passes a non-zero draftitemid, so we check the draft area directly.
+        $fs = get_file_storage();
+        $usercontext = \context_user::instance($USER->id);
+        $draftfiles = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'id', false);
+
+        if (!empty($draftfiles)) {
+            file_save_draft_area_files(
+                $draftitemid,
+                $context->id,
+                'mod_cmi5',
+                'package',
+                0,
+                ['maxfiles' => 1, 'accepted_types' => ['.zip']]
+            );
+            $package = new \mod_cmi5\cmi5_package($context, $data->id);
+            $package->process_uploaded_package();
+        }
+    }
 
     cmi5_grade_item_update($data);
 
