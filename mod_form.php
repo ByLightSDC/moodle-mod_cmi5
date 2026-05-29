@@ -54,13 +54,22 @@ class mod_cmi5_mod_form extends moodleform_mod {
             $mform->addElement('header', 'packagehdr', get_string('cmi5fieldset', 'cmi5'));
             $this->add_package_source_elements($mform, 'packagefile');
         } else if (empty($this->current->packageid)) {
-            // Edit mode for upload-based instance: source selector with replacement label.
+            // Edit mode, upload-based: file manager for ZIP replacement only.
             $mform->addElement('header', 'packagehdr', get_string('cmi5fieldset', 'cmi5'));
-            $this->add_package_source_elements($mform, 'packagefile_replace');
-        }
+            $filemanageroptions = [
+                'accepted_types' => ['.zip'],
+                'maxbytes' => 0,
+                'maxfiles' => 1,
+                'subdirs' => 0,
+            ];
+            $mform->addElement('filemanager', 'packagefile', get_string('packagefile_replace', 'cmi5'), null, $filemanageroptions);
+            $mform->addHelpButton('packagefile', 'packagefile_replace', 'cmi5');
+        } else {
+            // Edit mode, library-linked: library picker + version selector.
+            $mform->addElement('header', 'packagehdr', get_string('cmi5fieldset', 'cmi5'));
+            $this->add_library_picker_elements($mform);
 
-        // Version selector — when editing an existing library-linked instance.
-        if (!empty($this->current->instance) && !empty($this->current->packageid)) {
+            // Version selector — for syncing to a different version of the current package.
             $currentversionid = $this->current->packageversionid ?? 0;
             if ($currentversionid) {
                 $allversions = \mod_cmi5\content_library::get_package_versions(
@@ -69,7 +78,6 @@ class mod_cmi5_mod_form extends moodleform_mod {
                 $currentversion = \mod_cmi5\content_library::get_version((int) $currentversionid);
                 $currentnum = $currentversion ? (int) $currentversion->versionnumber : 0;
 
-                // Build dropdown options and per-version changelog HTML.
                 $versionoptions = [
                     0 => get_string('library:currentversion', 'cmi5', $currentnum),
                 ];
@@ -92,7 +100,6 @@ class mod_cmi5_mod_form extends moodleform_mod {
                         'date' => userdate($ver->timecreated, get_string('strftimedatefullshort', 'langconfig')),
                         'changes' => $changecount,
                     ]);
-                    // Build changelog HTML for this version.
                     if ($changeentries) {
                         $items = '';
                         foreach ($changeentries as $entry) {
@@ -101,8 +108,7 @@ class mod_cmi5_mod_form extends moodleform_mod {
                         }
                         $changelogs[$ver->id] = '<ul class="mb-0">' . $items . '</ul>';
                     } else {
-                        $changelogs[$ver->id] = '<em>' .
-                            get_string('library:nochanges', 'cmi5') . '</em>';
+                        $changelogs[$ver->id] = '<em>' . get_string('library:nochanges', 'cmi5') . '</em>';
                     }
                 }
 
@@ -111,7 +117,6 @@ class mod_cmi5_mod_form extends moodleform_mod {
                         get_string('library:selectversion', 'cmi5'), $versionoptions);
                     $mform->setDefault('syncversion', 0);
 
-                    // Changelog preview area (all changelogs rendered, toggled by JS).
                     $changeloghtml = '<div id="cmi5-version-changelog">';
                     foreach ($changelogs as $vid => $html) {
                         $changeloghtml .= '<div class="cmi5-changelog-entry" '
@@ -122,7 +127,6 @@ class mod_cmi5_mod_form extends moodleform_mod {
                     $mform->addElement('static', 'changelogpreview',
                         get_string('library:changelog', 'cmi5'), $changeloghtml);
 
-                    // Inline JS to show/hide changelog based on selected version.
                     $mform->addElement('html', "<script>
                     document.addEventListener('DOMContentLoaded', function() {
                         var sel = document.getElementById('id_syncversion');
@@ -250,6 +254,19 @@ class mod_cmi5_mod_form extends moodleform_mod {
         $mform->addHelpButton('packagefile', $filestringkey, 'cmi5');
         $mform->hideIf('packagefile', 'packagesource', 'ne', 'upload');
 
+        $this->add_library_picker_elements($mform);
+        $mform->hideIf('packageid', 'packagesource', 'ne', 'library');
+        $mform->hideIf('libraryauid', 'packagesource', 'ne', 'library');
+    }
+
+    /**
+     * Render the library package picker and AU picker without a source selector.
+     * Used standalone for library-linked edit mode, and via add_package_source_elements
+     * for create/upload-based edit mode where hideIf controls visibility.
+     *
+     * @param MoodleQuickForm $mform
+     */
+    private function add_library_picker_elements($mform): void {
         $libraryoptions = ['' => get_string('selectpackage', 'cmi5')];
         $packages = \mod_cmi5\content_library::list_packages('', 1, 0, 200);
         $ausByPackage = [];
@@ -260,7 +277,6 @@ class mod_cmi5_mod_form extends moodleform_mod {
         }
         $mform->addElement('select', 'packageid', get_string('librarypackage', 'cmi5'), $libraryoptions);
         $mform->addHelpButton('packageid', 'librarypackage', 'cmi5');
-        $mform->hideIf('packageid', 'packagesource', 'ne', 'library');
 
         $auoptions = ['' => get_string('library:allaus', 'cmi5')];
         $aujsonmap = [];
@@ -274,7 +290,6 @@ class mod_cmi5_mod_form extends moodleform_mod {
         }
         $mform->addElement('select', 'libraryauid', get_string('library:selectau', 'cmi5'), $auoptions);
         $mform->addHelpButton('libraryauid', 'library:selectau', 'cmi5');
-        $mform->hideIf('libraryauid', 'packagesource', 'ne', 'library');
 
         $aujson = json_encode($aujsonmap);
         $allauslabel = get_string('library:allaus', 'cmi5');
@@ -310,46 +325,68 @@ class mod_cmi5_mod_form extends moodleform_mod {
     }
 
     /**
-     * After form data is set, detect AU IRI mismatches in the uploaded draft package
-     * and inject a warning block + confirmation checkbox so the instructor sees them
-     * before the form processes.
-     *
-     * This runs after definition() and after form data is available, so it can read
-     * the submitted draft item ID and query the database. Only active on edit of
-     * upload-based instances when a file has actually been staged in the file manager.
+     * After form data is set, detect AU IRI mismatches for any package change and inject
+     * a warning block + confirmation checkbox. Covers three edit scenarios:
+     *   - Upload-based instance replacing via a new ZIP upload
+     *   - Upload-based instance switching source to a library package
+     *   - Library-linked instance syncing to a different version
      */
     public function definition_after_data() {
         global $USER;
         parent::definition_after_data();
 
-        // Only relevant on edit of upload-based (non-library) instances.
-        if (empty($this->current->instance) || !empty($this->current->packageid)) {
+        if (empty($this->current->instance) || !$this->is_submitted()) {
             return;
         }
 
-        if (!$this->is_submitted()) {
-            return;
+        $mismatches = [];
+        $cmi5id = (int) $this->current->instance;
+
+        if (empty($this->current->packageid)) {
+            // Upload-based instance: check draft file.
+            $mform = $this->_form;
+            if (!$mform->elementExists('packagefile')) {
+                return;
+            }
+            $draftitemid = optional_param('packagefile', 0, PARAM_INT);
+            if (!empty($draftitemid)) {
+                $mismatches = \mod_cmi5\cmi5_package::detect_au_mismatches_from_draft(
+                    $draftitemid, $cmi5id, (int) $USER->id
+                );
+            }
+        } else {
+            // Library-linked instance: check package switch or version sync.
+            $newpackageid = optional_param('packageid', 0, PARAM_INT);
+            if ($newpackageid && $newpackageid !== (int) $this->current->packageid) {
+                $libpackage = \mod_cmi5\content_library::get_package($newpackageid);
+                if ($libpackage && !empty($libpackage->latestversion)) {
+                    $mismatches = \mod_cmi5\cmi5_package::detect_au_mismatches_from_version(
+                        (int) $libpackage->latestversion, $cmi5id
+                    );
+                }
+            } else {
+                $syncversion = optional_param('syncversion', 0, PARAM_INT);
+                if ($syncversion > 0) {
+                    $mismatches = \mod_cmi5\cmi5_package::detect_au_mismatches_from_version(
+                        $syncversion, $cmi5id
+                    );
+                }
+            }
         }
 
+        if (!empty($mismatches)) {
+            $this->inject_mismatch_warning($mismatches);
+        }
+    }
+
+    /**
+     * Inject the AU IRI mismatch warning alert and confirmation checkbox into the form.
+     *
+     * @param array $mismatches Objects with ->title and ->auid.
+     */
+    private function inject_mismatch_warning(array $mismatches): void {
         $mform = $this->_form;
-        if (!$mform->elementExists('packagefile')) {
-            return;
-        }
 
-        $draftitemid = optional_param('packagefile', 0, PARAM_INT);
-        if (empty($draftitemid)) {
-            return;
-        }
-
-        $mismatches = \mod_cmi5\cmi5_package::detect_au_mismatches_from_draft(
-            $draftitemid, (int) $this->current->instance, (int) $USER->id
-        );
-
-        if (empty($mismatches)) {
-            return;
-        }
-
-        // Build the AU list for the warning.
         $aulist = '<ul>';
         foreach ($mismatches as $au) {
             $aulist .= '<li><strong>' . s($au->title) . '</strong>'
@@ -416,17 +453,37 @@ class mod_cmi5_mod_form extends moodleform_mod {
             }
         }
 
-        // On edit of upload-based instance, validate the chosen source and check for AU IRI mismatches.
+        // On edit of upload-based instance, check for AU IRI mismatches in replacement ZIP.
         if (!empty($this->current->instance) && empty($this->current->packageid)) {
-            if (($data['packagesource'] ?? 'upload') === 'library') {
-                if (empty($data['packageid'])) {
-                    $errors['packageid'] = get_string('required');
+            $draftitemid = (int) ($data['packagefile'] ?? 0);
+            if (!empty($draftitemid)) {
+                $mismatches = \mod_cmi5\cmi5_package::detect_au_mismatches_from_draft(
+                    $draftitemid, (int) $this->current->instance, $USER->id
+                );
+                if (!empty($mismatches) && empty($data['packagemismatchconfirmed'])) {
+                    $errors['packagemismatchconfirmed'] = get_string('packagemismatch:confirmerror', 'cmi5');
+                }
+            }
+        }
+
+        // On edit of library-linked instance, check for AU IRI mismatches in package switch or version sync.
+        if (!empty($this->current->instance) && !empty($this->current->packageid)) {
+            $newpackageid = (int) ($data['packageid'] ?? 0);
+            if ($newpackageid && $newpackageid !== (int) $this->current->packageid) {
+                $libpackage = \mod_cmi5\content_library::get_package($newpackageid);
+                if ($libpackage && !empty($libpackage->latestversion)) {
+                    $mismatches = \mod_cmi5\cmi5_package::detect_au_mismatches_from_version(
+                        (int) $libpackage->latestversion, (int) $this->current->instance
+                    );
+                    if (!empty($mismatches) && empty($data['packagemismatchconfirmed'])) {
+                        $errors['packagemismatchconfirmed'] = get_string('packagemismatch:confirmerror', 'cmi5');
+                    }
                 }
             } else {
-                $draftitemid = (int) ($data['packagefile'] ?? 0);
-                if (!empty($draftitemid)) {
-                    $mismatches = \mod_cmi5\cmi5_package::detect_au_mismatches_from_draft(
-                        $draftitemid, (int) $this->current->instance, $USER->id
+                $syncversion = (int) ($data['syncversion'] ?? 0);
+                if ($syncversion > 0) {
+                    $mismatches = \mod_cmi5\cmi5_package::detect_au_mismatches_from_version(
+                        $syncversion, (int) $this->current->instance
                     );
                     if (!empty($mismatches) && empty($data['packagemismatchconfirmed'])) {
                         $errors['packagemismatchconfirmed'] = get_string('packagemismatch:confirmerror', 'cmi5');

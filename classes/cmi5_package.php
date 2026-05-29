@@ -107,15 +107,41 @@ class cmi5_package {
             return [];
         }
 
-        // Index existing AU IRIs for this activity.
+        return self::find_au_mismatches($structure->aus, $cmi5id);
+    }
+
+    /**
+     * Detect AU IRI mismatches between a library package version and an existing activity.
+     *
+     * @param int $versionid The cmi5_package_versions ID to compare against.
+     * @param int $cmi5id The cmi5 activity instance ID.
+     * @return array Array of stdClass objects with ->title and ->auid for each unmatched AU.
+     */
+    public static function detect_au_mismatches_from_version(int $versionid, int $cmi5id): array {
+        global $DB;
+        $aus = $DB->get_records('cmi5_package_aus', ['versionid' => $versionid], 'sortorder ASC');
+        return self::find_au_mismatches(array_values($aus), $cmi5id);
+    }
+
+    /**
+     * Compare an incoming AU list against the AUs already registered for an activity.
+     * Returns AUs from $incomingaus whose IRI has no match in the activity — these would
+     * orphan existing learner progress if the package were applied.
+     *
+     * @param array $incomingaus Objects with ->auid and ->title (from parsed XML or DB records).
+     * @param int $cmi5id The cmi5 activity instance ID.
+     * @return array Subset of $incomingaus that are unmatched.
+     */
+    private static function find_au_mismatches(array $incomingaus, int $cmi5id): array {
+        global $DB;
+
         $existingaumap = [];
         foreach ($DB->get_records('cmi5_aus', ['cmi5id' => $cmi5id]) as $rec) {
             $existingaumap[trim($rec->auid)] = true;
         }
 
-        // Collect AUs whose IRI does not match anything already in the activity.
         $mismatches = [];
-        foreach ($structure->aus as $au) {
+        foreach ($incomingaus as $au) {
             if (!isset($existingaumap[trim($au->auid)])) {
                 $mismatches[] = (object)['title' => $au->title, 'auid' => $au->auid];
             }
