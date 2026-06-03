@@ -105,6 +105,7 @@ $string['coursenotsatisfied'] = 'Course not yet satisfied';
 
 // Launch.
 $string['launcherror'] = 'Error launching AU';
+$string['auretired'] = 'This learning unit is no longer available.';
 $string['backtocourse'] = 'Back to course';
 $string['sessioncreated'] = 'Session created';
 $string['invalidau'] = 'Invalid Assignable Unit';

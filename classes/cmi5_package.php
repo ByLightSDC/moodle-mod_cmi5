@@ -435,18 +435,25 @@ class cmi5_package {
 
             if (isset($existingaumap[trim($au->auid)])) {
                 // Update in place — keeps the DB id stable so cmi5_au_status
-                // and cmi5_sessions references remain valid.
+                // and cmi5_sessions references remain valid. Un-retire in case it was
+                // previously retired and has now been restored in the package.
                 $record->id = $existingaumap[trim($au->auid)];
+                $record->retired = 0;
                 $DB->update_record('cmi5_aus', $record);
             } else {
+                $record->retired = 0;
                 $DB->insert_record('cmi5_aus', $record);
             }
         }
 
-        // AUs and blocks removed from the new package are intentionally left in the database.
-        // Their absence is itself data — an instructor may need to know a student was enrolled
-        // in an activity that contained an AU they never launched. Cleanup of removed AUs
-        // should be a deliberate admin action, not something that happens silently on re-upload.
+        // Retire any existing AUs that are no longer in the new package so they are hidden
+        // from learners but their progress history (cmi5_au_status, cmi5_sessions) is preserved.
+        $processedirls = array_map(fn($au) => trim($au->auid), $structure->aus);
+        foreach ($existingaumap as $iri => $dbid) {
+            if (!in_array($iri, $processedirls, true)) {
+                $DB->set_field('cmi5_aus', 'retired', 1, ['id' => $dbid]);
+            }
+        }
     }
 
     /**

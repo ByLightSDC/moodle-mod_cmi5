@@ -57,7 +57,7 @@ $completion = new completion_info($course);
 $completion->set_module_viewed($cm);
 
 // Load AUs and check launch capability.
-$aus = $DB->get_records('cmi5_aus', ['cmi5id' => $cmi5->id], 'sortorder ASC');
+$aus = $DB->get_records('cmi5_aus', ['cmi5id' => $cmi5->id, 'retired' => 0], 'sortorder ASC');
 $canlaunch = has_capability('mod/cmi5:launch', $context);
 
 $PAGE->set_url('/mod/cmi5/view.php', ['id' => $cm->id]);
