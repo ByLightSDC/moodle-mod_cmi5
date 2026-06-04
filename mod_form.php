@@ -397,13 +397,29 @@ class mod_cmi5_mod_form extends moodleform_mod {
         $warninghtml = '<div class="alert alert-warning mt-2">'
             . '<p class="mb-1"><strong>' . get_string('packagemismatch:warningtitle', 'cmi5') . '</strong></p>'
             . '<p class="mb-1">' . get_string('packagemismatch:warningbody', 'cmi5') . '</p>'
+            . '<p class="mb-0">' . get_string('packagemismatch:aulistlabel', 'cmi5') . '</p>'
             . $aulist
-            . '<p class="mb-0">' . get_string('packagemismatch:recommendation', 'cmi5') . '</p>'
+            . '<p class="mb-0"><strong>' . get_string('packagemismatch:recommendation', 'cmi5') . '</strong></p>'
             . '</div>';
 
         $mform->addElement('static', 'packagemismatchwarning', '', $warninghtml);
         $mform->addElement('advcheckbox', 'packagemismatchconfirmed', '',
             get_string('packagemismatch:confirm', 'cmi5'));
+
+        $mform->addElement('html', "<script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var checkbox = document.getElementById('id_packagemismatchconfirmed');
+            if (!checkbox) return;
+            var buttons = document.querySelectorAll('#id_submitbutton, #id_submitbutton2');
+            function toggle() {
+                buttons.forEach(function(btn) {
+                    btn.disabled = !checkbox.checked;
+                });
+            }
+            toggle();
+            checkbox.addEventListener('change', toggle);
+        });
+        </script>");
     }
 
     /**

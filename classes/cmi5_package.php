@@ -125,25 +125,25 @@ class cmi5_package {
 
     /**
      * Compare an incoming AU list against the AUs already registered for an activity.
-     * Returns AUs from $incomingaus whose IRI has no match in the activity — these would
-     * orphan existing learner progress if the package were applied.
+     * Returns existing AUs whose IRI has no match in the incoming package — these will
+     * disappear from the Assignable Units tab if the package is applied.
      *
      * @param array $incomingaus Objects with ->auid and ->title (from parsed XML or DB records).
      * @param int $cmi5id The cmi5 activity instance ID.
-     * @return array Subset of $incomingaus that are unmatched.
+     * @return array Existing cmi5_aus records that are absent from the incoming package.
      */
     private static function find_au_mismatches(array $incomingaus, int $cmi5id): array {
         global $DB;
 
-        $existingaumap = [];
-        foreach ($DB->get_records('cmi5_aus', ['cmi5id' => $cmi5id]) as $rec) {
-            $existingaumap[trim($rec->auid)] = true;
+        $incomingmap = [];
+        foreach ($incomingaus as $au) {
+            $incomingmap[trim($au->auid)] = true;
         }
 
         $mismatches = [];
-        foreach ($incomingaus as $au) {
-            if (!isset($existingaumap[trim($au->auid)])) {
-                $mismatches[] = (object)['title' => $au->title, 'auid' => $au->auid];
+        foreach ($DB->get_records('cmi5_aus', ['cmi5id' => $cmi5id]) as $rec) {
+            if (!isset($incomingmap[trim($rec->auid)])) {
+                $mismatches[] = (object)['title' => $rec->title, 'auid' => $rec->auid];
             }
         }
 
