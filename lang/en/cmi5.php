@@ -36,6 +36,14 @@ $string['modulename_help'] = 'The cmi5 activity module allows teachers to upload
 // Mod form.
 $string['packagefile'] = 'Package file (ZIP)';
 $string['packagefile_help'] = 'Upload a cmi5 ZIP package containing a cmi5.xml manifest and content files.';
+$string['packagefile_replace'] = 'Replace package file (ZIP, optional)';
+$string['packagefile_replace_help'] = 'Upload a replacement cmi5 ZIP package. Leave empty to keep the current package. Existing AU records will be updated in place to preserve learner progress.';
+$string['packagemismatch:warningtitle'] = 'The updated package has different Assignable Units (AUs) than the previous package.';
+$string['packagemismatch:warningbody'] = 'If you continue, AUs from the previous package will no longer appear in the Assignable Units tab. However, scores WILL be retained in the grade book.';
+$string['packagemismatch:aulistlabel'] = 'The following AUs will no longer appear:';
+$string['packagemismatch:recommendation'] = 'If this is NOT acceptable, please create a new activity.';
+$string['packagemismatch:confirm'] = 'I understand that the previous AUs will no longer appear in this view.';
+$string['packagemismatch:confirmerror'] = 'You must confirm that you understand the previous AUs will no longer appear before saving.';
 $string['grademethod'] = 'Grade method';
 $string['grademethod_help'] = 'How the grade is calculated when multiple AUs have scores.';
 $string['gradehighest'] = 'Highest score';
@@ -98,6 +106,7 @@ $string['coursenotsatisfied'] = 'Course not yet satisfied';
 
 // Launch.
 $string['launcherror'] = 'Error launching AU';
+$string['auretired'] = 'This learning unit is no longer available.';
 $string['backtocourse'] = 'Back to course';
 $string['sessioncreated'] = 'Session created';
 $string['invalidau'] = 'Invalid Assignable Unit';

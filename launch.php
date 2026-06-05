@@ -39,6 +39,16 @@ require_capability('mod/cmi5:launch', $context);
 // Validate AU belongs to this activity.
 $au = $DB->get_record('cmi5_aus', ['id' => $auid, 'cmi5id' => $cmi5->id], '*', MUST_EXIST);
 
+// Guard: retired AUs are filtered out of view.php so learners can't normally reach this point.
+// This handles edge cases such as stale bookmarks or manually crafted URLs.
+if (!empty($au->retired)) {
+    $aucount = $DB->count_records('cmi5_aus', ['cmi5id' => $cmi5->id, 'retired' => 0]);
+    $redirecturl = $aucount > 0
+        ? new moodle_url('/mod/cmi5/view.php', ['id' => $cm->id])
+        : new moodle_url('/course/view.php', ['id' => $course->id]);
+    redirect($redirecturl, get_string('auretired', 'cmi5'), null, \core\output\notification::NOTIFY_WARNING);
+}
+
 // Build launch URL.
 $launcher = new \mod_cmi5\launch_manager($cmi5, $context, $cm);
 $launchurl = $launcher->launch($au, $USER->id);

@@ -540,5 +540,14 @@ function xmldb_cmi5_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026030200, 'cmi5');
     }
 
+    if ($oldversion < 2026060301) {
+        $table = new xmldb_table('cmi5_aus');
+        $field = new xmldb_field('retired', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'sortorder');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026060301, 'cmi5');
+    }
+
     return true;
 }

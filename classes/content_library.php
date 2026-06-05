@@ -529,8 +529,14 @@ class content_library {
     public static function copy_structure_to_activity(int $versionid, int $cmi5id, ?int $singleauid = null): void {
         global $DB;
 
-        // Clear any existing structure for this activity.
-        $DB->delete_records('cmi5_aus', ['cmi5id' => $cmi5id]);
+        // Build existing AU IRI → DB id map so we can update in place, keeping IDs stable
+        // for cmi5_au_status and cmi5_sessions references.
+        $existingaumap = [];
+        foreach ($DB->get_records('cmi5_aus', ['cmi5id' => $cmi5id]) as $rec) {
+            $existingaumap[trim($rec->auid)] = (int) $rec->id;
+        }
+
+        // Blocks have no learner-data FKs at this layer, so delete and re-insert them cleanly.
         $DB->delete_records('cmi5_blocks', ['cmi5id' => $cmi5id]);
 
         // Get version structure.
@@ -564,7 +570,13 @@ class content_library {
             }
         }
 
+        // Upsert AUs: update in place if IRI already exists (preserves DB id and learner data),
+        // insert new otherwise. Un-retire AUs that have returned in the new version.
+        $processedirls = [];
         foreach ($pkgaus as $pkgau) {
+            $iri = trim($pkgau->auid);
+            $processedirls[] = $iri;
+
             $record = new \stdClass();
             $record->cmi5id = $cmi5id;
             $record->auid = $pkgau->auid;
@@ -581,8 +593,22 @@ class content_library {
                 $record->parentblockid = $blockidmap[$pkgau->parentblockid];
             }
             $record->sortorder = $pkgau->sortorder;
+            $record->retired = 0;
 
-            $DB->insert_record('cmi5_aus', $record);
+            if (isset($existingaumap[$iri])) {
+                $record->id = $existingaumap[$iri];
+                $DB->update_record('cmi5_aus', $record);
+            } else {
+                $DB->insert_record('cmi5_aus', $record);
+            }
+        }
+
+        // Retire any existing AUs not present in the new version so they are hidden from
+        // learners but their progress history (cmi5_au_status, cmi5_sessions) is preserved.
+        foreach ($existingaumap as $iri => $dbid) {
+            if (!in_array($iri, $processedirls, true)) {
+                $DB->set_field('cmi5_aus', 'retired', 1, ['id' => $dbid]);
+            }
         }
     }
 

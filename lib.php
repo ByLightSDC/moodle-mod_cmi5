@@ -181,7 +181,7 @@ function cmi5_add_instance($data, $mform = null) {
  * @return bool
  */
 function cmi5_update_instance($data, $mform = null) {
-    global $DB;
+    global $DB, $USER;
 
     $data->id = $data->instance;
     $draftitemid = $data->packagefile ?? 0;
@@ -206,32 +206,64 @@ function cmi5_update_instance($data, $mform = null) {
 
     $DB->update_record('cmi5', $record);
 
-    // Handle sync to selected version if requested.
-    $syncversion = (int) ($data->syncversion ?? 0);
-    if ($syncversion > 0) {
-        $cmi5 = $DB->get_record('cmi5', ['id' => $data->id]);
-        if (!empty($cmi5->packageid)) {
-            \mod_cmi5\content_library::sync_activity_to_version($data->id, $syncversion);
+    $cmi5 = $DB->get_record('cmi5', ['id' => $data->id]);
+    $newpackageid = (int) ($data->packageid ?? 0);
+
+    // Handle switch to a different library package (library-linked staying library).
+    if (!empty($cmi5->packageid) && $newpackageid && $newpackageid !== (int) $cmi5->packageid) {
+        $libpackage = \mod_cmi5\content_library::get_package($newpackageid);
+        if ($libpackage) {
+            $versionid = (int) $libpackage->latestversion;
+            $DB->set_field('cmi5', 'packageid', $newpackageid, ['id' => $data->id]);
+            if ($versionid) {
+                $DB->set_field('cmi5', 'packageversionid', $versionid, ['id' => $data->id]);
+                $singleauid = null;
+                if (!empty($data->libraryauid) && strpos($data->libraryauid, ':') !== false) {
+                    [, $singleauid] = explode(':', $data->libraryauid, 2);
+                    $singleauid = (int) $singleauid;
+                }
+                \mod_cmi5\content_library::copy_structure_to_activity($versionid, $data->id, $singleauid);
+                \mod_cmi5\content_library::increment_usage($versionid);
+                if (empty($record->profileid)) {
+                    $version = \mod_cmi5\content_library::get_version($versionid);
+                    if ($version && !empty($version->profileid)) {
+                        $DB->set_field('cmi5', 'profileid', (int) $version->profileid, ['id' => $data->id]);
+                    }
+                }
+            }
         }
     }
 
-    // Handle file re-upload if changed.
+    // Handle sync to a different version of the same package.
+    $syncversion = (int) ($data->syncversion ?? 0);
+    // IE check a version is selected, the activity IS linked to library, and the instructor is not switching to package
+    if ($syncversion > 0 && !empty($cmi5->packageid) && $newpackageid === (int) $cmi5->packageid) {
+        \mod_cmi5\content_library::sync_activity_to_version($data->id, $syncversion);
+    }
+
+    // Handle package re-upload if a replacement file was provided.
     if ($mform && !empty($draftitemid)) {
         $cmid = $data->coursemodule;
         $context = context_module::instance($cmid);
 
-        file_save_draft_area_files(
-            $draftitemid,
-            $context->id,
-            'mod_cmi5',
-            'package',
-            0,
-            ['maxfiles' => 1, 'accepted_types' => ['.zip']]
-        );
+        // Only process if the user actually uploaded a file — an empty file manager
+        // still passes a non-zero draftitemid, so we check the draft area directly.
+        $fs = get_file_storage();
+        $usercontext = \context_user::instance($USER->id);
+        $draftfiles = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'id', false);
 
-        // Re-parse the package.
-        $package = new \mod_cmi5\cmi5_package($context, $data->id);
-        $package->process_uploaded_package();
+        if (!empty($draftfiles)) {
+            file_save_draft_area_files(
+                $draftitemid,
+                $context->id,
+                'mod_cmi5',
+                'package',
+                0,
+                ['maxfiles' => 1, 'accepted_types' => ['.zip']]
+            );
+            $package = new \mod_cmi5\cmi5_package($context, $data->id);
+            $package->process_uploaded_package();
+        }
     }
 
     cmi5_grade_item_update($data);
