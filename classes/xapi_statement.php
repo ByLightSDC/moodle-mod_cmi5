@@ -224,6 +224,99 @@ class xapi_statement {
     }
 
     /**
+     * Store a JSON-encoded xAPI statement respecting the instance LRS mode.
+     *
+     * Mode 0 (local): insert into cmi5_statements only.
+     * Mode 1 (forward): insert locally then forward to the external LRS.
+     * Mode 2 (LRS only): forward to the external LRS, skip local insert.
+     *
+     * For modes 0 and 1, a session is required to attach the statement to.
+     * If session is null and mode is 0 or 1, the local insert is skipped.
+     *
+     * @param string $statementjson JSON-encoded xAPI statement.
+     * @param \stdClass|null $session The session record the statement belongs to.
+     * @param \stdClass $cmi5 The cmi5 activity instance record (provides lrsmode/endpoint).
+     */
+    public static function store(string $statementjson, ?\stdClass $session, \stdClass $cmi5): void {
+        $lrsmode = (int)$cmi5->lrsmode;
+
+        $localid = null;
+        if ($lrsmode !== 2 && $session !== null) {
+            $localid = self::store_locally($statementjson, $session);
+        }
+
+        if ($lrsmode === 1 || $lrsmode === 2) {
+            self::forward_to_lrs($statementjson, $cmi5, $localid);
+        }
+    }
+
+    /**
+     * Insert a statement into the local cmi5_statements table.
+     *
+     * @param string $statementjson JSON-encoded xAPI statement.
+     * @param \stdClass $session The session record to attach the statement to.
+     * @return int The inserted record ID.
+     */
+    private static function store_locally(string $statementjson, \stdClass $session): int {
+        global $DB;
+
+        $statement = json_decode($statementjson);
+
+        $actorhash = null;
+        if (isset($statement->actor->account->homePage, $statement->actor->account->name)) {
+            $actorhash = sha1($statement->actor->account->homePage . '|' . $statement->actor->account->name);
+        }
+        $activityid = null;
+        if (isset($statement->object->id)) {
+            $objectid = $statement->object->id;
+            $activityid = (strlen($objectid) > 255) ? substr($objectid, 0, 255) : $objectid;
+        }
+
+        $record = new \stdClass();
+        $record->sessionid = $session->id;
+        $record->statementid = $statement->id;
+        $record->verb = $statement->verb->id;
+        $record->statement_json = $statementjson;
+        $record->is_cmi5_defined = 1;
+        $record->forwarded = 0;
+        $record->stored = $statement->stored ?? gmdate('Y-m-d\TH:i:s.000\Z');
+        $record->authority_json = isset($statement->authority)
+            ? json_encode($statement->authority, JSON_UNESCAPED_SLASHES) : null;
+        $record->voided = 0;
+        $record->actor_hash = $actorhash;
+        $record->activity_id = $activityid;
+        $record->registration = $statement->context->registration ?? null;
+        $record->timecreated = time();
+
+        return $DB->insert_record('cmi5_statements', $record);
+    }
+
+    /**
+     * Forward a statement to the external LRS.
+     *
+     * @param string $statementjson JSON-encoded xAPI statement.
+     * @param \stdClass $cmi5 The cmi5 instance (provides endpoint/credentials).
+     * @param int|null $localid Local record ID to mark as forwarded, or null for lrsmode 2.
+     */
+    private static function forward_to_lrs(string $statementjson, \stdClass $cmi5, ?int $localid): void {
+        global $DB;
+
+        if (empty($cmi5->lrsendpoint)) {
+            return;
+        }
+
+        try {
+            $lrs = new lrs_client($cmi5->lrsendpoint, $cmi5->lrskey, $cmi5->lrssecret);
+            $lrs->send_statement($statementjson);
+            if ($localid !== null) {
+                $DB->set_field('cmi5_statements', 'forwarded', 1, ['id' => $localid]);
+            }
+        } catch (\Exception $e) {
+            debugging('Failed to forward abandoned statement to LRS: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
+    }
+
+    /**
      * Build the account-based actor object for a given user.
      *
      * Uses the Moodle site wwwroot as the account homePage and the
