@@ -26,8 +26,9 @@ namespace mod_cmi5\task;
 
 defined('MOODLE_INTERNAL') || die();
 
-use mod_cmi5\local\session;
-use mod_cmi5\local\xapi_statement;
+use mod_cmi5\session;
+use mod_cmi5\xapi_statement;
+use mod_cmi5\satisfaction_evaluator;
 
 /**
  * Scheduled task that finds and abandons stale cmi5 sessions.
@@ -70,20 +71,31 @@ class abandon_stale_sessions extends \core\task\scheduled_task {
                 continue;
             }
 
-            $stalesessions = session::get_stale_sessions($instance->id, $timeout);
+            $stalesessions = session::get_stale_sessions((int)$timeout, $instance->id);
 
             foreach ($stalesessions as $stalesession) {
                 mtrace("Abandoning stale session {$stalesession->id} for cmi5 instance {$instance->id}.");
 
-                // Mark the session as abandoned.
-                session::mark_abandoned($stalesession);
+                $registration = $DB->get_record('cmi5_registrations', ['id' => $stalesession->registrationid]);
+                $au = $DB->get_record('cmi5_aus', ['id' => $stalesession->auid]);
 
-                // Build and store the abandoned xAPI statement.
-                $statement = xapi_statement::build_abandoned_statement($stalesession);
-                xapi_statement::store($statement);
+                if (!$registration || !$au) {
+                    mtrace("Skipping session {$stalesession->id}: missing registration or AU record.");
+                    continue;
+                }
 
-                // Re-evaluate satisfaction for this AU/registration.
-                session::evaluate_satisfaction($stalesession);
+                session::mark_abandoned($stalesession->id);
+
+                $statementjson = xapi_statement::build_abandoned_statement(
+                    $instance,
+                    $au,
+                    $registration->registrationid,
+                    $stalesession,
+                    $registration->userid
+                );
+                xapi_statement::store($statementjson, $stalesession);
+
+                (new satisfaction_evaluator($instance))->evaluate($stalesession->registrationid);
             }
         }
     }

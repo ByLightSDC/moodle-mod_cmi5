@@ -165,20 +165,35 @@ class session {
      * Get stale sessions that have been initialized but not completed.
      *
      * Returns sessions that were initialized but neither terminated nor
-     * abandoned, and whose timemodified is older than the given timeout.
+     * abandoned, and whose timemodified is older than the given timeout,
+     * optionally filtered to a specific cmi5 activity instance.
      *
      * @param int $timeout The timeout in seconds. Sessions older than this are stale.
+     * @param int|null $cmi5id If provided, only return sessions belonging to this instance.
      * @return array Array of stale session records.
      */
-    public static function get_stale_sessions(int $timeout): array {
+    public static function get_stale_sessions(int $timeout, ?int $cmi5id = null): array {
         global $DB;
 
         $cutoff = time() - $timeout;
 
-        return array_values($DB->get_records_select(
-            'cmi5_sessions',
-            'initialized = 1 AND terminated = 0 AND abandoned = 0 AND timemodified < :cutoff',
-            ['cutoff' => $cutoff]
-        ));
+        if ($cmi5id === null) {
+            return array_values($DB->get_records_select(
+                'cmi5_sessions',
+                'initialized = 1 AND terminated = 0 AND abandoned = 0 AND timemodified < :cutoff',
+                ['cutoff' => $cutoff]
+            ));
+        }
+
+        $sql = "SELECT s.*
+                  FROM {cmi5_sessions} s
+                  JOIN {cmi5_registrations} r ON r.id = s.registrationid
+                 WHERE s.initialized = 1
+                   AND s.terminated = 0
+                   AND s.abandoned = 0
+                   AND s.timemodified < :cutoff
+                   AND r.cmi5id = :cmi5id";
+
+        return array_values($DB->get_records_sql($sql, ['cutoff' => $cutoff, 'cmi5id' => $cmi5id]));
     }
 }

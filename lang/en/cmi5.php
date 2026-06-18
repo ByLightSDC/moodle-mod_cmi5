@@ -155,6 +155,7 @@ $string['backupincludestatements'] = 'Include xAPI statements';
 
 // Tasks.
 $string['taskabandonsessions'] = 'Abandon stale cmi5 sessions';
+$string['taskabandonstalesessions'] = 'Abandon stale cmi5 sessions';
 $string['taskcleanuptokens'] = 'Clean up expired cmi5 tokens';
 
 // Completion.

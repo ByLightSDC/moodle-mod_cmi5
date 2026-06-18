@@ -224,6 +224,47 @@ class xapi_statement {
     }
 
     /**
+     * Store a JSON-encoded xAPI statement in the local cmi5_statements table.
+     *
+     * @param string $statementjson JSON-encoded xAPI statement.
+     * @param \stdClass $session The session record the statement belongs to.
+     * @return int The inserted record ID.
+     */
+    public static function store(string $statementjson, \stdClass $session): int {
+        global $DB;
+
+        $statement = json_decode($statementjson);
+
+        $actorhash = null;
+        if (isset($statement->actor->account->homePage, $statement->actor->account->name)) {
+            $actorhash = sha1($statement->actor->account->homePage . '|' . $statement->actor->account->name);
+        }
+        $activityid = null;
+        if (isset($statement->object->id)) {
+            $objectid = $statement->object->id;
+            $activityid = (strlen($objectid) > 255) ? substr($objectid, 0, 255) : $objectid;
+        }
+
+        $record = new \stdClass();
+        $record->sessionid = $session->id;
+        $record->statementid = $statement->id;
+        $record->verb = $statement->verb->id;
+        $record->statement_json = $statementjson;
+        $record->is_cmi5_defined = 1;
+        $record->forwarded = 0;
+        $record->stored = $statement->stored ?? gmdate('Y-m-d\TH:i:s.000\Z');
+        $record->authority_json = isset($statement->authority)
+            ? json_encode($statement->authority, JSON_UNESCAPED_SLASHES) : null;
+        $record->voided = 0;
+        $record->actor_hash = $actorhash;
+        $record->activity_id = $activityid;
+        $record->registration = $statement->context->registration ?? null;
+        $record->timecreated = time();
+
+        return $DB->insert_record('cmi5_statements', $record);
+    }
+
+    /**
      * Build the account-based actor object for a given user.
      *
      * Uses the Moodle site wwwroot as the account homePage and the
