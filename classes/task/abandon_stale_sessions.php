@@ -93,7 +93,7 @@ class abandon_stale_sessions extends \core\task\scheduled_task {
                     $stalesession,
                     $registration->userid
                 );
-                xapi_statement::store($statementjson, $stalesession);
+                xapi_statement::store($statementjson, $stalesession, $instance);
 
                 (new satisfaction_evaluator($instance))->evaluate($stalesession->registrationid);
             }
