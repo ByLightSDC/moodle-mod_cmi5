@@ -33,6 +33,9 @@ $string['cmi5name'] = 'Activity name';
 $string['cmi5fieldset'] = 'cmi5 Package settings';
 $string['modulename_help'] = 'The cmi5 activity module allows teachers to upload cmi5-compliant e-learning packages. Students launch Assignable Units (AUs) from the package, and their progress is tracked via xAPI statements.';
 
+// Course reset.
+$string['reset_cmi5'] = 'Delete all learner data (registrations, sessions, statements, progress and grades) for every cmi5 activity';
+
 // Mod form.
 $string['packagefile'] = 'Package file (ZIP)';
 $string['packagefile_help'] = 'Upload a cmi5 ZIP package containing a cmi5.xml manifest and content files.';
