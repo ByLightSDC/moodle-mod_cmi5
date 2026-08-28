@@ -128,6 +128,8 @@ $string['eventaufailed'] = 'AU failed';
 $string['eventsessionabandoned'] = 'Session abandoned';
 $string['eventcoursesatisfied'] = 'Course satisfied';
 $string['eventcoursemoduleviewed'] = 'Course module viewed';
+$string['eventregistrationdeleted'] = 'Learner registration deleted';
+$string['eventregistrationreset'] = 'Learner registration reset';
 
 // Errors (additional).
 $string['invalidsession'] = 'Invalid or expired session.';
@@ -302,7 +304,13 @@ $string['metrics:completionpct'] = 'Completion %';
 $string['metrics:nodata'] = 'No data available yet.';
 $string['metrics:backtolearners'] = '&larr; Back to all learners';
 $string['metrics:deleteregistration'] = 'Delete';
-$string['metrics:deleteconfirm'] = 'Delete all progress for {$a}? This cannot be undone.';
+$string['metrics:deleteconfirmtitle'] = 'Delete learner progress';
+$string['metrics:deleteconfirm'] = 'Delete all progress for {$a}? The registration and every session, statement, and score for this activity are removed and the gradebook entry is cleared. This cannot be undone.';
+$string['metrics:deletesuccess'] = 'Deleted all progress for {$a}.';
+$string['metrics:resetregistration'] = 'Reset';
+$string['metrics:resetconfirmtitle'] = 'Reset learner progress';
+$string['metrics:resetconfirm'] = 'Reset all sessions and progress for {$a}? Scores and session history for this activity are cleared, but the registration is kept so the learner can relaunch with a fresh session.';
+$string['metrics:resetsuccess'] = 'Reset progress for {$a}.';
 $string['metrics:exportcsv'] = 'Export CSV';
 $string['registrationnotfound'] = 'Registration not found for this user.';
 $string['metrics:alllearners'] = 'All learners';

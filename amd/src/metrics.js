@@ -23,9 +23,12 @@
 
 import Ajax from 'core/ajax';
 import ChartJS from 'core/chartjs';
+import Notification from 'core/notification';
+import {get_strings as getStrings} from 'core/str';
 
 let cmid = 0;
 let isTeacher = false;
+let canClearData = false;
 let charts = {};
 let loaded = {overview: false, learners: false, auanalytics: false};
 let activeDays = 30;
@@ -476,7 +479,7 @@ const loadLearnerProgress = async(userid = 0) => {
             html += '<thead><tr>' +
                 '<th>Learner</th><th>Registered</th><th>Completed</th>' +
                 '<th>Passed</th><th>Avg Score</th><th>Last Active</th><th>Satisfied</th>' +
-                (isTeacher ? '<th>Actions</th>' : '') +
+                (canClearData ? '<th>Actions</th>' : '') +
                 '</tr></thead><tbody>';
 
             data.learners.forEach(l => {
@@ -494,7 +497,7 @@ const loadLearnerProgress = async(userid = 0) => {
                     <td>${score}</td>
                     <td>${formatDate(l.lastactive)}</td>
                     <td>${satisfied}</td>`;
-                if (isTeacher) {
+                if (canClearData) {
                     html += `<td class="text-nowrap">
                         <button class="btn btn-outline-warning btn-sm mod-cmi5-reset-reg me-1"
                             data-userid="${l.userid}" data-fullname="${l.fullname.replace(/"/g, '&quot;')}"
@@ -527,7 +530,15 @@ const loadLearnerProgress = async(userid = 0) => {
                     e.stopPropagation();
                     const uid = parseInt(btn.dataset.userid, 10);
                     const name = btn.dataset.fullname;
-                    if (!confirm(`Delete all progress for ${name}? This cannot be undone.`)) {
+                    const [title, question, confirmLabel, successMsg] = await getStrings([
+                        {key: 'metrics:deleteconfirmtitle', component: 'mod_cmi5'},
+                        {key: 'metrics:deleteconfirm', component: 'mod_cmi5', param: name},
+                        {key: 'metrics:deleteregistration', component: 'mod_cmi5'},
+                        {key: 'metrics:deletesuccess', component: 'mod_cmi5', param: name},
+                    ]);
+                    try {
+                        await Notification.saveCancelPromise(title, question, confirmLabel);
+                    } catch (cancelled) {
                         return;
                     }
                     // Optimistic UI: disable button and fade row.
@@ -547,17 +558,19 @@ const loadLearnerProgress = async(userid = 0) => {
                             row.remove();
                         }
                         loaded.overview = false;
+                        loaded.auanalytics = false;
                         // Update cached learners.
                         if (cachedLearners) {
                             cachedLearners = cachedLearners.filter(l => l.userid !== uid);
                         }
+                        Notification.addNotification({message: successMsg, type: 'success'});
                     } catch (err) {
                         btn.disabled = false;
-                        btn.textContent = 'Delete';
+                        btn.textContent = confirmLabel;
                         if (row) {
                             row.style.opacity = '';
                         }
-                        window.alert(err.message || 'Error deleting registration');
+                        Notification.exception(err);
                     }
                 });
             });
@@ -568,7 +581,16 @@ const loadLearnerProgress = async(userid = 0) => {
                     e.stopPropagation();
                     const uid = parseInt(btn.dataset.userid, 10);
                     const name = btn.dataset.fullname;
-                    if (!confirm(`Reset all sessions and state for ${name}? Registration will be kept.`)) {
+                    const [title, question, confirmLabel, successMsg, doneLabel] = await getStrings([
+                        {key: 'metrics:resetconfirmtitle', component: 'mod_cmi5'},
+                        {key: 'metrics:resetconfirm', component: 'mod_cmi5', param: name},
+                        {key: 'metrics:resetregistration', component: 'mod_cmi5'},
+                        {key: 'metrics:resetsuccess', component: 'mod_cmi5', param: name},
+                        {key: 'done', component: 'core'},
+                    ]);
+                    try {
+                        await Notification.saveCancelPromise(title, question, confirmLabel);
+                    } catch (cancelled) {
                         return;
                     }
                     btn.disabled = true;
@@ -578,21 +600,23 @@ const loadLearnerProgress = async(userid = 0) => {
                             methodname: 'mod_cmi5_reset_registration_state',
                             args: {cmid, userid: uid},
                         }])[0];
-                        btn.textContent = 'Done';
+                        btn.textContent = doneLabel;
                         btn.classList.remove('btn-outline-warning');
                         btn.classList.add('btn-success');
                         loaded.overview = false;
+                        loaded.auanalytics = false;
+                        Notification.addNotification({message: successMsg, type: 'success'});
                         // Re-enable after a moment.
                         setTimeout(() => {
                             btn.disabled = false;
-                            btn.textContent = 'Reset';
+                            btn.textContent = confirmLabel;
                             btn.classList.remove('btn-success');
                             btn.classList.add('btn-outline-warning');
                         }, 2000);
                     } catch (err) {
                         btn.disabled = false;
-                        btn.textContent = 'Reset';
-                        window.alert(err.message || 'Error resetting registration state');
+                        btn.textContent = confirmLabel;
+                        Notification.exception(err);
                     }
                 });
             });
@@ -769,10 +793,12 @@ const loadAuAnalytics = async() => {
  * @param {number} courseModuleId The course module ID.
  * @param {boolean} teacher Whether the current user is a teacher.
  * @param {boolean} activeOnLoad Whether the metrics tab is active on page load.
+ * @param {boolean} canClear Whether the user may reset/delete learner registrations.
  */
-export const init = (courseModuleId, teacher, activeOnLoad) => {
+export const init = (courseModuleId, teacher, activeOnLoad, canClear) => {
     cmid = courseModuleId;
     isTeacher = teacher;
+    canClearData = canClear;
 
     // Load immediately if metrics tab is active on load.
     if (activeOnLoad) {
