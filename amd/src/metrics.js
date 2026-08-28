@@ -724,9 +724,11 @@ const loadAuAnalytics = async() => {
 
         // Chart.
         if (data.length > 1) {
+            const chartHeight = Math.max(150, data.length * 30);
             html += '<div class="card mb-3"><div class="card-body">' +
                 '<h5 class="card-title">Completion Rates by AU</h5>' +
-                '<div style="position:relative;height:' + Math.max(150, data.length * 30) + 'px"><canvas id="cmi5-chart-au"></canvas></div>' +
+                '<div style="position:relative;height:' + chartHeight + 'px">' +
+                '<canvas id="cmi5-chart-au"></canvas></div>' +
                 '</div></div>';
         }
 
