@@ -63,7 +63,9 @@ class delete_registration extends external_api {
      * @return array ['success' => true]
      */
     public static function execute(int $cmid, int $userid): array {
-        global $DB;
+        global $CFG, $DB;
+
+        require_once($CFG->dirroot . '/mod/cmi5/lib.php');
 
         $params = self::validate_parameters(self::execute_parameters(), [
             'cmid' => $cmid,
@@ -92,17 +94,34 @@ class delete_registration extends external_api {
             throw new \moodle_exception('registrationnotfound', 'cmi5');
         }
 
+        $registrationid = $registration->id;
+
         // Cascade delete following the same pattern as cmi5_delete_instance().
-        $sessions = $DB->get_records('cmi5_sessions', ['registrationid' => $registration->id]);
+        $transaction = $DB->start_delegated_transaction();
+
+        $sessions = $DB->get_records('cmi5_sessions', ['registrationid' => $registrationid]);
         foreach ($sessions as $session) {
             $DB->delete_records('cmi5_tokens', ['sessionid' => $session->id]);
             $DB->delete_records('cmi5_statements', ['sessionid' => $session->id]);
         }
-        $DB->delete_records('cmi5_sessions', ['registrationid' => $registration->id]);
-        $DB->delete_records('cmi5_au_status', ['registrationid' => $registration->id]);
-        $DB->delete_records('cmi5_block_status', ['registrationid' => $registration->id]);
-        $DB->delete_records('cmi5_state_documents', ['registrationid' => $registration->id]);
-        $DB->delete_records('cmi5_registrations', ['id' => $registration->id]);
+        $DB->delete_records('cmi5_sessions', ['registrationid' => $registrationid]);
+        $DB->delete_records('cmi5_au_status', ['registrationid' => $registrationid]);
+        $DB->delete_records('cmi5_block_status', ['registrationid' => $registrationid]);
+        $DB->delete_records('cmi5_state_documents', ['registrationid' => $registrationid]);
+        $DB->delete_records('cmi5_registrations', ['id' => $registrationid]);
+
+        $transaction->allow_commit();
+
+        // Clear the learner's gradebook entry for this activity now that their data is gone.
+        cmi5_update_grades($cmi5, $userid, true);
+
+        $event = \mod_cmi5\event\registration_deleted::create([
+            'context' => $context,
+            'objectid' => $registrationid,
+            'relateduserid' => $userid,
+            'other' => ['cmi5id' => $cmi5->id],
+        ]);
+        $event->trigger();
 
         return ['success' => true];
     }
