@@ -96,20 +96,8 @@ class delete_registration extends external_api {
 
         $registrationid = $registration->id;
 
-        // Cascade delete following the same pattern as cmi5_delete_instance().
         $transaction = $DB->start_delegated_transaction();
-
-        $sessions = $DB->get_records('cmi5_sessions', ['registrationid' => $registrationid]);
-        foreach ($sessions as $session) {
-            $DB->delete_records('cmi5_tokens', ['sessionid' => $session->id]);
-            $DB->delete_records('cmi5_statements', ['sessionid' => $session->id]);
-        }
-        $DB->delete_records('cmi5_sessions', ['registrationid' => $registrationid]);
-        $DB->delete_records('cmi5_au_status', ['registrationid' => $registrationid]);
-        $DB->delete_records('cmi5_block_status', ['registrationid' => $registrationid]);
-        $DB->delete_records('cmi5_state_documents', ['registrationid' => $registrationid]);
-        $DB->delete_records('cmi5_registrations', ['id' => $registrationid]);
-
+        \mod_cmi5\registration::delete($registration);
         $transaction->allow_commit();
 
         // Clear the learner's gradebook entry for this activity now that their data is gone.

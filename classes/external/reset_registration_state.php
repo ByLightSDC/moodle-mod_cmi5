@@ -102,17 +102,7 @@ class reset_registration_state extends external_api {
 
         // Clear all session-related data, keeping the registration record itself.
         $transaction = $DB->start_delegated_transaction();
-
-        $sessions = $DB->get_records('cmi5_sessions', ['registrationid' => $registrationid]);
-        foreach ($sessions as $session) {
-            $DB->delete_records('cmi5_tokens', ['sessionid' => $session->id]);
-            $DB->delete_records('cmi5_statements', ['sessionid' => $session->id]);
-        }
-        $DB->delete_records('cmi5_sessions', ['registrationid' => $registrationid]);
-        $DB->delete_records('cmi5_au_status', ['registrationid' => $registrationid]);
-        $DB->delete_records('cmi5_block_status', ['registrationid' => $registrationid]);
-        $DB->delete_records('cmi5_state_documents', ['registrationid' => $registrationid]);
-
+        \mod_cmi5\registration::purge_state($registration);
         $transaction->allow_commit();
 
         // Reset the learner's gradebook entry for this activity; progress starts over.

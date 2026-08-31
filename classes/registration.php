@@ -109,4 +109,45 @@ class registration {
             'timemodified' => time(),
         ]);
     }
+
+    /**
+     * Delete all session and progress data for a registration, keeping the record.
+     *
+     * Removes tokens, statements, sessions, AU status, block status and State
+     * API documents, following the same cascade as cmi5_delete_instance(). Does
+     * not open a transaction or touch the gradebook: callers are responsible for
+     * wrapping this in a transaction and calling cmi5_update_grades() afterwards.
+     *
+     * @param \stdClass $registration A record from cmi5_registrations.
+     * @return void
+     */
+    public static function purge_state(\stdClass $registration): void {
+        global $DB;
+
+        $sessions = $DB->get_records('cmi5_sessions', ['registrationid' => $registration->id]);
+        foreach ($sessions as $session) {
+            $DB->delete_records('cmi5_tokens', ['sessionid' => $session->id]);
+            $DB->delete_records('cmi5_statements', ['sessionid' => $session->id]);
+        }
+        $DB->delete_records('cmi5_sessions', ['registrationid' => $registration->id]);
+        $DB->delete_records('cmi5_au_status', ['registrationid' => $registration->id]);
+        $DB->delete_records('cmi5_block_status', ['registrationid' => $registration->id]);
+        $DB->delete_records('cmi5_state_documents', ['registrationid' => $registration->id]);
+    }
+
+    /**
+     * Delete a registration together with all its session and progress data.
+     *
+     * Same caller responsibilities as purge_state(): wrap in a transaction and
+     * refresh the gradebook afterwards.
+     *
+     * @param \stdClass $registration A record from cmi5_registrations.
+     * @return void
+     */
+    public static function delete(\stdClass $registration): void {
+        global $DB;
+
+        self::purge_state($registration);
+        $DB->delete_records('cmi5_registrations', ['id' => $registration->id]);
+    }
 }
