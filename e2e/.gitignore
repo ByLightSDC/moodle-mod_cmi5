@@ -1,0 +1,11 @@
+node_modules/
+.env
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# The repo-root .gitignore excludes package-lock.json (it's meant for the
+# plugin's AMD build tooling). For the e2e project we DO want it committed,
+# so re-include it here.
+!package-lock.json
