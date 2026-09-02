@@ -48,10 +48,16 @@ test.describe('per-learner Delete (Metrics > Learners)', () => {
     await expect(page.getByRole('dialog')).toContainText(/delete all progress/i);
     await confirmModal(page, 'Delete');
 
-    // UI: row for student1 is gone; student2 still there.
+    // UI: the optimistic row removal + success toast.
     await expect(deleteButton(page, s1Id)).toHaveCount(0);
     await expect(deleteButton(page, s2Id)).toBeVisible();
     await expect(page.locator('.alert-success')).toContainText(/deleted all progress/i);
+
+    // UI: reload the tab from scratch — student1 is genuinely absent from the
+    // server-rendered list, not just removed client-side.
+    await openLearnersTab(page, activity.cmId);
+    await expect(deleteButton(page, s1Id)).toHaveCount(0);
+    await expect(deleteButton(page, s2Id)).toBeVisible();
 
     // DB: every cmi5 row for student1's registration is gone.
     expect(await count('cmi5_registrations', { id: s1.registrationId })).toBe(0);
