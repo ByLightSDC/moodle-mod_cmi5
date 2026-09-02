@@ -13,6 +13,9 @@ import path from 'path';
 const CONTAINER = process.env.E2E_MOODLE_CONTAINER ?? 'moodle-docker-webserver-1';
 const SEED_PHP = path.resolve(__dirname, '../fixtures/seed.php');
 
+/** Password every seeded user is created with (see fixtures/seed.php). */
+export const SEED_USER_PASSWORD = 'Passw0rd!e2e';
+
 export type Role = 'editingteacher' | 'teacher' | 'student';
 
 export interface SeedSpec {
