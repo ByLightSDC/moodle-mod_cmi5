@@ -99,3 +99,55 @@ test.describe('Course reset - "Delete all learner data"', () => {
     ).toBe(2);
   });
 });
+
+test.describe('Course reset - our box AND "Remove all grades"', () => {
+  let seeded: SeedResult;
+
+  test.beforeAll(() => {
+    seeded = seedScenario({
+      activities: [{ name: 'CR Both', aus: [{ title: 'AU 1' }] }],
+      users: [
+        { username: 'e2e_teacher', role: 'editingteacher' },
+        { username: 'e2e_student1', role: 'student' },
+      ],
+      progress: [
+        { user: 'e2e_student1', activity: 'CR Both', au: 'AU 1', completed: true, passed: true, score: 0.8 },
+      ],
+    });
+  });
+
+  test.afterAll(() => teardownScenario(seeded.runId));
+
+  test('grades still clear, no error / double-processing when both options are on', async ({ page }) => {
+    const courseId = seeded.courseId;
+    const courseFrom = `FROM ${t('cmi5_registrations')} r JOIN ${t('cmi5')} c ON c.id = r.cmi5id WHERE c.course = $1`;
+    const gradesFrom =
+      `FROM ${t('grade_grades')} gg JOIN ${t('grade_items')} gi ON gi.id = gg.itemid ` +
+      `WHERE gi.itemmodule = 'cmi5' AND gi.courseid = $1 AND gg.finalgrade IS NOT NULL`;
+
+    expect(await countSql(courseFrom, [courseId])).toBe(1);
+    expect(await countSql(gradesFrom, [courseId])).toBe(1);
+
+    await loginAs(page, 'e2e_teacher', SEED_USER_PASSWORD);
+    await page.goto(`/course/reset.php?id=${courseId}`);
+    // Leave BOTH "Delete all learner data" and "Remove all grades" ticked
+    // (both are on by default). Just isolate from unenrol / role deletion.
+    await expect(page.locator('#id_reset_cmi5')).toBeChecked();
+    await expect(page.locator('#id_reset_gradebook_grades')).toBeChecked();
+    await page.locator('#id_reset_roles_local').uncheck();
+    await page.locator('#id_unenrol_users').selectOption([]);
+
+    await page.getByRole('button', { name: 'Reset course' }).click();
+    await confirmModal(page, 'Reset course');
+
+    // No error on the results page; our component still listed.
+    await expect(page.getByRole('button', { name: /continue/i })).toBeVisible();
+    await expect(page.getByText(/delete all learner data/i).first()).toBeVisible();
+    await expect(page.locator('.alert-danger, .error')).toHaveCount(0);
+
+    // Both did their job: cmi5 rows gone, grades cleared, activity kept.
+    expect(await countSql(courseFrom, [courseId])).toBe(0);
+    expect(await countSql(gradesFrom, [courseId])).toBe(0);
+    expect(await countSql(`FROM ${t('cmi5')} WHERE course = $1`, [courseId])).toBe(1);
+  });
+});
