@@ -403,6 +403,102 @@ function cmi5_update_grades($cmi5, $userid = 0, $nullifnone = true) {
 }
 
 /**
+ * Add the "Delete cmi5 learner data" option to the Course reset form.
+ *
+ * @param MoodleQuickForm $mform The course reset form being built.
+ */
+function cmi5_reset_course_form_definition(&$mform) {
+    $mform->addElement('header', 'cmi5header', get_string('modulenameplural', 'cmi5'));
+    $mform->addElement('advcheckbox', 'reset_cmi5', get_string('reset_cmi5', 'cmi5'));
+}
+
+/**
+ * Default values for the Course reset form.
+ *
+ * @param stdClass $course The course being reset.
+ * @return array Defaults keyed by form element name.
+ */
+function cmi5_reset_course_form_defaults($course) {
+    return ['reset_cmi5' => 1];
+}
+
+/**
+ * Reset all cmi5 grade items in a course to no grade.
+ *
+ * Called by the course reset process when the site-wide "Delete all grades"
+ * option is selected.
+ *
+ * @param int $courseid The course ID.
+ * @param string $type Optional activity type filter (unused for a single-module plugin).
+ */
+function cmi5_reset_gradebook($courseid, $type = '') {
+    global $DB;
+
+    $cmi5s = $DB->get_records('cmi5', ['course' => $courseid]);
+    foreach ($cmi5s as $cmi5) {
+        cmi5_grade_item_update($cmi5, 'reset');
+    }
+}
+
+/**
+ * Remove all learner data for every cmi5 activity in a course.
+ *
+ * Wipes registrations, sessions, tokens, statements, AU/block status and
+ * State API documents so the activities are ready for a fresh cohort, and
+ * resets the matching gradebook items. Content structure (cmi5_aus,
+ * cmi5_blocks) and per-user learner preferences (cmi5_agent_profiles) are
+ * left untouched. Mirrors the cascade in cmi5_delete_instance().
+ *
+ * @param stdClass $data Course reset form data (courseid plus reset_* flags).
+ * @return array Status lines for the reset results table.
+ */
+function cmi5_reset_userdata($data) {
+    global $DB;
+
+    $status = [];
+
+    if (empty($data->reset_cmi5)) {
+        return $status;
+    }
+
+    $cmi5s = $DB->get_records('cmi5', ['course' => $data->courseid]);
+
+    $transaction = $DB->start_delegated_transaction();
+    foreach ($cmi5s as $cmi5) {
+        $registrations = $DB->get_records('cmi5_registrations', ['cmi5id' => $cmi5->id]);
+        foreach ($registrations as $reg) {
+            $sessions = $DB->get_records('cmi5_sessions', ['registrationid' => $reg->id]);
+            foreach ($sessions as $session) {
+                $DB->delete_records('cmi5_tokens', ['sessionid' => $session->id]);
+                $DB->delete_records('cmi5_statements', ['sessionid' => $session->id]);
+            }
+            $DB->delete_records('cmi5_sessions', ['registrationid' => $reg->id]);
+            $DB->delete_records('cmi5_au_status', ['registrationid' => $reg->id]);
+            $DB->delete_records('cmi5_block_status', ['registrationid' => $reg->id]);
+            $DB->delete_records('cmi5_state_documents', ['registrationid' => $reg->id]);
+        }
+        $DB->delete_records('cmi5_registrations', ['cmi5id' => $cmi5->id]);
+    }
+    $transaction->allow_commit();
+
+    // Clear the gradebook entries now that the underlying data is gone, unless
+    // the whole course gradebook is already being wiped by this same reset run.
+    if (empty($data->reset_gradebook_grades)) {
+        foreach ($cmi5s as $cmi5) {
+            cmi5_grade_item_update($cmi5, 'reset');
+        }
+    }
+
+    $status[] = [
+        'component' => get_string('modulenameplural', 'cmi5'),
+        'item' => get_string('reset_cmi5', 'cmi5'),
+        'error' => false,
+    ];
+
+    return $status;
+}
+
+/**
  * Serves file from mod_cmi5 file areas.
  *
  * @param stdClass $course

@@ -23,9 +23,12 @@
 
 import Ajax from 'core/ajax';
 import ChartJS from 'core/chartjs';
+import Notification from 'core/notification';
+import {get_string as getString, get_strings as getStrings} from 'core/str';
 
 let cmid = 0;
 let isTeacher = false;
+let canClearData = false;
 let charts = {};
 let loaded = {overview: false, learners: false, auanalytics: false};
 let activeDays = 30;
@@ -469,14 +472,27 @@ const loadLearnerProgress = async(userid = 0) => {
                 return;
             }
 
-            let html = '<div class="d-flex justify-content-end mb-2">' +
-                '<button class="btn btn-outline-secondary btn-sm mod-cmi5-export-csv">' +
-                '<i class="fa fa-download me-1"></i>Export CSV</button></div>';
+            let html = '<div class="d-flex justify-content-between align-items-center mb-2">';
+            if (canClearData) {
+                html += '<div class="mod-cmi5-bulk-bar d-none align-items-center gap-2">' +
+                    '<span class="mod-cmi5-bulk-count fw-bold"></span>' +
+                    '<button class="btn btn-outline-warning btn-sm mod-cmi5-bulk-reset">Reset selected</button>' +
+                    '<button class="btn btn-outline-danger btn-sm mod-cmi5-bulk-delete">Delete selected</button>' +
+                    '</div>';
+            } else {
+                html += '<div></div>';
+            }
+            html += '<button class="btn btn-outline-secondary btn-sm mod-cmi5-export-csv">' +
+                '<i class="fa fa-download me-1"></i>Export CSV</button>';
+            html += '</div>';
             html += '<div class="table-responsive"><table class="table table-striped table-hover">';
             html += '<thead><tr>' +
+                (canClearData
+                    ? '<th style="width:1%"><input type="checkbox" class="mod-cmi5-sel-all" title="Select all"></th>'
+                    : '') +
                 '<th>Learner</th><th>Registered</th><th>Completed</th>' +
                 '<th>Passed</th><th>Avg Score</th><th>Last Active</th><th>Satisfied</th>' +
-                (isTeacher ? '<th>Actions</th>' : '') +
+                (canClearData ? '<th>Actions</th>' : '') +
                 '</tr></thead><tbody>';
 
             data.learners.forEach(l => {
@@ -486,7 +502,12 @@ const loadLearnerProgress = async(userid = 0) => {
                     ? '<span class="badge bg-success">Yes</span>'
                     : '<span class="badge bg-secondary">No</span>';
                 html += `<tr class="mod-cmi5-learner-row" data-userid="${l.userid}"
-                    data-fullname="${l.fullname.replace(/"/g, '&quot;')}" style="cursor:pointer">
+                    data-fullname="${l.fullname.replace(/"/g, '&quot;')}" style="cursor:pointer">`;
+                if (canClearData) {
+                    html += `<td class="mod-cmi5-sel-cell">
+                        <input type="checkbox" class="mod-cmi5-sel" value="${l.userid}"></td>`;
+                }
+                html += `
                     <td><strong>${l.fullname}</strong><br><small class="text-muted">${l.email}</small></td>
                     <td>${formatDate(l.registrationdate)}</td>
                     <td>${l.completedcount}</td>
@@ -494,7 +515,7 @@ const loadLearnerProgress = async(userid = 0) => {
                     <td>${score}</td>
                     <td>${formatDate(l.lastactive)}</td>
                     <td>${satisfied}</td>`;
-                if (isTeacher) {
+                if (canClearData) {
                     html += `<td class="text-nowrap">
                         <button class="btn btn-outline-warning btn-sm mod-cmi5-reset-reg me-1"
                             data-userid="${l.userid}" data-fullname="${l.fullname.replace(/"/g, '&quot;')}"
@@ -514,7 +535,9 @@ const loadLearnerProgress = async(userid = 0) => {
             // Bind drill-down clicks (on the row, but not on action buttons).
             container.querySelectorAll('.mod-cmi5-learner-row').forEach(row => {
                 row.addEventListener('click', (e) => {
-                    if (e.target.closest('.mod-cmi5-delete-reg') || e.target.closest('.mod-cmi5-reset-reg')) {
+                    if (e.target.closest('.mod-cmi5-delete-reg')
+                        || e.target.closest('.mod-cmi5-reset-reg')
+                        || e.target.closest('.mod-cmi5-sel-cell')) {
                         return;
                     }
                     loadLearnerProgress(parseInt(row.dataset.userid, 10));
@@ -527,7 +550,15 @@ const loadLearnerProgress = async(userid = 0) => {
                     e.stopPropagation();
                     const uid = parseInt(btn.dataset.userid, 10);
                     const name = btn.dataset.fullname;
-                    if (!confirm(`Delete all progress for ${name}? This cannot be undone.`)) {
+                    const [title, question, confirmLabel, successMsg] = await getStrings([
+                        {key: 'metrics:deleteconfirmtitle', component: 'mod_cmi5'},
+                        {key: 'metrics:deleteconfirm', component: 'mod_cmi5', param: name},
+                        {key: 'metrics:deleteregistration', component: 'mod_cmi5'},
+                        {key: 'metrics:deletesuccess', component: 'mod_cmi5', param: name},
+                    ]);
+                    try {
+                        await Notification.saveCancelPromise(title, question, confirmLabel);
+                    } catch (cancelled) {
                         return;
                     }
                     // Optimistic UI: disable button and fade row.
@@ -547,17 +578,19 @@ const loadLearnerProgress = async(userid = 0) => {
                             row.remove();
                         }
                         loaded.overview = false;
+                        loaded.auanalytics = false;
                         // Update cached learners.
                         if (cachedLearners) {
                             cachedLearners = cachedLearners.filter(l => l.userid !== uid);
                         }
+                        Notification.addNotification({message: successMsg, type: 'success'});
                     } catch (err) {
                         btn.disabled = false;
-                        btn.textContent = 'Delete';
+                        btn.textContent = confirmLabel;
                         if (row) {
                             row.style.opacity = '';
                         }
-                        window.alert(err.message || 'Error deleting registration');
+                        Notification.exception(err);
                     }
                 });
             });
@@ -568,7 +601,16 @@ const loadLearnerProgress = async(userid = 0) => {
                     e.stopPropagation();
                     const uid = parseInt(btn.dataset.userid, 10);
                     const name = btn.dataset.fullname;
-                    if (!confirm(`Reset all sessions and state for ${name}? Registration will be kept.`)) {
+                    const [title, question, confirmLabel, successMsg, doneLabel] = await getStrings([
+                        {key: 'metrics:resetconfirmtitle', component: 'mod_cmi5'},
+                        {key: 'metrics:resetconfirm', component: 'mod_cmi5', param: name},
+                        {key: 'metrics:resetregistration', component: 'mod_cmi5'},
+                        {key: 'metrics:resetsuccess', component: 'mod_cmi5', param: name},
+                        {key: 'done', component: 'core'},
+                    ]);
+                    try {
+                        await Notification.saveCancelPromise(title, question, confirmLabel);
+                    } catch (cancelled) {
                         return;
                     }
                     btn.disabled = true;
@@ -578,21 +620,23 @@ const loadLearnerProgress = async(userid = 0) => {
                             methodname: 'mod_cmi5_reset_registration_state',
                             args: {cmid, userid: uid},
                         }])[0];
-                        btn.textContent = 'Done';
+                        btn.textContent = doneLabel;
                         btn.classList.remove('btn-outline-warning');
                         btn.classList.add('btn-success');
                         loaded.overview = false;
+                        loaded.auanalytics = false;
+                        Notification.addNotification({message: successMsg, type: 'success'});
                         // Re-enable after a moment.
                         setTimeout(() => {
                             btn.disabled = false;
-                            btn.textContent = 'Reset';
+                            btn.textContent = confirmLabel;
                             btn.classList.remove('btn-success');
                             btn.classList.add('btn-outline-warning');
                         }, 2000);
                     } catch (err) {
                         btn.disabled = false;
-                        btn.textContent = 'Reset';
-                        window.alert(err.message || 'Error resetting registration state');
+                        btn.textContent = confirmLabel;
+                        Notification.exception(err);
                     }
                 });
             });
@@ -601,6 +645,86 @@ const loadLearnerProgress = async(userid = 0) => {
             container.querySelector('.mod-cmi5-export-csv')?.addEventListener('click', () => {
                 exportLearnersCsv(data.learners);
             });
+
+            // Bind bulk selection + bulk reset/delete.
+            if (canClearData) {
+                const bulkBar = container.querySelector('.mod-cmi5-bulk-bar');
+                const bulkCount = container.querySelector('.mod-cmi5-bulk-count');
+                const selAll = container.querySelector('.mod-cmi5-sel-all');
+                const boxes = () => Array.from(container.querySelectorAll('.mod-cmi5-sel'));
+                const checkedBoxes = () => boxes().filter(b => b.checked);
+
+                const refreshBulkBar = () => {
+                    const checked = checkedBoxes();
+                    bulkBar.classList.toggle('d-none', checked.length === 0);
+                    bulkBar.classList.toggle('d-flex', checked.length > 0);
+                    getString('metrics:bulkselected', 'mod_cmi5', checked.length)
+                        .then(s => {
+                            bulkCount.textContent = s;
+                            return s;
+                        })
+                        .catch(() => {
+                            bulkCount.textContent = checked.length;
+                        });
+                    if (selAll) {
+                        selAll.checked = checked.length > 0 && checked.length === boxes().length;
+                        selAll.indeterminate = checked.length > 0 && checked.length < boxes().length;
+                    }
+                };
+
+                boxes().forEach(box => {
+                    box.addEventListener('click', e => e.stopPropagation());
+                    box.addEventListener('change', refreshBulkBar);
+                });
+                if (selAll) {
+                    selAll.addEventListener('click', e => e.stopPropagation());
+                    selAll.addEventListener('change', () => {
+                        boxes().forEach(box => {
+                            box.checked = selAll.checked;
+                        });
+                        refreshBulkBar();
+                    });
+                }
+
+                const runBulk = async(action) => {
+                    const userids = checkedBoxes().map(b => parseInt(b.value, 10));
+                    if (!userids.length) {
+                        return;
+                    }
+                    const keys = action === 'delete'
+                        ? ['metrics:bulkdeleteconfirmtitle', 'metrics:bulkdeleteconfirm',
+                            'metrics:bulkdelete', 'metrics:bulkdeletesuccess']
+                        : ['metrics:bulkresetconfirmtitle', 'metrics:bulkresetconfirm',
+                            'metrics:bulkreset', 'metrics:bulkresetsuccess'];
+                    const [title, question, confirmLabel, successMsg] = await getStrings([
+                        {key: keys[0], component: 'mod_cmi5'},
+                        {key: keys[1], component: 'mod_cmi5', param: userids.length},
+                        {key: keys[2], component: 'mod_cmi5'},
+                        {key: keys[3], component: 'mod_cmi5', param: userids.length},
+                    ]);
+                    try {
+                        await Notification.saveCancelPromise(title, question, confirmLabel);
+                    } catch (cancelled) {
+                        return;
+                    }
+                    try {
+                        await Ajax.call([{
+                            methodname: 'mod_cmi5_bulk_registration_action',
+                            args: {cmid, userids, action},
+                        }])[0];
+                        loaded.learners = false;
+                        loaded.overview = false;
+                        loaded.auanalytics = false;
+                        Notification.addNotification({message: successMsg, type: 'success'});
+                        loadLearnerProgress(0);
+                    } catch (err) {
+                        Notification.exception(err);
+                    }
+                };
+
+                container.querySelector('.mod-cmi5-bulk-reset')?.addEventListener('click', () => runBulk('reset'));
+                container.querySelector('.mod-cmi5-bulk-delete')?.addEventListener('click', () => runBulk('delete'));
+            }
 
             loaded.learners = true;
         } else {
@@ -700,9 +824,11 @@ const loadAuAnalytics = async() => {
 
         // Chart.
         if (data.length > 1) {
+            const chartHeight = Math.max(150, data.length * 30);
             html += '<div class="card mb-3"><div class="card-body">' +
                 '<h5 class="card-title">Completion Rates by AU</h5>' +
-                '<div style="position:relative;height:' + Math.max(150, data.length * 30) + 'px"><canvas id="cmi5-chart-au"></canvas></div>' +
+                '<div style="position:relative;height:' + chartHeight + 'px">' +
+                '<canvas id="cmi5-chart-au"></canvas></div>' +
                 '</div></div>';
         }
 
@@ -769,10 +895,12 @@ const loadAuAnalytics = async() => {
  * @param {number} courseModuleId The course module ID.
  * @param {boolean} teacher Whether the current user is a teacher.
  * @param {boolean} activeOnLoad Whether the metrics tab is active on page load.
+ * @param {boolean} canClear Whether the user may reset/delete learner registrations.
  */
-export const init = (courseModuleId, teacher, activeOnLoad) => {
+export const init = (courseModuleId, teacher, activeOnLoad, canClear) => {
     cmid = courseModuleId;
     isTeacher = teacher;
+    canClearData = canClear;
 
     // Load immediately if metrics tab is active on load.
     if (activeOnLoad) {

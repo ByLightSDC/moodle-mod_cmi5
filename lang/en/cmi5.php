@@ -33,6 +33,9 @@ $string['cmi5name'] = 'Activity name';
 $string['cmi5fieldset'] = 'cmi5 Package settings';
 $string['modulename_help'] = 'The cmi5 activity module allows teachers to upload cmi5-compliant e-learning packages. Students launch Assignable Units (AUs) from the package, and their progress is tracked via xAPI statements.';
 
+// Course reset.
+$string['reset_cmi5'] = 'Delete all learner data (registrations, sessions, statements, progress and grades) for every cmi5 activity';
+
 // Mod form.
 $string['packagefile'] = 'Package file (ZIP)';
 $string['packagefile_help'] = 'Upload a cmi5 ZIP package containing a cmi5.xml manifest and content files.';
@@ -128,6 +131,8 @@ $string['eventaufailed'] = 'AU failed';
 $string['eventsessionabandoned'] = 'Session abandoned';
 $string['eventcoursesatisfied'] = 'Course satisfied';
 $string['eventcoursemoduleviewed'] = 'Course module viewed';
+$string['eventregistrationdeleted'] = 'Learner registration deleted';
+$string['eventregistrationreset'] = 'Learner registration reset';
 
 // Errors (additional).
 $string['invalidsession'] = 'Invalid or expired session.';
@@ -302,7 +307,23 @@ $string['metrics:completionpct'] = 'Completion %';
 $string['metrics:nodata'] = 'No data available yet.';
 $string['metrics:backtolearners'] = '&larr; Back to all learners';
 $string['metrics:deleteregistration'] = 'Delete';
-$string['metrics:deleteconfirm'] = 'Delete all progress for {$a}? This cannot be undone.';
+$string['metrics:deleteconfirmtitle'] = 'Delete learner progress';
+$string['metrics:deleteconfirm'] = 'Delete all progress for {$a}? The registration and every session, statement, and score for this activity are removed and the gradebook entry is cleared. This cannot be undone.';
+$string['metrics:deletesuccess'] = 'Deleted all progress for {$a}.';
+$string['metrics:resetregistration'] = 'Reset';
+$string['metrics:resetconfirmtitle'] = 'Reset learner progress';
+$string['metrics:resetconfirm'] = 'Reset all sessions and progress for {$a}? Scores and session history for this activity are cleared, but the registration is kept so the learner can relaunch with a fresh session.';
+$string['metrics:resetsuccess'] = 'Reset progress for {$a}.';
+$string['metrics:selectall'] = 'Select all';
+$string['metrics:bulkselected'] = '{$a} selected';
+$string['metrics:bulkreset'] = 'Reset selected';
+$string['metrics:bulkresetconfirmtitle'] = 'Reset selected learners';
+$string['metrics:bulkresetconfirm'] = 'Reset all sessions and progress for {$a} selected learner(s)? Scores and session history for this activity are cleared, but the registrations are kept so the learners can relaunch with a fresh session.';
+$string['metrics:bulkresetsuccess'] = 'Reset progress for {$a} learner(s).';
+$string['metrics:bulkdelete'] = 'Delete selected';
+$string['metrics:bulkdeleteconfirmtitle'] = 'Delete selected learners';
+$string['metrics:bulkdeleteconfirm'] = 'Delete all progress for {$a} selected learner(s)? Every registration, session, statement and score for this activity is removed and the gradebook entries are cleared. This cannot be undone.';
+$string['metrics:bulkdeletesuccess'] = 'Deleted all progress for {$a} learner(s).';
 $string['metrics:exportcsv'] = 'Export CSV';
 $string['registrationnotfound'] = 'Registration not found for this user.';
 $string['metrics:alllearners'] = 'All learners';

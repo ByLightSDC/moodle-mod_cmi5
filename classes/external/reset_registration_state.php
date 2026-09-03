@@ -67,7 +67,9 @@ class reset_registration_state extends external_api {
      * @return array ['success' => true]
      */
     public static function execute(int $cmid, int $userid): array {
-        global $DB;
+        global $CFG, $DB;
+
+        require_once($CFG->dirroot . '/mod/cmi5/lib.php');
 
         $params = self::validate_parameters(self::execute_parameters(), [
             'cmid' => $cmid,
@@ -96,16 +98,23 @@ class reset_registration_state extends external_api {
             throw new \moodle_exception('registrationnotfound', 'cmi5');
         }
 
-        // Clear all session-related data.
-        $sessions = $DB->get_records('cmi5_sessions', ['registrationid' => $registration->id]);
-        foreach ($sessions as $session) {
-            $DB->delete_records('cmi5_tokens', ['sessionid' => $session->id]);
-            $DB->delete_records('cmi5_statements', ['sessionid' => $session->id]);
-        }
-        $DB->delete_records('cmi5_sessions', ['registrationid' => $registration->id]);
-        $DB->delete_records('cmi5_au_status', ['registrationid' => $registration->id]);
-        $DB->delete_records('cmi5_block_status', ['registrationid' => $registration->id]);
-        $DB->delete_records('cmi5_state_documents', ['registrationid' => $registration->id]);
+        $registrationid = $registration->id;
+
+        // Clear all session-related data, keeping the registration record itself.
+        $transaction = $DB->start_delegated_transaction();
+        \mod_cmi5\registration::purge_state($registration);
+        $transaction->allow_commit();
+
+        // Reset the learner's gradebook entry for this activity; progress starts over.
+        cmi5_update_grades($cmi5, $userid, true);
+
+        $event = \mod_cmi5\event\registration_reset::create([
+            'context' => $context,
+            'objectid' => $registrationid,
+            'relateduserid' => $userid,
+            'other' => ['cmi5id' => $cmi5->id],
+        ]);
+        $event->trigger();
 
         return ['success' => true];
     }
