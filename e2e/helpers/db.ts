@@ -67,6 +67,28 @@ export async function findRow<T = Record<string, unknown>>(
   return rows[0] ?? null;
 }
 
+/** Number of user enrolments in a course. */
+export async function enrolmentCount(courseId: number): Promise<number> {
+  const rows = await query<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM ${t('user_enrolments')} ue
+       JOIN ${t('enrol')} e ON e.id = ue.enrolid
+      WHERE e.courseid = $1`,
+    [courseId],
+  );
+  return rows[0].n;
+}
+
+/** Number of role assignments in a course's own context. */
+export async function roleAssignmentCount(courseId: number): Promise<number> {
+  const rows = await query<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM ${t('role_assignments')} ra
+       JOIN ${t('context')} ctx ON ctx.id = ra.contextid
+      WHERE ctx.contextlevel = 50 AND ctx.instanceid = $1`,
+    [courseId],
+  );
+  return rows[0].n;
+}
+
 /** Explicitly close the pool (optional; the process also exits cleanly on its own). */
 export async function closePool(): Promise<void> {
   await pool.end();

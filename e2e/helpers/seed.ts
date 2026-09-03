@@ -30,6 +30,8 @@ export interface SeedSpec {
     completed?: boolean;
     passed?: boolean;
     score?: number; // 0..1, becomes score_scaled -> gradebook
+    /** Extra statements tagged with the registration UUID but sessionid 0 (not reachable via the session cascade). */
+    detached?: number;
   }>;
 }
 
