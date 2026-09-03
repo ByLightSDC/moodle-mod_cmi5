@@ -188,6 +188,22 @@ function e2e_progress(stdClass $cmi5, stdClass $au, stdClass $user, stdClass $p)
         ]);
     }
 
+    // Optionally add "detached" statements: tagged with the registration UUID
+    // but with sessionid 0, i.e. not reachable via the sessionid cascade.
+    for ($i = 0; $i < (int)($p->detached ?? 0); $i++) {
+        $DB->insert_record('cmi5_statements', (object)[
+            'sessionid' => 0,
+            'statementid' => \core\uuid::generate(),
+            'verb' => 'http://adlnet.gov/expapi/verbs/experienced',
+            'statement_json' => json_encode(['verb' => ['id' => 'http://adlnet.gov/expapi/verbs/experienced']]),
+            'is_cmi5_defined' => 0,
+            'forwarded' => 0,
+            'voided' => 0,
+            'registration' => $reg->registrationid,
+            'timecreated' => $now,
+        ]);
+    }
+
     $DB->insert_record('cmi5_state_documents', (object)[
         'registrationid' => $reg->id,
         'activityid' => $au->auid,

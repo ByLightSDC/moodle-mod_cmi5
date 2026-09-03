@@ -130,6 +130,10 @@ class registration {
             $DB->delete_records('cmi5_statements', ['sessionid' => $session->id]);
         }
         $DB->delete_records('cmi5_sessions', ['registrationid' => $registration->id]);
+        // Belt and braces: also drop any statement tagged with this registration
+        // UUID whose session was already gone (arrived before a session existed,
+        // or left dangling by an earlier partial cleanup).
+        $DB->delete_records('cmi5_statements', ['registration' => $registration->registrationid]);
         $DB->delete_records('cmi5_au_status', ['registrationid' => $registration->id]);
         $DB->delete_records('cmi5_block_status', ['registrationid' => $registration->id]);
         $DB->delete_records('cmi5_state_documents', ['registrationid' => $registration->id]);

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { loginAs } from '../helpers/auth';
 import { seedScenario, teardownScenario, userId, SEED_USER_PASSWORD, type SeedResult } from '../helpers/seed';
 import { openLearnersTab, resetButton, confirmModal } from '../helpers/metrics';
-import { count, findRow } from '../helpers/db';
+import { count, findRow, enrolmentCount, roleAssignmentCount } from '../helpers/db';
 
 test.describe('per-learner Reset (Metrics > Learners)', () => {
   let seeded: SeedResult;
@@ -35,6 +35,9 @@ test.describe('per-learner Reset (Metrics > Learners)', () => {
       itemmodule: 'cmi5',
       iteminstance: activity.cmi5Id,
     });
+
+    const enrolBefore = await enrolmentCount(seeded.courseId);
+    const rolesBefore = await roleAssignmentCount(seeded.courseId);
 
     // Registration exists before, with the child data.
     expect(await count('cmi5_registrations', { id: s1.registrationId })).toBe(1);
@@ -85,5 +88,9 @@ test.describe('per-learner Reset (Metrics > Learners)', () => {
       userid: s2Id,
     });
     expect(Number(g2!.finalgrade)).toBeCloseTo(60);
+
+    // DB: no collateral — enrolments and role assignments are unchanged.
+    expect(await enrolmentCount(seeded.courseId)).toBe(enrolBefore);
+    expect(await roleAssignmentCount(seeded.courseId)).toBe(rolesBefore);
   });
 });
