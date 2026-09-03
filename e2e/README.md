@@ -97,10 +97,10 @@ npm test
 ```
 
 The suite runs **serially, one worker** — every test mutates the same Moodle
-database, so they can't overlap. A full run is ~2 minutes. A browser window
+database, so they can't overlap. A full run is ~3 minutes. A browser window
 opens locally so you can watch (headless in CI).
 
-**Expected result:** `25 passed`, and `git`-nothing left behind (every run
+**Expected result:** `29 passed`, and `git`-nothing left behind (every run
 tears down its own seeded course). If you get `Missing environment variable …`,
 go back to Step 2. `could not run docker exec` means `docker` isn't on your
 `PATH`. Anything else → 7.
@@ -138,9 +138,11 @@ A handful of "plumbing" specs just check the harness itself.
 | `login.spec.ts` | the admin login helper works | plumbing |
 | `db.spec.ts` | Postgres is reachable, the `cmi5_*` tables exist | plumbing |
 | `fixtures.spec.ts` | seed → rows + gradebook grade exist → teardown → gone | plumbing |
-| `delete-learner.spec.ts` | per-learner **Delete**: row gone (and stays gone after a reload), toast, whole cascade + grade cleared, control learner untouched | UI + DB |
-| `reset-learner.spec.ts` | per-learner **Reset**: registration + UUID kept, `coursesatisfied` + every child table zeroed, grade nulled, row stays in the list, control learner untouched | UI + DB |
-| `bulk.spec.ts` | select-all + indeterminate + bulk-bar visibility; a row checkbox doesn't open the drill-down; **Delete selected** / **Reset selected** on a subset; bulk delete on one activity leaves the same learner's data in another activity alone | UI + DB |
+| `delete-learner.spec.ts` | per-learner **Delete**: row gone (and stays gone after a reload), toast, whole cascade + grade cleared, control learner untouched, enrolments + role assignments unchanged | UI + DB |
+| `reset-learner.spec.ts` | per-learner **Reset**: registration + UUID kept, `coursesatisfied` + every child table zeroed, grade nulled, row stays in the list, control learner untouched, enrolments + roles unchanged | UI + DB |
+| `bulk.spec.ts` | select-all + indeterminate + bulk-bar visibility; a row checkbox doesn't open the drill-down; **Delete selected** / **Reset selected** on a subset (enrolments + roles unchanged); bulk delete on one activity leaves the same learner's data in another activity alone | UI + DB |
+| `orphan-statements.spec.ts` | Delete and Reset also clear "detached" statements — tagged with the registration UUID but `sessionid 0`, not reachable via the session cascade | UI + DB |
+| `relaunch.spec.ts` | after **Delete**, relaunching via `launch.php` mints a new registration + UUID; after **Reset**, it reuses the same one | UI + DB |
 | `capability-gate.spec.ts` | an editing teacher sees the controls; a `viewreports`-only teacher sees the report but **no** buttons/checkboxes, and a direct `mod_cmi5_delete_registration` web-service call is rejected | UI + WS |
 | `course-reset.spec.ts` | `/course/reset.php` "Delete all learner data": whole-course cmi5 wipe + grades cleared, enrolments / roles / activities untouched. Second scenario: our box **and** Moodle's "Remove all grades" together → still clears, no error | UI + DB |
 | `gradebook.spec.ts` | after a delete, the learner's cmi5 grade is gone from the **user grade report**; another learner's is unchanged | UI + DB |
