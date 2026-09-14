@@ -288,18 +288,8 @@ function cmi5_delete_instance($id) {
     // Delete all related data.
     $registrations = $DB->get_records('cmi5_registrations', ['cmi5id' => $id]);
     foreach ($registrations as $reg) {
-        // Delete sessions and their tokens/statements.
-        $sessions = $DB->get_records('cmi5_sessions', ['registrationid' => $reg->id]);
-        foreach ($sessions as $session) {
-            $DB->delete_records('cmi5_tokens', ['sessionid' => $session->id]);
-            $DB->delete_records('cmi5_statements', ['sessionid' => $session->id]);
-        }
-        $DB->delete_records('cmi5_sessions', ['registrationid' => $reg->id]);
-        $DB->delete_records('cmi5_au_status', ['registrationid' => $reg->id]);
-        $DB->delete_records('cmi5_block_status', ['registrationid' => $reg->id]);
-        $DB->delete_records('cmi5_state_documents', ['registrationid' => $reg->id]);
+        \mod_cmi5\registration::delete($reg);
     }
-    $DB->delete_records('cmi5_registrations', ['cmi5id' => $id]);
     $DB->delete_records('cmi5_aus', ['cmi5id' => $id]);
     $DB->delete_records('cmi5_blocks', ['cmi5id' => $id]);
 
@@ -447,7 +437,7 @@ function cmi5_reset_gradebook($courseid, $type = '') {
  * State API documents so the activities are ready for a fresh cohort, and
  * resets the matching gradebook items. Content structure (cmi5_aus,
  * cmi5_blocks) and per-user learner preferences (cmi5_agent_profiles) are
- * left untouched. Mirrors the cascade in cmi5_delete_instance().
+ * left untouched. Uses the shared cascade in \mod_cmi5\registration::delete().
  *
  * @param stdClass $data Course reset form data (courseid plus reset_* flags).
  * @return array Status lines for the reset results table.
@@ -467,17 +457,8 @@ function cmi5_reset_userdata($data) {
     foreach ($cmi5s as $cmi5) {
         $registrations = $DB->get_records('cmi5_registrations', ['cmi5id' => $cmi5->id]);
         foreach ($registrations as $reg) {
-            $sessions = $DB->get_records('cmi5_sessions', ['registrationid' => $reg->id]);
-            foreach ($sessions as $session) {
-                $DB->delete_records('cmi5_tokens', ['sessionid' => $session->id]);
-                $DB->delete_records('cmi5_statements', ['sessionid' => $session->id]);
-            }
-            $DB->delete_records('cmi5_sessions', ['registrationid' => $reg->id]);
-            $DB->delete_records('cmi5_au_status', ['registrationid' => $reg->id]);
-            $DB->delete_records('cmi5_block_status', ['registrationid' => $reg->id]);
-            $DB->delete_records('cmi5_state_documents', ['registrationid' => $reg->id]);
+            \mod_cmi5\registration::delete($reg);
         }
-        $DB->delete_records('cmi5_registrations', ['cmi5id' => $cmi5->id]);
     }
     $transaction->allow_commit();
 
