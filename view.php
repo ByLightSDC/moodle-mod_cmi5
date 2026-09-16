@@ -177,6 +177,7 @@ if (!empty($cmi5->packageid) && has_capability('mod/cmi5:managecontent', $contex
 }
 
 $isteacher = has_capability('mod/cmi5:viewreports', $context);
+$cancleardata = has_capability('mod/cmi5:managecontent', $context);
 
 $templatedata = [
     'aus' => $audata,
@@ -193,6 +194,7 @@ $templatedata = [
     'changelogentries' => $changelogentries,
     'syncurl' => $syncurl,
     'isteacher' => $isteacher,
+    'cancleardata' => $cancleardata,
     'ismetrics' => ($tab === 'metrics'),
 ];
 

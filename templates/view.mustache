@@ -28,6 +28,7 @@
     * cmi5id - activity instance id
     * launchmethod - 0=newwindow, 1=iframe
     * isteacher - boolean, whether user has viewreports capability
+    * cancleardata - boolean, whether user can reset/delete learner registrations (managecontent)
     * ismetrics - boolean, whether metrics tab should be active
 }}
 <div class="mod-cmi5-view" data-cmid="{{cmid}}" data-cmi5id="{{cmi5id}}">
@@ -145,6 +146,6 @@ require(['mod_cmi5/launcher'], function(launcher) {
     launcher.init({{cmid}}, {{launchmethod}});
 });
 require(['mod_cmi5/metrics'], function(metrics) {
-    metrics.init({{cmid}}, {{#isteacher}}true{{/isteacher}}{{^isteacher}}false{{/isteacher}}, {{#ismetrics}}true{{/ismetrics}}{{^ismetrics}}false{{/ismetrics}});
+    metrics.init({{cmid}}, {{#isteacher}}true{{/isteacher}}{{^isteacher}}false{{/isteacher}}, {{#ismetrics}}true{{/ismetrics}}{{^ismetrics}}false{{/ismetrics}}, {{#cancleardata}}true{{/cancleardata}}{{^cancleardata}}false{{/cancleardata}});
 });
 {{/js}}

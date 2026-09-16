@@ -116,4 +116,11 @@ $functions = [
         'ajax' => true,
         'capabilities' => 'mod/cmi5:managecontent',
     ],
+    'mod_cmi5_bulk_registration_action' => [
+        'classname' => 'mod_cmi5\external\bulk_registration_action',
+        'description' => 'Reset or delete the registrations of several learners in one operation',
+        'type' => 'write',
+        'ajax' => true,
+        'capabilities' => 'mod/cmi5:managecontent',
+    ],
 ];
