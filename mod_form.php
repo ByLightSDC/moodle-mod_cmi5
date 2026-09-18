@@ -257,6 +257,7 @@ class mod_cmi5_mod_form extends moodleform_mod {
         $this->add_library_picker_elements($mform);
         $mform->hideIf('packageid', 'packagesource', 'ne', 'library');
         $mform->hideIf('libraryauid', 'packagesource', 'ne', 'library');
+        $mform->hideIf('librarypicker', 'packagesource', 'ne', 'library');
     }
 
     /**
@@ -267,61 +268,46 @@ class mod_cmi5_mod_form extends moodleform_mod {
      * @param MoodleQuickForm $mform
      */
     private function add_library_picker_elements($mform): void {
+        global $OUTPUT;
+
+        // The two <select> elements below are the canonical form values and the
+        // no-JavaScript fallback; the picker control rendered after them drives their
+        // values through the mod_cmi5/library_picker AMD module.
+        $selectedpackageid = (int) ($this->current->packageid ?? 0);
+        $selectedpackageid = optional_param('packageid', $selectedpackageid, PARAM_INT);
+        $selectedauvalue = optional_param('libraryauid', '', PARAM_RAW);
+
         $libraryoptions = ['' => get_string('selectpackage', 'cmi5')];
-        $packages = \mod_cmi5\content_library::list_packages('', 1, 0, 200);
-        $ausByPackage = [];
+        $packages = \mod_cmi5\content_library::list_packages('', \mod_cmi5\content_library::STATUS_ACTIVE, 0, 500);
         foreach ($packages as $pkg) {
             $libraryoptions[$pkg->id] = format_string($pkg->title);
-            $details = \mod_cmi5\content_library::get_package_details((int) $pkg->id);
-            $ausByPackage[$pkg->id] = $details->aus ?? [];
         }
         $mform->addElement('select', 'packageid', get_string('librarypackage', 'cmi5'), $libraryoptions);
         $mform->addHelpButton('packageid', 'librarypackage', 'cmi5');
 
+        // AU picker — select which AU from the package (or "all"). Only the selected
+        // package's AUs are loaded; the picker repopulates this list client-side.
         $auoptions = ['' => get_string('library:allaus', 'cmi5')];
-        $aujsonmap = [];
-        foreach ($ausByPackage as $pkgid => $aus) {
-            $aujsonmap[$pkgid] = [];
-            foreach ($aus as $au) {
-                $key = $pkgid . ':' . $au->id;
-                $auoptions[$key] = format_string($au->title);
-                $aujsonmap[$pkgid][] = ['key' => $key, 'title' => format_string($au->title)];
+        if ($selectedpackageid) {
+            $details = \mod_cmi5\content_library::get_package_details($selectedpackageid);
+            foreach ($details->aus ?? [] as $au) {
+                $auoptions[$selectedpackageid . ':' . $au->id] = format_string($au->title);
             }
         }
         $mform->addElement('select', 'libraryauid', get_string('library:selectau', 'cmi5'), $auoptions);
         $mform->addHelpButton('libraryauid', 'library:selectau', 'cmi5');
 
-        $aujson = json_encode($aujsonmap);
-        $allauslabel = get_string('library:allaus', 'cmi5');
-        $mform->addElement('html', "<script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var pkgSelect = document.getElementById('id_packageid');
-            var auSelect = document.getElementById('id_libraryauid');
-            var auMap = {$aujson};
-            var allLabel = " . json_encode($allauslabel) . ";
-            if (!pkgSelect || !auSelect) return;
-            function updateAuOptions() {
-                var pkgId = pkgSelect.value;
-                var currentVal = auSelect.value;
-                auSelect.innerHTML = '';
-                var opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = allLabel;
-                auSelect.appendChild(opt);
-                if (pkgId && auMap[pkgId]) {
-                    auMap[pkgId].forEach(function(au) {
-                        var o = document.createElement('option');
-                        o.value = au.key;
-                        o.textContent = au.title;
-                        if (au.key === currentVal) o.selected = true;
-                        auSelect.appendChild(o);
-                    });
-                }
-            }
-            pkgSelect.addEventListener('change', updateAuOptions);
-            updateAuOptions();
-        });
-        </script>");
+        // The picker control: a selection summary plus a button that opens the
+        // browse modal. Hidden until its AMD module loads.
+        $picker = new \mod_cmi5\output\library_picker(
+            $selectedpackageid,
+            $selectedauvalue,
+            'id_packageid',
+            'id_libraryauid',
+            (int) $this->context->id
+        );
+        $mform->addElement('static', 'librarypicker', get_string('librarypackage', 'cmi5'),
+            $OUTPUT->render_from_template('mod_cmi5/library_picker', $picker->export_for_template($OUTPUT)));
     }
 
     /**

@@ -44,6 +44,16 @@ class content_library {
     /** @var int Package status: active. */
     const STATUS_ACTIVE = 1;
 
+    /** @var string Sort packages by most recently modified. */
+    const SORT_RECENT = 'recent';
+    /** @var string Sort packages alphabetically by title. */
+    const SORT_TITLE = 'title';
+    /** @var string Sort packages by number of activities using them. */
+    const SORT_USAGE = 'usage';
+
+    /** @var array Valid sort keys for package listings. */
+    const VALID_SORTS = [self::SORT_RECENT, self::SORT_TITLE, self::SORT_USAGE];
+
     /** @var array AU fields tracked for changelog computation. */
     const TRACKED_AU_FIELDS = [
         'title', 'description', 'url', 'launchmethod', 'moveoncriteria',
@@ -418,7 +428,7 @@ class content_library {
     /**
      * List packages in the library with optional filtering.
      *
-     * @param string $search Search string to filter by title.
+     * @param string $search Search string to filter by title or description.
      * @param int $status Filter by status (-1 for all). Checks latest version status.
      * @param int $offset Pagination offset.
      * @param int $limit Maximum results.
@@ -428,33 +438,75 @@ class content_library {
             int $offset = 0, int $limit = 50): array {
         global $DB;
 
-        $conditions = [];
-        $params = [];
-
-        if ($status >= 0) {
-            $conditions[] = 'EXISTS (SELECT 1 FROM {cmi5_package_versions} v WHERE v.id = p.latestversion AND v.status = :status)';
-            $params['status'] = $status;
-        }
-
-        if (!empty($search)) {
-            $conditions[] = $DB->sql_like('p.title', ':search', false);
-            $params['search'] = '%' . $DB->sql_like_escape($search) . '%';
-        }
-
-        $where = !empty($conditions) ? implode(' AND ', $conditions) : '1=1';
+        [$where, $params] = self::build_package_filter($search, $status);
 
         $sql = "SELECT p.* FROM {cmi5_packages} p WHERE {$where} ORDER BY p.timemodified DESC";
         return array_values($DB->get_records_sql($sql, $params, $offset, $limit));
     }
 
     /**
-     * Get the total count of packages matching the filter.
+     * List packages along with the metadata the picker grid needs.
      *
-     * @param string $search Search string.
-     * @param int $status Filter by status (-1 for all).
-     * @return int Total count.
+     * This resolves the latest version, its AU count and the package's total usage
+     * in a single query, so callers rendering a list of cards do not need to call
+     * get_package_details() once per package.
+     *
+     * @param string $search Search string to filter by title or description.
+     * @param int $status Filter by status (-1 for all). Checks latest version status.
+     * @param int $offset Pagination offset.
+     * @param int $limit Maximum results.
+     * @param string $sort One of 'recent', 'title' or 'usage'.
+     * @param int $source Filter by source type (-1 for all).
+     * @return array Array of package records with versionid, versionnumber, source,
+     *               aucount and usagecount fields populated.
      */
-    public static function count_packages(string $search = '', int $status = -1): int {
+    public static function list_packages_with_meta(string $search = '', int $status = -1,
+            int $offset = 0, int $limit = 50, string $sort = self::SORT_RECENT,
+            int $source = -1): array {
+        global $DB;
+
+        [$where, $params] = self::build_package_filter($search, $status, $source);
+
+        $sql = "SELECT p.id, p.title, p.description, p.timecreated, p.timemodified, p.latestversion,
+                       v.id AS versionid, v.versionnumber, v.source, v.status,
+                       (SELECT COUNT(1) FROM {cmi5_package_aus} a WHERE a.versionid = v.id) AS aucount,
+                       (SELECT COALESCE(SUM(v2.usagecount), 0) FROM {cmi5_package_versions} v2
+                         WHERE v2.packageid = p.id) AS usagecount
+                  FROM {cmi5_packages} p
+             LEFT JOIN {cmi5_package_versions} v ON v.id = p.latestversion
+                 WHERE {$where}
+              ORDER BY " . self::sort_clause($sort);
+
+        return array_values($DB->get_records_sql($sql, $params, $offset, $limit));
+    }
+
+    /**
+     * Map a sort key to an ORDER BY clause.
+     *
+     * @param string $sort One of 'recent', 'title' or 'usage'.
+     * @return string The ORDER BY clause body.
+     */
+    private static function sort_clause(string $sort): string {
+        switch ($sort) {
+            case self::SORT_TITLE:
+                return 'p.title ASC';
+            case self::SORT_USAGE:
+                return 'usagecount DESC, p.title ASC';
+            case self::SORT_RECENT:
+            default:
+                return 'p.timemodified DESC';
+        }
+    }
+
+    /**
+     * Build the shared WHERE clause used by the package listing and counting queries.
+     *
+     * @param string $search Search string matched against title and description.
+     * @param int $status Filter by status (-1 for all).
+     * @param int $source Filter by source type (-1 for all).
+     * @return array [string $where, array $params]
+     */
+    private static function build_package_filter(string $search, int $status, int $source = -1): array {
         global $DB;
 
         $conditions = [];
@@ -465,12 +517,37 @@ class content_library {
             $params['status'] = $status;
         }
 
+        if ($source >= 0) {
+            $conditions[] = 'EXISTS (SELECT 1 FROM {cmi5_package_versions} vs WHERE vs.id = p.latestversion AND vs.source = :source)';
+            $params['source'] = $source;
+        }
+
         if (!empty($search)) {
-            $conditions[] = $DB->sql_like('p.title', ':search', false);
-            $params['search'] = '%' . $DB->sql_like_escape($search) . '%';
+            $titlelike = $DB->sql_like('p.title', ':searchtitle', false);
+            $desclike = $DB->sql_like('p.description', ':searchdesc', false);
+            $conditions[] = "({$titlelike} OR {$desclike})";
+            $escaped = '%' . $DB->sql_like_escape($search) . '%';
+            $params['searchtitle'] = $escaped;
+            $params['searchdesc'] = $escaped;
         }
 
         $where = !empty($conditions) ? implode(' AND ', $conditions) : '1=1';
+
+        return [$where, $params];
+    }
+
+    /**
+     * Get the total count of packages matching the filter.
+     *
+     * @param string $search Search string matched against title and description.
+     * @param int $status Filter by status (-1 for all).
+     * @param int $source Filter by source type (-1 for all).
+     * @return int Total count.
+     */
+    public static function count_packages(string $search = '', int $status = -1, int $source = -1): int {
+        global $DB;
+
+        [$where, $params] = self::build_package_filter($search, $status, $source);
 
         return $DB->count_records_sql("SELECT COUNT(*) FROM {cmi5_packages} p WHERE {$where}", $params);
     }

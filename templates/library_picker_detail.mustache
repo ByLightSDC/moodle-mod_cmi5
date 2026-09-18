@@ -1,0 +1,116 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/library_picker_detail
+
+    Body of the "view details" modal in the content library picker. Rendered
+    client-side by the mod_cmi5/library_picker AMD module from
+    mod_cmi5_library_get_package results.
+
+    Context variables required:
+    * packageid - package ID
+    * description - full package description
+    * hasdescription - bool
+    * courseidiri - course ID IRI
+    * hascourseidiri - bool
+    * versionnumber - current version number
+    * usagecount - number of activities using the package
+    * aus - array of {id, value, title, description, hasdescription, launchmethod,
+            moveoncriteria, isexternal, selected}
+    * hasaus - bool
+    * allselected - bool, the "all AUs" option is the current selection
+    * title - package title, shown above the detail pane
+
+    Example context (json):
+    {
+        "packageid": 7,
+        "description": "An introduction to workplace fire safety.",
+        "hasdescription": true,
+        "courseidiri": "http://example.com/course/fire-safety",
+        "hascourseidiri": true,
+        "versionnumber": 2,
+        "usagecount": 12,
+        "aus": [{"id": 31, "value": "7:31", "title": "Extinguisher types",
+                 "description": "", "hasdescription": false, "launchmethod": "AnyWindow",
+                 "moveoncriteria": "Passed", "isexternal": false, "selected": false}],
+        "hasaus": true,
+        "allselected": true,
+        "title": "Fire Safety Basics"
+    }
+}}
+<div class="cmi5-picker-detail" data-region="package-detail" data-packageid="{{packageid}}">
+
+    <div class="cmi5-picker-detail-head">
+        <button type="button" class="btn btn-link p-0" data-action="back">
+            &laquo; {{#str}}picker:back, cmi5{{/str}}
+        </button>
+        <h5 class="cmi5-picker-detail-title">{{title}}</h5>
+    </div>
+
+    {{#hasdescription}}
+    <p>{{description}}</p>
+    {{/hasdescription}}
+    {{^hasdescription}}
+    <p class="text-muted"><em>{{#str}}picker:nodescription, cmi5{{/str}}</em></p>
+    {{/hasdescription}}
+
+    <dl class="cmi5-picker-detail-meta">
+        <dt>{{#str}}library:versions, cmi5{{/str}}</dt>
+        <dd>{{#str}}picker:version, cmi5, {{versionnumber}}{{/str}}</dd>
+        <dt>{{#str}}library:usagecount, cmi5{{/str}}</dt>
+        <dd>{{usagecount}}</dd>
+        {{#hascourseidiri}}
+        <dt>{{#str}}library:courseidiri, cmi5{{/str}}</dt>
+        <dd><code class="small">{{courseidiri}}</code></dd>
+        {{/hascourseidiri}}
+    </dl>
+
+    <fieldset class="cmi5-picker-au-choice">
+        <legend class="h6">{{#str}}picker:whichaus, cmi5{{/str}}</legend>
+
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="cmi5-detail-au" value=""
+                   id="cmi5-detail-au-all" data-action="select-au" {{#allselected}}checked{{/allselected}}>
+            <label class="form-check-label" for="cmi5-detail-au-all">
+                {{#str}}library:allaus, cmi5{{/str}}
+            </label>
+        </div>
+
+        {{#aus}}
+        <div class="form-check cmi5-picker-au-item">
+            <input class="form-check-input" type="radio" name="cmi5-detail-au" value="{{value}}"
+                   id="cmi5-detail-au-{{id}}" data-action="select-au" {{#selected}}checked{{/selected}}>
+            <label class="form-check-label" for="cmi5-detail-au-{{id}}">
+                <span class="cmi5-picker-au-title">{{title}}</span>
+                {{#isexternal}}
+                <span class="badge badge-info bg-info">{{#str}}library:external, cmi5{{/str}}</span>
+                {{/isexternal}}
+                {{#hasdescription}}
+                <span class="cmi5-picker-au-desc d-block text-muted small">{{description}}</span>
+                {{/hasdescription}}
+                <span class="cmi5-picker-au-flags d-block text-muted small">
+                    {{launchmethod}} &middot; {{moveoncriteria}}
+                </span>
+            </label>
+        </div>
+        {{/aus}}
+    </fieldset>
+
+    {{^hasaus}}
+    <div class="alert alert-warning mt-2">{{#str}}noaus, cmi5{{/str}}</div>
+    {{/hasaus}}
+</div>

@@ -268,6 +268,36 @@ $string['library:nochanges'] = 'No changes recorded';
 $string['library:updateexternal'] = 'Update external AU';
 $string['library:versionuploaded'] = 'Version {$a} uploaded successfully.';
 
+// Content library picker (activity settings form).
+$string['picker:searchlabel'] = 'Search the content library';
+$string['picker:searchplaceholder'] = 'Search by title or description';
+$string['picker:sortby'] = 'Sort by';
+$string['picker:sort_recent'] = 'Recently updated';
+$string['picker:sort_title'] = 'Title (A-Z)';
+$string['picker:sort_usage'] = 'Most used';
+$string['picker:filtertype'] = 'Type';
+$string['picker:alltypes'] = 'All types';
+$string['picker:noresults'] = 'No packages match your search.';
+$string['picker:loaderror'] = 'The content library could not be loaded. Please try again.';
+$string['picker:noselection'] = 'No package selected yet.';
+$string['picker:nopackages'] = 'There are no packages in the content library yet. Upload one from the Content Library admin page, or switch the package source to "Upload".';
+$string['picker:nodescription'] = 'No description provided.';
+$string['picker:aucount'] = '{$a} AUs';
+$string['picker:usedby'] = 'Used by {$a}';
+$string['picker:version'] = 'v{$a}';
+$string['picker:usethispackage'] = 'Use this package';
+$string['picker:whichaus'] = 'Which Assignable Units should this activity include?';
+$string['picker:browse'] = 'Browse library';
+$string['picker:clear'] = 'Clear';
+$string['picker:modaltitle'] = 'Choose a package';
+$string['picker:back'] = 'Back to results';
+$string['picker:previous'] = 'Previous page';
+$string['picker:next'] = 'Next page';
+$string['picker:gotopage'] = 'Page {$a}';
+$string['picker:pagination'] = 'Content library pages';
+$string['picker:range'] = 'Showing {$a->from}-{$a->to} of {$a->total}';
+
+
 // Standalone LRS.
 $string['lrs_standalone'] = 'Standalone LRS';
 $string['lrs_standalone_desc'] = 'Enable the built-in xAPI LRS endpoint for external tool access. When enabled, external tools can query statements via the LRS API using API key authentication.';

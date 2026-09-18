@@ -1,0 +1,90 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/library_picker
+
+    Content library package picker control for the activity settings form.
+
+    Shows the current selection and a button that opens the browse modal. The whole
+    control is hidden until the mod_cmi5/library_picker AMD module loads, so without
+    JavaScript the plain packageid/libraryauid selects remain the only control.
+
+    Context variables required:
+    * contextid - course or module context ID for permission checks
+    * inputid - element ID of the form input holding the package ID
+    * auinputid - element ID of the form input holding the AU selection
+    * perpage - number of cards shown per page in the modal
+    * haspackages - bool, the library contains at least one active package
+    * total - total number of active packages
+    * hasselection - bool
+    * selectedtitle - title of the selected package
+    * selectedautitle - label describing the selected AU scope
+    * initials - one or two letters for the generated tile
+    * tone - tile colour tone, 1 to 6
+    * modaljson - JSON encoded sort and filter options for the browse modal
+
+    Example context (json):
+    {
+        "contextid": 42,
+        "inputid": "id_packageid",
+        "auinputid": "id_libraryauid",
+        "perpage": 9,
+        "haspackages": true,
+        "total": 12,
+        "hasselection": false,
+        "selectedtitle": "",
+        "selectedautitle": "",
+        "initials": "",
+        "tone": 1,
+        "modaljson": "{}"
+    }
+}}
+<div class="cmi5-picker cmi5-picker-jshidden" data-region="cmi5-library-picker"
+     data-inputid="{{inputid}}" data-auinputid="{{auinputid}}" data-perpage="{{perpage}}">
+    {{#haspackages}}
+    <div class="cmi5-picker-control">
+        <div class="cmi5-picker-selected" data-region="selection" aria-live="polite">
+            {{> mod_cmi5/library_picker_selection }}
+        </div>
+        <div class="cmi5-picker-control-actions">
+            <button type="button" class="btn btn-secondary" data-action="browse">
+                {{#str}}picker:browse, cmi5{{/str}}
+            </button>
+            <button type="button" class="btn btn-link{{^hasselection}} hidden d-none{{/hasselection}}"
+                    data-action="clear">
+                {{#str}}picker:clear, cmi5{{/str}}
+            </button>
+        </div>
+    </div>
+    {{/haspackages}}
+
+    {{^haspackages}}
+    <div class="alert alert-info mb-0">{{#str}}picker:nopackages, cmi5{{/str}}</div>
+    {{/haspackages}}
+</div>
+{{#js}}
+require(['mod_cmi5/library_picker'], function(picker) {
+    picker.init({
+        contextId: {{contextid}},
+        inputId: '{{inputid}}',
+        auInputId: '{{auinputid}}',
+        perPage: {{perpage}},
+        total: {{total}},
+        modalContext: {{{modaljson}}}
+    });
+});
+{{/js}}

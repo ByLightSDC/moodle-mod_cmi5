@@ -31,21 +31,28 @@ class library_get_package extends external_api {
         return new external_function_parameters([
             'packageid' => new external_value(PARAM_INT, 'The package ID'),
             'versionid' => new external_value(PARAM_INT, 'Specific version ID (0 = latest)', VALUE_DEFAULT, 0),
+            'contextid' => new external_value(PARAM_INT, 'Course or module context for the picker (0 = system)',
+                VALUE_DEFAULT, 0),
         ]);
     }
 
-    public static function execute(int $packageid, int $versionid = 0): array {
+    public static function execute(int $packageid, int $versionid = 0, int $contextid = 0): array {
         $params = self::validate_parameters(self::execute_parameters(), [
             'packageid' => $packageid,
             'versionid' => $versionid,
+            'contextid' => $contextid,
         ]);
 
-        $context = \context_system::instance();
+        $systemcontext = \context_system::instance();
+        $context = $params['contextid'] ? \context::instance_by_id($params['contextid'], MUST_EXIST) : $systemcontext;
+        if (!in_array($context->contextlevel, [CONTEXT_SYSTEM, CONTEXT_COURSE, CONTEXT_MODULE], true)) {
+            throw new \invalid_parameter_exception('Expected a system, course or module context');
+        }
         self::validate_context($context);
 
-        if (!has_capability('mod/cmi5:managelibrary', $context) &&
+        if (!has_capability('mod/cmi5:managelibrary', $systemcontext) &&
                 !has_capability('mod/cmi5:addinstance', $context, null, false)) {
-            require_capability('mod/cmi5:managelibrary', $context);
+            require_capability('mod/cmi5:addinstance', $context);
         }
 
         $package = content_library::get_package_details($params['packageid'], $params['versionid']);

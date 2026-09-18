@@ -33,65 +33,75 @@ class library_list_packages extends external_api {
             'status' => new external_value(PARAM_INT, 'Status filter (-1=all, 0=disabled, 1=active)', VALUE_DEFAULT, 1),
             'offset' => new external_value(PARAM_INT, 'Pagination offset', VALUE_DEFAULT, 0),
             'limit' => new external_value(PARAM_INT, 'Max results', VALUE_DEFAULT, 50),
+            'sort' => new external_value(PARAM_ALPHA, 'Sort order: recent, title or usage',
+                VALUE_DEFAULT, content_library::SORT_RECENT),
+            'source' => new external_value(PARAM_INT, 'Source filter (-1=all, 0=zip, 1=external, 2=api)',
+                VALUE_DEFAULT, -1),
+            'contextid' => new external_value(PARAM_INT, 'Course or module context for the picker (0 = system)',
+                VALUE_DEFAULT, 0),
         ]);
     }
 
     public static function execute(string $search = '', int $status = 1,
-            int $offset = 0, int $limit = 50): array {
-        global $DB;
+            int $offset = 0, int $limit = 50, string $sort = content_library::SORT_RECENT,
+            int $source = -1, int $contextid = 0): array {
 
         $params = self::validate_parameters(self::execute_parameters(), [
             'search' => $search,
             'status' => $status,
             'offset' => $offset,
             'limit' => $limit,
+            'sort' => $sort,
+            'source' => $source,
+            'contextid' => $contextid,
         ]);
 
-        $context = \context_system::instance();
-        self::validate_context($context);
-
-        // Allow teachers (addinstance) or library managers to list packages.
-        if (!has_capability('mod/cmi5:managelibrary', $context) &&
-                !has_capability('mod/cmi5:addinstance', $context, null, false)) {
-            require_capability('mod/cmi5:managelibrary', $context);
+        if (!in_array($params['sort'], content_library::VALID_SORTS, true)) {
+            $params['sort'] = content_library::SORT_RECENT;
         }
 
-        $packages = content_library::list_packages(
+        $systemcontext = \context_system::instance();
+        $context = $params['contextid'] ? \context::instance_by_id($params['contextid'], MUST_EXIST) : $systemcontext;
+        if (!in_array($context->contextlevel, [CONTEXT_SYSTEM, CONTEXT_COURSE, CONTEXT_MODULE], true)) {
+            throw new \invalid_parameter_exception('Expected a system, course or module context');
+        }
+        self::validate_context($context);
+
+        // Check teachers in the form context; library management remains a system permission.
+        if (!has_capability('mod/cmi5:managelibrary', $systemcontext) &&
+                !has_capability('mod/cmi5:addinstance', $context, null, false)) {
+            require_capability('mod/cmi5:addinstance', $context);
+        }
+
+        $packages = content_library::list_packages_with_meta(
             $params['search'],
             $params['status'],
             $params['offset'],
-            $params['limit']
+            $params['limit'],
+            $params['sort'],
+            $params['source']
         );
 
-        $total = content_library::count_packages($params['search'], $params['status']);
+        $total = content_library::count_packages(
+            $params['search'],
+            $params['status'],
+            $params['source']
+        );
 
         $result = [];
         foreach ($packages as $pkg) {
-            // Get latest version info for source/status/usagecount.
-            $source = 0;
-            $pkgstatus = 1;
-            $usagecount = 0;
-            if (!empty($pkg->latestversion)) {
-                $version = $DB->get_record('cmi5_package_versions', ['id' => $pkg->latestversion]);
-                if ($version) {
-                    $source = (int) $version->source;
-                    $pkgstatus = (int) $version->status;
-                }
-                // Sum usage across all versions.
-                $usagecount = (int) $DB->get_field_sql(
-                    "SELECT COALESCE(SUM(usagecount), 0) FROM {cmi5_package_versions} WHERE packageid = :pkgid",
-                    ['pkgid' => $pkg->id]
-                );
-            }
-
             $result[] = [
                 'id' => (int) $pkg->id,
                 'title' => $pkg->title,
                 'description' => $pkg->description ?? '',
-                'source' => $source,
-                'status' => $pkgstatus,
-                'usagecount' => $usagecount,
+                'source' => (int) ($pkg->source ?? 0),
+                'status' => (int) ($pkg->status ?? 1),
+                'usagecount' => (int) $pkg->usagecount,
                 'timecreated' => (int) $pkg->timecreated,
+                'timemodified' => (int) $pkg->timemodified,
+                'versionid' => (int) ($pkg->versionid ?? 0),
+                'versionnumber' => (int) ($pkg->versionnumber ?? 0),
+                'aucount' => (int) $pkg->aucount,
             ];
         }
 
@@ -112,6 +122,10 @@ class library_list_packages extends external_api {
                     'status' => new external_value(PARAM_INT, 'Status: 0=disabled, 1=active'),
                     'usagecount' => new external_value(PARAM_INT, 'Number of activities using this package'),
                     'timecreated' => new external_value(PARAM_INT, 'Creation timestamp'),
+                    'timemodified' => new external_value(PARAM_INT, 'Last modified timestamp', VALUE_OPTIONAL),
+                    'versionid' => new external_value(PARAM_INT, 'Latest version ID', VALUE_OPTIONAL),
+                    'versionnumber' => new external_value(PARAM_INT, 'Latest version number', VALUE_OPTIONAL),
+                    'aucount' => new external_value(PARAM_INT, 'Number of AUs in the latest version', VALUE_OPTIONAL),
                 ])
             ),
             'total' => new external_value(PARAM_INT, 'Total matching packages'),
