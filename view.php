@@ -60,20 +60,32 @@ $completion->set_module_viewed($cm);
 $aus = $DB->get_records('cmi5_aus', ['cmi5id' => $cmi5->id, 'retired' => 0], 'sortorder ASC');
 $canlaunch = has_capability('mod/cmi5:launch', $context);
 
-$PAGE->set_url('/mod/cmi5/view.php', ['id' => $cm->id]);
+$ismetrics = ($tab === 'metrics');
+$PAGE->set_url('/mod/cmi5/view.php', $ismetrics ? ['id' => $cm->id, 'tab' => 'metrics'] : ['id' => $cm->id]);
+if ($ismetrics) {
+    // Metrics shares this page, so name the active secondary navigation tab explicitly.
+    $PAGE->set_secondary_active_tab('cmi5metrics');
+}
 $PAGE->set_title(format_string($cmi5->name));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 $PAGE->set_activity_record($cmi5);
+// Same page width as the activity's other pages (core's settings page uses limitedwidth), so switching
+// between them doesn't shift the header and navigation.
+$PAGE->add_body_class('limitedwidth');
 
 echo $OUTPUT->header();
+
+// Line the activity content up with the page header, using the theme's own header width.
+echo html_writer::start_div('mod-cmi5-page');
+echo html_writer::start_div('header-maxwidth');
 
 // Display intro if set.
 if (trim(strip_tags($cmi5->intro))) {
     echo $OUTPUT->box(format_module_intro('cmi5', $cmi5, $cm->id), 'generalbox', 'intro');
 }
 
-// AU list and $canlaunch already loaded above (for single-AU auto-launch check).
+// AUs and $canlaunch were loaded above.
 $blocks = $DB->get_records('cmi5_blocks', ['cmi5id' => $cmi5->id], 'sortorder ASC');
 
 // Load user registration and status if student.
@@ -92,9 +104,22 @@ if ($canlaunch) {
     }
 }
 
+// Button label for each status: what the learner does next with that AU.
+$actionstrings = [
+    'notstarted' => get_string('austart', 'cmi5'),
+    'inprogress' => get_string('auresume', 'cmi5'),
+    'failed' => get_string('auretry', 'cmi5'),
+    'completed' => get_string('aureview', 'cmi5'),
+    'passed' => get_string('aureview', 'cmi5'),
+    'satisfied' => get_string('aureview', 'cmi5'),
+];
+$newwindow = ((int) $cmi5->launchmethod === 0);
+
 // Build template data.
 $audata = [];
+$index = 0;
 foreach ($aus as $au) {
+    $index++;
     $status = $austatuses[$au->id] ?? null;
     $statustext = get_string('aunotstarted', 'cmi5');
     $statusclass = 'notstarted';
@@ -126,19 +151,39 @@ foreach ($aus as $au) {
         ]);
     }
 
+    // Many packages repeat the AU title as its description; show a description only when it adds something.
+    $description = format_text($au->description ?? '', FORMAT_MOODLE, ['context' => $context]);
+    $plaindescription = core_text::strtolower(trim(html_to_text($description, 0, false)));
+    $plaintitle = core_text::strtolower(trim($au->title));
+    if ($plaindescription === '' || $plaindescription === $plaintitle) {
+        $description = '';
+    }
+
+    $hasscore = $status && $status->score_scaled !== null;
+    $score = $hasscore ? round($status->score_scaled * 100, 2) : null;
+
     $audata[] = [
         'id' => $au->id,
-        'title' => format_string($au->title),
-        'description' => format_text($au->description ?? '', FORMAT_MOODLE),
+        'index' => $index,
+        // Mustache escapes the output, so format_string() must not escape it too.
+        'title' => format_string($au->title, true, ['context' => $context, 'escape' => false]),
+        'description' => $description,
         'statustext' => $statustext,
         'statusclass' => $statusclass,
-        // Change score display to more human friendly 
-        'score' => $status && $status->score_scaled !== null ? round($status->score_scaled * 100, 2) : null,
-        'hasscore' => $status && $status->score_scaled !== null,
+        'is' . $statusclass => true,
+        'score' => $score,
+        'hasscore' => $hasscore,
+        'scorewidth' => $hasscore ? max(0, min(100, $score)) : 0,
         'canlaunch' => $canlaunch,
         'launchurl' => $launchurl ? $launchurl->out(false) : null,
+        'actiontext' => $actionstrings[$statusclass],
+        'emphasis' => $statusclass === 'inprogress',
+        'newwindow' => $newwindow,
     ];
 }
+
+// Progress is only shown to learners who can launch units.
+$progress = $canlaunch ? \mod_cmi5\output\learner_progress::build($audata) : null;
 
 // Course satisfaction status.
 $coursesatisfied = false;
@@ -184,20 +229,28 @@ $templatedata = [
     'hasaus' => !empty($audata),
     'canlaunch' => $canlaunch,
     'coursesatisfied' => $coursesatisfied,
+    'hasprogress' => $progress !== null,
+    'progress' => $progress,
+    'newwindow' => $newwindow,
+    'aucount' => count($audata),
     'cmid' => $cm->id,
     'cmi5id' => $cmi5->id,
     'launchmethod' => $cmi5->launchmethod,
     'updateavailable' => $updateavailable,
     'latestversionnumber' => $latestversionnumber,
     'changelogsummary' => $changelogsummary,
+    'changecount' => count($changelogentries),
     'haschangelog' => !empty($changelogentries),
     'changelogentries' => $changelogentries,
     'syncurl' => $syncurl,
     'isteacher' => $isteacher,
     'cancleardata' => $cancleardata,
-    'ismetrics' => ($tab === 'metrics'),
+    'ismetrics' => $ismetrics,
 ];
 
 echo $OUTPUT->render_from_template('mod_cmi5/view', $templatedata);
+
+echo html_writer::end_div();
+echo html_writer::end_div();
 
 echo $OUTPUT->footer();

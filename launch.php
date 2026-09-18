@@ -62,13 +62,8 @@ $event = \mod_cmi5\event\au_launched::create([
 ]);
 $event->trigger();
 
-// Determine the "back" URL: course page for single-AU, view page for multi-AU.
-$aucount = $DB->count_records('cmi5_aus', ['cmi5id' => $cmi5->id]);
-if ($aucount <= 1) {
-    $backurl = new moodle_url('/course/view.php', ['id' => $course->id]);
-} else {
-    $backurl = new moodle_url('/mod/cmi5/view.php', ['id' => $cm->id]);
-}
+// "Back to activity" always returns to the activity page, however many AUs it has.
+$backurl = new moodle_url('/mod/cmi5/view.php', ['id' => $cm->id]);
 
 $PAGE->set_url('/mod/cmi5/launch.php', ['id' => $id, 'auid' => $auid]);
 $PAGE->set_title(format_string($au->title));
@@ -80,10 +75,24 @@ if ($cmi5->launchmethod == 1) {
     $PAGE->set_pagelayout('embedded');
     $PAGE->activityheader->disable();
 
+    // Position of this AU among the activity's current AUs, for the frame's top bar.
+    $auids = array_keys($DB->get_records('cmi5_aus', ['cmi5id' => $cmi5->id, 'retired' => 0], 'sortorder ASC', 'id'));
+    $position = array_search($au->id, $auids);
+
+    // Mustache escapes the output, so format_string() must not escape it too.
+    $noescape = ['context' => $context, 'escape' => false];
+    $autitle = format_string($au->title, true, $noescape);
+
     echo $OUTPUT->header();
     echo $OUTPUT->render_from_template('mod_cmi5/launch_frame', [
         'launchurl' => $launchurl,
-        'title' => format_string($au->title),
+        'title' => $autitle,
+        'activityname' => format_string($cmi5->name, true, $noescape),
+        'hasposition' => $position !== false && count($auids) > 1,
+        'position' => $position !== false
+            ? get_string('progress:position', 'cmi5', ['index' => $position + 1, 'total' => count($auids)])
+            : '',
+        'startingdesc' => get_string('launch:startingdesc', 'cmi5', $autitle),
         'returnurl' => $backurl->out(false),
     ]);
     echo $OUTPUT->footer();

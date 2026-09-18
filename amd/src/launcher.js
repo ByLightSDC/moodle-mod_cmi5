@@ -14,131 +14,120 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * AU launcher - manages window/iframe launch and status polling.
+ * AU launcher - opens AUs in a named window and shows the unit-open state while it is open.
+ *
+ * Iframe launches (launch method 1) are plain links to launch.php and need nothing here.
  *
  * @module     mod_cmi5/launcher
  * @copyright  2026 Bylight
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import Ajax from 'core/ajax';
+import {get_string as getString} from 'core/str';
+import Notification from 'core/notification';
 
-let cmid = 0;
-let defaultLaunchMethod = 0;
+const WINDOW_FEATURES = 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no';
+
+/** @type {Map<string, {win: Window, url: string}>} Open AU windows by AU id. */
+const openWindows = new Map();
+
+/** @type {{auid: string, url: string}|null} The AU most recently launched. */
+let lastLaunch = null;
+
+let goToWindowText = '';
 
 /**
  * Initialize the launcher module.
  *
  * @param {number} courseModuleId The course module ID.
- * @param {number} launchMethod Default launch method (0=newwindow, 1=iframe).
+ * @param {number} launchMethod Launch method (0=newwindow, 1=iframe).
  */
 export const init = (courseModuleId, launchMethod) => {
-    cmid = courseModuleId;
-    defaultLaunchMethod = launchMethod;
+    const root = document.querySelector('.mod-cmi5-view');
+    if (!root || launchMethod !== 0) {
+        return;
+    }
 
-    document.querySelectorAll('.mod-cmi5-launch-btn').forEach((btn) => {
-        btn.addEventListener('click', handleLaunch);
+    getString('launch:gotowindow', 'mod_cmi5').then((text) => {
+        goToWindowText = text;
+        return text;
+    }).catch(Notification.exception);
+
+    root.addEventListener('click', (e) => {
+        const launchButton = e.target.closest('.mod-cmi5-launch-btn');
+        if (launchButton) {
+            e.preventDefault();
+            launch(launchButton.dataset.auid, launchButton.getAttribute('href'));
+            return;
+        }
+        if (lastLaunch && (e.target.closest('.mod-cmi5-focus-window') || e.target.closest('.mod-cmi5-relaunch'))) {
+            launch(lastLaunch.auid, lastLaunch.url);
+        }
     });
 };
 
 /**
- * Handle AU launch button click.
+ * Open an AU in its own window, or bring its window forward when it is already open.
  *
- * @param {Event} e Click event.
- */
-const handleLaunch = (e) => {
-    // For new window launches, let the default link behavior handle it.
-    // For iframe launches, the server-side handles the redirect.
-    if (defaultLaunchMethod === 0) {
-        // New window - open in a popup-style window.
-        e.preventDefault();
-        const url = e.currentTarget.getAttribute('href');
-        const auid = e.currentTarget.dataset.auid;
-
-        const windowFeatures = 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no';
-        const launchWindow = window.open(url, 'cmi5_au_' + auid, windowFeatures);
-
-        if (launchWindow) {
-            // Poll for window close to refresh status.
-            const pollInterval = setInterval(() => {
-                if (launchWindow.closed) {
-                    clearInterval(pollInterval);
-                    refreshAuStatus(auid);
-                }
-            }, 2000);
-        }
-    }
-    // For iframe (launchMethod=1), the default link behavior redirects to launch.php
-    // which renders the iframe template.
-};
-
-/**
- * Refresh AU status after a launch window closes.
+ * Reopening an open window would navigate it again and start a new AU session, so we only focus it.
  *
- * @param {number} auid The AU database ID.
+ * @param {string} auid The AU database ID.
+ * @param {string} url The launch.php URL.
  */
-const refreshAuStatus = (auid) => {
-    Ajax.call([{
-        methodname: 'mod_cmi5_get_au_status',
-        args: {cmid: cmid, auid: parseInt(auid)},
-        done: (response) => {
-            if (response && response.length > 0) {
-                updateAuDisplay(response[0]);
-            }
-        },
-        fail: () => {
-            // Silently fail - user can manually refresh.
-        },
-    }]);
-};
+const launch = (auid, url) => {
+    lastLaunch = {auid, url};
 
-/**
- * Update the AU display row with new status.
- *
- * @param {object} au The AU status data.
- */
-const updateAuDisplay = (au) => {
-    const row = document.querySelector(`[data-auid="${au.id}"]`);
-    if (!row) {
+    const existing = openWindows.get(auid);
+    if (existing && !existing.win.closed) {
+        existing.win.focus();
         return;
     }
 
-    const badge = row.querySelector('.badge');
-    if (badge) {
-        badge.textContent = au.statustext;
-        // Remove old status classes and add new one.
-        badge.className = badge.className.replace(/badge-\S+/g, '').replace(/bg-\S+/g, '');
-        const statusclass = getStatusClass(au);
-        badge.classList.add('badge', 'badge-' + statusclass, 'bg-' + statusclass);
+    const win = window.open(url, 'cmi5_au_' + auid, WINDOW_FEATURES);
+    if (!win) {
+        getString('launch:popupblocked', 'mod_cmi5').then((message) => {
+            Notification.addNotification({message, type: 'warning'});
+            return message;
+        }).catch(Notification.exception);
+        return;
     }
 
-    const scoreCell = row.querySelector('.mod-cmi5-au-score');
-    if (scoreCell && au.score_scaled !== null) {
-        scoreCell.textContent = au.score_scaled;
-    }
+    openWindows.set(auid, {win, url});
+    markOpen(auid);
+
+    // When every AU window has closed, reload so statuses, scores and progress are current.
+    const poll = setInterval(() => {
+        if (win.closed) {
+            clearInterval(poll);
+            openWindows.delete(auid);
+            if (openWindows.size === 0) {
+                window.location.reload();
+            }
+        }
+    }, 1000);
 };
 
 /**
- * Determine CSS class for AU status.
+ * Show that an AU is open in another window: on its row, and in the progress card.
  *
- * @param {object} au The AU status data.
- * @returns {string} CSS class name.
+ * @param {string} auid The AU database ID.
  */
-const getStatusClass = (au) => {
-    if (au.satisfied) {
-        return 'satisfied';
+const markOpen = (auid) => {
+    const row = document.querySelector(`.mod-cmi5-au[data-auid="${auid}"]`);
+    if (row) {
+        row.classList.add('is-open');
+        const button = row.querySelector('.mod-cmi5-launch-btn');
+        button?.classList.add('mod-cmi5-btn-tinted');
+        const label = button?.querySelector('.mod-cmi5-launch-label');
+        if (label && goToWindowText) {
+            label.textContent = goToWindowText;
+        }
     }
-    if (au.passed) {
-        return 'passed';
+
+    const card = document.querySelector('.mod-cmi5-progress-card');
+    const openTitle = card?.querySelector('.mod-cmi5-open-title');
+    if (card && openTitle) {
+        openTitle.textContent = row?.dataset.title ?? '';
+        card.classList.add('is-open');
     }
-    if (au.failed) {
-        return 'failed';
-    }
-    if (au.completed) {
-        return 'completed';
-    }
-    if (au.inprogress) {
-        return 'inprogress';
-    }
-    return 'notstarted';
 };

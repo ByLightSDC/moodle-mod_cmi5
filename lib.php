@@ -621,7 +621,9 @@ function cmi5_extend_settings_navigation(settings_navigation $settingsnav, navig
         $cmi5node->add(
             get_string('metrics:tab', 'cmi5'),
             $metricsurl,
-            navigation_node::TYPE_SETTING
+            navigation_node::TYPE_SETTING,
+            null,
+            'cmi5metrics'
         );
     }
 }

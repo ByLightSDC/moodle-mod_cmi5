@@ -1,0 +1,59 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/status_glyph
+
+    Decorative status icon for one AU. Colours come from styles.css.
+
+    Context variables required:
+    * index - 1-based position of the AU, shown when not started
+    * statusclass - status key (satisfied, passed, completed, inprogress, failed, notstarted)
+    * issatisfied, ispassed, iscompleted, isinprogress, isfailed, isnotstarted - exactly one is true
+
+    Example context (json):
+    {
+        "index": 3,
+        "statusclass": "inprogress",
+        "isinprogress": true
+    }
+}}
+<svg class="mod-cmi5-glyph mod-cmi5-status-{{statusclass}}" width="24" height="24" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+    {{#issatisfied}}
+    <circle class="mod-cmi5-glyph-fill" cx="16" cy="16" r="14"/>
+    <path class="mod-cmi5-glyph-mark-inverse" d="M10.5 16.5l3.6 3.5 7.4-7.5"/>
+    {{/issatisfied}}
+    {{#ispassed}}
+    <circle class="mod-cmi5-glyph-ring" cx="16" cy="16" r="13"/>
+    <path class="mod-cmi5-glyph-mark" d="M10.5 16.5l3.6 3.5 7.4-7.5"/>
+    {{/ispassed}}
+    {{#iscompleted}}
+    <circle class="mod-cmi5-glyph-ring" cx="16" cy="16" r="13"/>
+    <path class="mod-cmi5-glyph-mark" d="M10.5 16.5l3.6 3.5 7.4-7.5"/>
+    {{/iscompleted}}
+    {{#isinprogress}}
+    <circle class="mod-cmi5-glyph-ring" cx="16" cy="16" r="13"/>
+    <path class="mod-cmi5-glyph-half" d="M16 7a9 9 0 0 1 0 18z"/>
+    {{/isinprogress}}
+    {{#isfailed}}
+    <circle class="mod-cmi5-glyph-ring" cx="16" cy="16" r="13"/>
+    <path class="mod-cmi5-glyph-mark" d="M12 12l8 8M20 12l-8 8"/>
+    {{/isfailed}}
+    {{#isnotstarted}}
+    <circle class="mod-cmi5-glyph-ring" cx="16" cy="16" r="13" stroke-dasharray="3 3"/>
+    <text class="mod-cmi5-glyph-index" x="16" y="21.2" text-anchor="middle">{{index}}</text>
+    {{/isnotstarted}}
+</svg>
