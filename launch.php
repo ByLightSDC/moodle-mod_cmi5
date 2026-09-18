@@ -37,7 +37,8 @@ $context = context_module::instance($cm->id);
 require_capability('mod/cmi5:launch', $context);
 
 // Validate AU belongs to this activity.
-$au = $DB->get_record('cmi5_aus', ['id' => $auid, 'cmi5id' => $cmi5->id], '*', MUST_EXIST);
+$au = $DB->get_record('cmi5_aus',
+    ['id' => $auid, 'cmi5id' => $cmi5->id, 'archived' => 0], '*', MUST_EXIST);
 
 // Build launch URL.
 $launcher = new \mod_cmi5\launch_manager($cmi5, $context, $cm);
@@ -53,7 +54,7 @@ $event = \mod_cmi5\event\au_launched::create([
 $event->trigger();
 
 // Determine the "back" URL: course page for single-AU, view page for multi-AU.
-$aucount = $DB->count_records('cmi5_aus', ['cmi5id' => $cmi5->id]);
+$aucount = $DB->count_records('cmi5_aus', ['cmi5id' => $cmi5->id, 'archived' => 0]);
 if ($aucount <= 1) {
     $backurl = new moodle_url('/course/view.php', ['id' => $course->id]);
 } else {

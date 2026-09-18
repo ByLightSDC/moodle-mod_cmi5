@@ -87,6 +87,7 @@ class registration {
         $record = $DB->get_record('cmi5_registrations', [
             'cmi5id' => $cmi5id,
             'userid' => $userid,
+            'archived' => 0,
         ]);
 
         return $record ?: null;

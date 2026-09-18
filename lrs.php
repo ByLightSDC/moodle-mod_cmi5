@@ -358,7 +358,7 @@ function handle_activities(string $method): void {
     }
 
     // Look up AU by auid IRI.
-    $au = $DB->get_record('cmi5_aus', ['auid' => $activityid]);
+    $au = $DB->get_record('cmi5_aus', ['auid' => $activityid, 'archived' => 0]);
     if (!$au) {
         // Return minimal activity.
         echo json_encode([

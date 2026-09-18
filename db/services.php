@@ -117,3 +117,14 @@ $functions = [
         'capabilities' => 'mod/cmi5:managecontent',
     ],
 ];
+
+// Register a token-ready service on installation and plugin upgrades.
+$services = [
+    'CMI5 Integration' => [
+        'functions' => array_keys($functions),
+        'restrictedusers' => 0,
+        'enabled' => 1,
+        'shortname' => 'mod_cmi5',
+        'uploadfiles' => 1,
+    ],
+];

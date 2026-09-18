@@ -204,6 +204,39 @@ function cmi5_update_instance($data, $mform = null) {
 
     $DB->update_record('cmi5', $record);
 
+    // Handle a switch to a different library package.
+    $newpackageid = (int) ($data->packageid ?? 0);
+    $currentpackageid = (int) $DB->get_field('cmi5', 'packageid', ['id' => $data->id]);
+    if (($data->packagesource ?? '') === 'library' && $newpackageid && $newpackageid !== $currentpackageid) {
+        $learners = \mod_cmi5\content_library::count_active_learners($data->id);
+        if ($learners > 0) {
+            // The form guards this too, but the capability is re-checked here
+            // because this is where the learner data is actually archived.
+            $context = context_module::instance($data->coursemodule);
+            require_capability('mod/cmi5:replacepackage', $context);
+        }
+
+        // Parse the AU selection: format is "packageid:auid" or empty for all.
+        $singleauid = null;
+        $libraryauid = $data->libraryauid ?? '';
+        if (!empty($libraryauid) && strpos($libraryauid, ':') !== false) {
+            [, $singleauid] = explode(':', $libraryauid, 2);
+            $singleauid = (int) $singleauid;
+        }
+
+        $result = \mod_cmi5\content_library::replace_activity_package(
+            $data->id, $newpackageid, $singleauid);
+
+        if ($result->success && $result->archivedlearners) {
+            \core\notification::info(
+                get_string('replace:done', 'cmi5', $result->archivedlearners));
+        }
+
+        // Grades come from live registrations only, so the archived ones drop out.
+        $cmi5 = $DB->get_record('cmi5', ['id' => $data->id]);
+        cmi5_update_grades($cmi5);
+    }
+
     // Handle sync to selected version if requested.
     $syncversion = (int) ($data->syncversion ?? 0);
     if ($syncversion > 0) {

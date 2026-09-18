@@ -83,7 +83,7 @@ class get_au_analytics extends external_api {
             $userparams['userid'] = $USER->id;
         }
 
-        $aus = $DB->get_records('cmi5_aus', ['cmi5id' => $cmi5->id], 'sortorder ASC');
+        $aus = $DB->get_records('cmi5_aus', ['cmi5id' => $cmi5->id, 'archived' => 0], 'sortorder ASC');
         $result = [];
 
         foreach ($aus as $au) {
@@ -123,7 +123,8 @@ class get_au_analytics extends external_api {
 
             // Total registrations for this activity (for completion rate denominator).
             $totalregs = $DB->count_records_sql(
-                "SELECT COUNT(*) FROM {cmi5_registrations} r WHERE r.cmi5id = :cmi5id" . $userwhere,
+                "SELECT COUNT(*) FROM {cmi5_registrations} r
+                  WHERE r.cmi5id = :cmi5id AND r.archived = 0" . $userwhere,
                 ['cmi5id' => $cmi5->id] + $userparams
             );
             $completionrate = $totalregs > 0

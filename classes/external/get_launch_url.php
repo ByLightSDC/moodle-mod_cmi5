@@ -96,7 +96,8 @@ class get_launch_url extends external_api {
         $cmi5 = $DB->get_record('cmi5', ['id' => $cm->instance], '*', MUST_EXIST);
 
         // Get the AU record and verify it belongs to this activity.
-        $au = $DB->get_record('cmi5_aus', ['id' => $auid, 'cmi5id' => $cmi5->id], '*', MUST_EXIST);
+        $au = $DB->get_record('cmi5_aus',
+            ['id' => $auid, 'cmi5id' => $cmi5->id, 'archived' => 0], '*', MUST_EXIST);
 
         // Build the launch URL.
         $launchmanager = new launch_manager($cmi5, $context, $cm);

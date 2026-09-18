@@ -1,0 +1,51 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/library_picker_selection
+
+    The selected package summary shown in the activity settings form.
+
+    Rendered server-side by mod_cmi5\output\library_picker and re-rendered
+    client-side by the mod_cmi5/library_picker AMD module after a selection change.
+
+    Context variables required:
+    * hasselection - bool
+    * selectedtitle - title of the selected package
+    * selectedautitle - label describing the selected AU scope
+    * initials - one or two letters for the generated tile
+    * tone - tile colour tone, 1 to 6
+
+    Example context (json):
+    {
+        "hasselection": true,
+        "selectedtitle": "Fire Safety Basics",
+        "selectedautitle": "All AUs (entire package)",
+        "initials": "FS",
+        "tone": 3
+    }
+}}
+{{#hasselection}}
+<span class="cmi5-picker-tile cmi5-picker-tone-{{tone}}" aria-hidden="true">{{initials}}</span>
+<span class="cmi5-picker-selected-text">
+    <span class="cmi5-picker-selected-title">{{selectedtitle}}</span>
+    <span class="cmi5-picker-selected-au">{{selectedautitle}}</span>
+</span>
+{{/hasselection}}
+{{^hasselection}}
+<span class="cmi5-picker-tile cmi5-picker-tile-empty" aria-hidden="true">&mdash;</span>
+<span class="cmi5-picker-selected-text text-muted">{{#str}}picker:noselection, cmi5{{/str}}</span>
+{{/hasselection}}

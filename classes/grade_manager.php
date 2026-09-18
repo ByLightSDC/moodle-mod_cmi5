@@ -88,7 +88,7 @@ class grade_manager {
         }
 
         $registrations = $DB->get_records_select('cmi5_registrations',
-            'cmi5id = :cmi5id' . $usercondition, $params);
+            'cmi5id = :cmi5id AND archived = 0' . $usercondition, $params);
 
         if (empty($registrations)) {
             return null;

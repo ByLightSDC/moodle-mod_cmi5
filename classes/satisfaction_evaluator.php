@@ -69,7 +69,8 @@ class satisfaction_evaluator {
         global $DB;
 
         $registration = $DB->get_record('cmi5_registrations', ['id' => $registrationid], '*', MUST_EXIST);
-        $aus = $DB->get_records('cmi5_aus', ['cmi5id' => $this->cmi5->id], 'sortorder ASC');
+        $aus = $DB->get_records('cmi5_aus',
+            ['cmi5id' => $this->cmi5->id, 'archived' => 0], 'sortorder ASC');
         $blocks = $DB->get_records('cmi5_blocks', ['cmi5id' => $this->cmi5->id], 'sortorder ASC');
 
         // Evaluate AU satisfaction.
@@ -183,6 +184,7 @@ class satisfaction_evaluator {
         $childaus = $DB->get_records('cmi5_aus', [
             'cmi5id' => $this->cmi5->id,
             'parentblockid' => $block->id,
+            'archived' => 0,
         ]);
 
         foreach ($childaus as $childau) {

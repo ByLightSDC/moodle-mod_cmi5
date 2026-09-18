@@ -70,6 +70,14 @@ $capabilities = [
             'manager' => CAP_ALLOW,
         ],
     ],
+    'mod/cmi5:replacepackage' => [
+        'riskbitmask' => RISK_DATALOSS,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_MODULE,
+        'archetypes' => [
+            'manager' => CAP_ALLOW,
+        ],
+    ],
     'mod/cmi5:managelibrary' => [
         'riskbitmask' => RISK_XSS,
         'captype' => 'write',

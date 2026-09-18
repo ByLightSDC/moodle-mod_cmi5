@@ -159,3 +159,23 @@ The plugin exposes 13 AJAX-enabled web service functions for frontend interactio
 This plugin is licensed under the [GNU GPL v3 or later](http://www.gnu.org/copyleft/gpl.html).
 
 Copyright 2026 Bylight
+
+## Web service tokens
+
+Installing or upgrading the plugin registers the enabled **CMI5 Integration**
+external service (`mod_cmi5`). It includes all of the plugin's declared external
+functions and allows file uploads for the content library API.
+
+On an existing installation, run Moodle's upgrade process (Site administration
+> Notifications, or `php admin/cli/upgrade.php --non-interactive`) to register it.
+Enable web services and the REST protocol, then open Site administration
+> Server > Web services > Manage tokens and create a token for your integration
+user with **CMI5 Integration** selected.
+
+The service does not require a separate authorized-user list. Each function
+still enforces the token user's Moodle capabilities; library uploads require
+`mod/cmi5:managelibrary` at system context. No token is generated automatically.
+
+To upload a package, send the ZIP to `/webservice/upload.php` using the token,
+then pass the returned draft item ID to `mod_cmi5_library_upload_package` through
+`/webservice/rest/server.php` using the same token.

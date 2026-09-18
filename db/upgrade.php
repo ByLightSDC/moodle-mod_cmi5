@@ -540,5 +540,48 @@ function xmldb_cmi5_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026030200, 'cmi5');
     }
 
+    if ($oldversion < 2026041408) {
+
+        // Keep AUs that learner data still points at, instead of deleting them
+        // when a package version changes or a package is replaced.
+        $table = new xmldb_table('cmi5_aus');
+        $field = new xmldb_field('archived', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'sortorder');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        $index = new xmldb_index('cmi5id_archived', XMLDB_INDEX_NOTUNIQUE, ['cmi5id', 'archived']);
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+
+        // Registrations can now be archived when the activity's package is replaced.
+        $table = new xmldb_table('cmi5_registrations');
+        $field = new xmldb_field('archived', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'coursesatisfied');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        $field = new xmldb_field('timearchived', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'archived');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // An archived registration and a live one can exist for the same user,
+        // so the user index can no longer be unique.
+        $index = new xmldb_index('cmi5id_userid', XMLDB_INDEX_UNIQUE, ['cmi5id', 'userid']);
+        if ($dbman->index_exists($table, $index)) {
+            $dbman->drop_index($table, $index);
+        }
+        $index = new xmldb_index('cmi5id_userid', XMLDB_INDEX_NOTUNIQUE, ['cmi5id', 'userid']);
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+        $index = new xmldb_index('cmi5id_userid_archived', XMLDB_INDEX_NOTUNIQUE, ['cmi5id', 'userid', 'archived']);
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+
+        upgrade_mod_savepoint(true, 2026041408, 'cmi5');
+    }
+
     return true;
 }

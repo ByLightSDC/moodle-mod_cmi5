@@ -106,7 +106,8 @@ class course_structure {
     public static function get_aus(int $cmi5id): array {
         global $DB;
 
-        return array_values($DB->get_records('cmi5_aus', ['cmi5id' => $cmi5id], 'sortorder ASC'));
+        return array_values($DB->get_records('cmi5_aus',
+            ['cmi5id' => $cmi5id, 'archived' => 0], 'sortorder ASC'));
     }
 
     /**

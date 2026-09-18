@@ -103,9 +103,10 @@ class get_au_status extends external_api {
 
         // Get the AU records.
         if ($auid) {
-            $aus = [$DB->get_record('cmi5_aus', ['id' => $auid, 'cmi5id' => $cmi5->id], '*', MUST_EXIST)];
+            $aus = [$DB->get_record('cmi5_aus',
+                ['id' => $auid, 'cmi5id' => $cmi5->id, 'archived' => 0], '*', MUST_EXIST)];
         } else {
-            $aus = $DB->get_records('cmi5_aus', ['cmi5id' => $cmi5->id], 'sortorder ASC');
+            $aus = $DB->get_records('cmi5_aus', ['cmi5id' => $cmi5->id, 'archived' => 0], 'sortorder ASC');
         }
 
         $result = [];

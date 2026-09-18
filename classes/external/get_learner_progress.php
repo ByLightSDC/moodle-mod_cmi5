@@ -95,7 +95,8 @@ class get_learner_progress extends external_api {
     private static function get_summary(object $cmi5, \context_module $context): array {
         global $DB;
 
-        $registrations = $DB->get_records('cmi5_registrations', ['cmi5id' => $cmi5->id]);
+        $registrations = $DB->get_records('cmi5_registrations',
+            ['cmi5id' => $cmi5->id, 'archived' => 0]);
         $learners = [];
 
         foreach ($registrations as $reg) {
@@ -166,6 +167,7 @@ class get_learner_progress extends external_api {
         $registration = $DB->get_record('cmi5_registrations', [
             'cmi5id' => $cmi5->id,
             'userid' => $userid,
+            'archived' => 0,
         ]);
 
         $austatuses = [];
