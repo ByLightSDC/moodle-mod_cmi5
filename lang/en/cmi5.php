@@ -296,6 +296,8 @@ $string['picker:next'] = 'Next page';
 $string['picker:gotopage'] = 'Page {$a}';
 $string['picker:pagination'] = 'Content library pages';
 $string['picker:range'] = 'Showing {$a->from}-{$a->to} of {$a->total}';
+$string['picker:invalidpackage'] = 'Select an active package and version from the content library.';
+$string['picker:invalidau'] = 'The selected Assignable Unit does not belong to this package version.';
 
 
 // Standalone LRS.

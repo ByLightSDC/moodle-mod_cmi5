@@ -235,6 +235,8 @@ class Picker {
     constructor(root, config) {
         this.root = root;
         this.contextId = config.contextId;
+        this.currentPackageId = config.currentPackageId || 0;
+        this.currentVersionId = config.currentVersionId || 0;
         this.packageInput = document.getElementById(config.inputId);
         this.auInput = document.getElementById(config.auInputId);
         this.perPage = config.perPage || 9;
@@ -253,6 +255,7 @@ class Picker {
         this.source = -1;
         this.total = 0;
         this.searchTimer = null;
+        this.requestId = 0;
         this.modal = null;
         this.pending = {packageId: 0, auValue: ''};
     }
@@ -340,7 +343,7 @@ class Picker {
         return Promise.all([
             getString('picker:modaltitle', 'cmi5'),
             getString('picker:usethispackage', 'cmi5'),
-            Templates.renderForPromise('mod_cmi5/library_picker_modal', this.modalContext),
+            Templates.renderForPromise('mod_cmi5/library_picker/modal', this.modalContext),
         ]).then(([title, saveLabel, body]) => createSaveCancelModal({
             title: title,
             body: body.html,
@@ -348,10 +351,21 @@ class Picker {
         }).then((modal) => {
             this.modal = modal;
             modal.setSaveButtonText(saveLabel);
-            modal.getRoot().on(ModalEvents.save, () => this.commit());
+            modal.getRoot().on(ModalEvents.save, (e) => {
+                e.preventDefault();
+                this.commit().then((saved) => {
+                    if (saved && this.modal === modal) {
+                        modal.hide();
+                    }
+                });
+            });
             modal.getRoot().on(ModalEvents.hidden, () => {
+                window.clearTimeout(this.searchTimer);
+                this.requestId++;
                 modal.destroy();
-                this.modal = null;
+                if (this.modal === modal) {
+                    this.modal = null;
+                }
             });
             modal.getRoot().on(ModalEvents.shown, () => {
                 Templates.runTemplateJS(body.js);
@@ -447,10 +461,12 @@ class Picker {
      */
     fetch() {
         const body = this.body;
+        const modal = this.modal;
         if (!body) {
             return Promise.resolve();
         }
         this.toggle(SELECTORS.error, false);
+        const requestId = ++this.requestId;
 
         return Ajax.call([{
             methodname: 'mod_cmi5_library_list_packages',
@@ -463,10 +479,17 @@ class Picker {
                 sort: this.sort,
                 source: this.source,
             },
-        }])[0].then((response) => this.render(response))
+        }])[0].then((response) => {
+            if (requestId !== this.requestId || modal !== this.modal) {
+                return;
+            }
+            return this.render(response, requestId);
+        })
             .catch((error) => {
-                this.toggle(SELECTORS.error, true);
-                window.console.error('mod_cmi5/library_picker: ', error);
+                if (requestId === this.requestId && modal === this.modal) {
+                    this.toggle(SELECTORS.error, true);
+                    window.console.error('mod_cmi5/library_picker: ', error);
+                }
             });
     }
 
@@ -474,9 +497,10 @@ class Picker {
      * Render a page of results into the modal grid.
      *
      * @param {Object} response The web service response.
+     * @param {Number} requestId Request generation that produced the response.
      * @return {Promise} Resolved once rendering is complete.
      */
-    render(response) {
+    render(response, requestId) {
         const body = this.body;
         if (!body) {
             return Promise.resolve();
@@ -488,32 +512,41 @@ class Picker {
             return Promise.resolve();
         }
         const renders = response.packages.map(
-            (pkg) => Templates.renderForPromise('mod_cmi5/library_picker_card',
+            (pkg) => Templates.renderForPromise('mod_cmi5/library_picker/card',
                 cardContext(pkg, this.pending.packageId))
         );
 
         return Promise.all(renders).then((results) => {
+            if (requestId !== this.requestId || !this.body) {
+                return;
+            }
             grid.innerHTML = '';
             results.forEach(({html, js}) => Templates.appendNodeContents(grid, html, js));
             this.toggle(SELECTORS.empty, results.length === 0);
-            return this.renderPages();
+            return this.renderPages(requestId);
         });
     }
 
     /**
      * Render the pagination controls for the current result set.
      *
+     * @param {Number} requestId Request generation that produced the response.
      * @return {Promise} Resolved once the pagination has been rendered.
      */
-    renderPages() {
+    renderPages(requestId) {
         const body = this.body;
         if (!body) {
             return Promise.resolve();
         }
         const region = body.querySelector(SELECTORS.pages);
-        return Templates.renderForPromise('mod_cmi5/library_picker_pages',
+        return Templates.renderForPromise('mod_cmi5/library_picker/pages',
             pagesContext(this.page, this.perPage, this.total))
-            .then(({html, js}) => Templates.replaceNodeContents(region, html, js));
+            .then(({html, js}) => {
+                if (requestId !== this.requestId || !this.body) {
+                    return;
+                }
+                return Templates.replaceNodeContents(region, html, js);
+            });
     }
 
     /**
@@ -569,7 +602,12 @@ class Picker {
      * @return {Promise} Resolved once the detail pane is rendered.
      */
     showDetails(packageId) {
+        const modal = this.modal;
+        const body = this.body;
         return this.getPackage(packageId).then((pkg) => {
+            if (!body || modal !== this.modal) {
+                return;
+            }
             const selectedAu = this.pending.packageId === packageId ? this.pending.auValue : '';
             const context = {
                 packageid: pkg.id,
@@ -599,8 +637,8 @@ class Picker {
             // unambiguous once the AU radios are on screen.
             this.markPending(packageId, selectedAu);
 
-            const region = this.body.querySelector(SELECTORS.detailPane);
-            return Templates.renderForPromise('mod_cmi5/library_picker_detail', context)
+            const region = body.querySelector(SELECTORS.detailPane);
+            return Templates.renderForPromise('mod_cmi5/library_picker/detail', context)
                 .then(({html, js}) => {
                     Templates.replaceNodeContents(region, html, js);
                     this.toggle(SELECTORS.browsePane, false);
@@ -618,6 +656,9 @@ class Picker {
      * Return from the detail pane to the results grid.
      */
     showBrowse() {
+        if (!this.body) {
+            return;
+        }
         this.toggle(SELECTORS.detailPane, false);
         this.toggle(SELECTORS.browsePane, true);
         const searchbox = this.body.querySelector(SELECTORS.search);
@@ -631,12 +672,17 @@ class Picker {
      */
     commit() {
         if (!this.pending.packageId) {
-            return;
+            return Promise.resolve(false);
         }
-        this.getPackage(this.pending.packageId).then((pkg) => {
+        const selection = {...this.pending};
+        return this.getPackage(selection.packageId).then((pkg) => {
+            this.ensurePackageOption(pkg);
             this.populateAuOptions(pkg.id, pkg.aus);
-            return this.apply(this.pending.packageId, this.pending.auValue);
-        }).catch(Notification.exception);
+            return this.apply(selection.packageId, selection.auValue).then(() => true);
+        }).catch((error) => {
+            Notification.exception(error);
+            return false;
+        });
     }
 
     /**
@@ -672,7 +718,7 @@ class Picker {
             return Promise.resolve();
         }
         if (!packageId) {
-            return Templates.renderForPromise('mod_cmi5/library_picker_selection', {hasselection: false})
+            return Templates.renderForPromise('mod_cmi5/library_picker/selection', {hasselection: false})
                 .then(({html, js}) => Templates.replaceNodeContents(region, html, js));
         }
 
@@ -682,7 +728,7 @@ class Picker {
             : null;
 
         return Promise.resolve(auOption ? auOption.textContent : getString('library:allaus', 'cmi5'))
-            .then((auLabel) => Templates.renderForPromise('mod_cmi5/library_picker_selection', {
+            .then((auLabel) => Templates.renderForPromise('mod_cmi5/library_picker/selection', {
                 hasselection: true,
                 selectedtitle: title,
                 selectedautitle: auLabel,
@@ -722,6 +768,24 @@ class Picker {
     }
 
     /**
+     * Add a package to the fallback select when it was loaded beyond its initial limit.
+     *
+     * @param {Object} pkg Package returned by mod_cmi5_library_get_package.
+     */
+    ensurePackageOption(pkg) {
+        if (!this.packageInput || this.packageInput.tagName !== 'SELECT') {
+            return;
+        }
+        const value = String(pkg.id);
+        if (!Array.from(this.packageInput.options).some((option) => option.value === value)) {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = pkg.title;
+            this.packageInput.appendChild(option);
+        }
+    }
+
+    /**
      * Rebuild the fallback AU select so it carries the options for one package.
      *
      * @param {Number} packageId The package the AUs belong to.
@@ -752,10 +816,14 @@ class Picker {
      */
     getPackage(packageId) {
         if (!this.detailCache[packageId]) {
+            const versionId = packageId === this.currentPackageId ? this.currentVersionId : 0;
             this.detailCache[packageId] = Ajax.call([{
                 methodname: 'mod_cmi5_library_get_package',
-                args: {packageid: packageId, versionid: 0, contextid: this.contextId},
-            }])[0];
+                args: {packageid: packageId, versionid: versionId, contextid: this.contextId},
+            }])[0].catch((error) => {
+                delete this.detailCache[packageId];
+                throw error;
+            });
         }
         return this.detailCache[packageId];
     }
@@ -764,7 +832,8 @@ class Picker {
 /**
  * Initialise the content library picker.
  *
- * @param {Object} config Configuration: contextId, inputId, auInputId, perPage, total, modalContext.
+ * @param {Object} config Configuration: contextId, currentPackageId, currentVersionId, inputId, auInputId,
+ * perPage, total, modalContext.
  */
 export const init = (config) => {
     const root = document.querySelector(SELECTORS.root);

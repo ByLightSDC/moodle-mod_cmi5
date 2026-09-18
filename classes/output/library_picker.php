@@ -65,6 +65,15 @@ class library_picker implements renderable, templatable {
     /** @var int Course or module context used to authorize picker requests. */
     protected $contextid;
 
+    /** @var int Current package version ID, or 0 when creating/switching packages. */
+    protected $currentversionid;
+
+    /** @var int Package ID originally linked to the activity, or 0 when creating. */
+    protected $currentpackageid;
+
+    /** @var bool Whether the current package selection may be cleared. */
+    protected $canclear;
+
     /**
      * Constructor.
      *
@@ -73,14 +82,21 @@ class library_picker implements renderable, templatable {
      * @param string $inputid Element ID of the form input holding the package ID.
      * @param string $auinputid Element ID of the form input holding the AU selection.
      * @param int $contextid Course or module context ID for the activity form.
+     * @param int $currentpackageid Package originally linked to the activity.
+     * @param int $currentversionid Current package version ID.
+     * @param bool $canclear Whether the selection may be cleared.
      */
     public function __construct(int $selectedpackageid, string $selectedauvalue,
-            string $inputid, string $auinputid, int $contextid) {
+            string $inputid, string $auinputid, int $contextid,
+            int $currentpackageid = 0, int $currentversionid = 0, bool $canclear = true) {
         $this->selectedpackageid = $selectedpackageid;
         $this->selectedauvalue = $selectedauvalue;
         $this->inputid = $inputid;
         $this->auinputid = $auinputid;
         $this->contextid = $contextid;
+        $this->currentpackageid = $currentpackageid;
+        $this->currentversionid = $currentversionid;
+        $this->canclear = $canclear;
     }
 
     /**
@@ -103,6 +119,9 @@ class library_picker implements renderable, templatable {
 
         return [
             'contextid' => $this->contextid,
+            'currentpackageid' => $this->currentpackageid,
+            'currentversionid' => $this->currentversionid,
+            'canclear' => $this->canclear,
             'inputid' => $this->inputid,
             'auinputid' => $this->auinputid,
             'perpage' => self::PER_PAGE,
@@ -181,7 +200,8 @@ class library_picker implements renderable, templatable {
         }
 
         [, $auid] = explode(':', $this->selectedauvalue, 2);
-        $details = content_library::get_package_details($this->selectedpackageid);
+        $versionid = $this->selectedpackageid === $this->currentpackageid ? $this->currentversionid : 0;
+        $details = content_library::get_package_details($this->selectedpackageid, $versionid);
         foreach ($details->aus as $au) {
             if ((string) $au->id === $auid || $au->auid === $auid) {
                 return format_string($au->title);

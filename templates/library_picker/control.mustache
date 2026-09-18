@@ -15,7 +15,7 @@
     along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 }}
 {{!
-    @template mod_cmi5/library_picker
+    @template mod_cmi5/library_picker/control
 
     Content library package picker control for the activity settings form.
 
@@ -25,6 +25,9 @@
 
     Context variables required:
     * contextid - course or module context ID for permission checks
+    * currentpackageid - package originally linked to the activity, or 0
+    * currentversionid - version currently linked to the activity, or 0
+    * canclear - bool, whether the current package selection may be cleared
     * inputid - element ID of the form input holding the package ID
     * auinputid - element ID of the form input holding the AU selection
     * perpage - number of cards shown per page in the modal
@@ -40,6 +43,9 @@
     Example context (json):
     {
         "contextid": 42,
+        "currentpackageid": 0,
+        "currentversionid": 0,
+        "canclear": true,
         "inputid": "id_packageid",
         "auinputid": "id_libraryauid",
         "perpage": 9,
@@ -58,16 +64,18 @@
     {{#haspackages}}
     <div class="cmi5-picker-control">
         <div class="cmi5-picker-selected" data-region="selection" aria-live="polite">
-            {{> mod_cmi5/library_picker_selection }}
+            {{> mod_cmi5/library_picker/selection }}
         </div>
         <div class="cmi5-picker-control-actions">
             <button type="button" class="btn btn-secondary" data-action="browse">
                 {{#str}}picker:browse, cmi5{{/str}}
             </button>
+            {{#canclear}}
             <button type="button" class="btn btn-link{{^hasselection}} hidden d-none{{/hasselection}}"
                     data-action="clear">
                 {{#str}}picker:clear, cmi5{{/str}}
             </button>
+            {{/canclear}}
         </div>
     </div>
     {{/haspackages}}
@@ -80,6 +88,8 @@
 require(['mod_cmi5/library_picker'], function(picker) {
     picker.init({
         contextId: {{contextid}},
+        currentPackageId: {{currentpackageid}},
+        currentVersionId: {{currentversionid}},
         inputId: '{{inputid}}',
         auInputId: '{{auinputid}}',
         perPage: {{perpage}},

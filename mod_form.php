@@ -274,13 +274,27 @@ class mod_cmi5_mod_form extends moodleform_mod {
         // no-JavaScript fallback; the picker control rendered after them drives their
         // values through the mod_cmi5/library_picker AMD module.
         $selectedpackageid = (int) ($this->current->packageid ?? 0);
-        $selectedpackageid = optional_param('packageid', $selectedpackageid, PARAM_INT);
-        $selectedauvalue = optional_param('libraryauid', '', PARAM_RAW);
+        $selectedversionid = (int) ($this->current->packageversionid ?? 0);
+        $selectedauvalue = '';
+        if ($this->is_submitted()) {
+            $selectedpackageid = optional_param('packageid', $selectedpackageid, PARAM_INT);
+            $selectedauvalue = optional_param('libraryauid', '', PARAM_RAW);
+        } else if (!empty($this->current->instance) && $selectedpackageid && $selectedversionid) {
+            $selectedauvalue = \mod_cmi5\content_library::get_activity_au_selection(
+                (int) $this->current->instance, $selectedpackageid, $selectedversionid);
+        }
 
         $libraryoptions = ['' => get_string('selectpackage', 'cmi5')];
         $packages = \mod_cmi5\content_library::list_packages('', \mod_cmi5\content_library::STATUS_ACTIVE, 0, 500);
         foreach ($packages as $pkg) {
             $libraryoptions[$pkg->id] = format_string($pkg->title);
+        }
+        // Preserve a submitted/current selection even when it falls beyond the fallback list limit.
+        if ($selectedpackageid && !isset($libraryoptions[$selectedpackageid])) {
+            $selectedpackage = \mod_cmi5\content_library::get_package($selectedpackageid);
+            if ($selectedpackage) {
+                $libraryoptions[$selectedpackageid] = format_string($selectedpackage->title);
+            }
         }
         $mform->addElement('select', 'packageid', get_string('librarypackage', 'cmi5'), $libraryoptions);
         $mform->addHelpButton('packageid', 'librarypackage', 'cmi5');
@@ -289,7 +303,9 @@ class mod_cmi5_mod_form extends moodleform_mod {
         // package's AUs are loaded; the picker repopulates this list client-side.
         $auoptions = ['' => get_string('library:allaus', 'cmi5')];
         if ($selectedpackageid) {
-            $details = \mod_cmi5\content_library::get_package_details($selectedpackageid);
+            $detailversionid = $selectedpackageid === (int) ($this->current->packageid ?? 0)
+                ? $selectedversionid : 0;
+            $details = \mod_cmi5\content_library::get_package_details($selectedpackageid, $detailversionid);
             foreach ($details->aus ?? [] as $au) {
                 $auoptions[$selectedpackageid . ':' . $au->id] = format_string($au->title);
             }
@@ -304,10 +320,13 @@ class mod_cmi5_mod_form extends moodleform_mod {
             $selectedauvalue,
             'id_packageid',
             'id_libraryauid',
-            (int) $this->context->id
+            (int) $this->context->id,
+            (int) ($this->current->packageid ?? 0),
+            $selectedversionid,
+            empty($this->current->packageid)
         );
         $mform->addElement('static', 'librarypicker', get_string('librarypackage', 'cmi5'),
-            $OUTPUT->render_from_template('mod_cmi5/library_picker', $picker->export_for_template($OUTPUT)));
+            $OUTPUT->render_from_template('mod_cmi5/library_picker/control', $picker->export_for_template($OUTPUT)));
     }
 
     /**
@@ -434,6 +453,34 @@ class mod_cmi5_mod_form extends moodleform_mod {
         global $USER;
         $errors = parent::validation($data, $files);
 
+        // Validate the package/version/AU relationship independently of browser controls.
+        if (($data['packagesource'] ?? 'library') === 'library' && !empty($data['packageid'])) {
+            $packageid = (int) $data['packageid'];
+            $versionid = 0;
+            $activeonly = true;
+            $usescurrentpackage = !empty($this->current->packageid)
+                && $packageid === (int) $this->current->packageid;
+            if ($usescurrentpackage) {
+                $versionid = (int) ($this->current->packageversionid ?? 0);
+                $activeonly = false;
+            }
+            try {
+                $selection = \mod_cmi5\content_library::resolve_package_selection(
+                    $packageid, (string) ($data['libraryauid'] ?? ''), $versionid, $activeonly);
+                $syncversion = (int) ($data['syncversion'] ?? 0);
+                if ($usescurrentpackage && $syncversion > 0) {
+                    \mod_cmi5\content_library::resolve_package_selection(
+                        $packageid, '', $syncversion, false);
+                    if ($selection->singleauid !== null && $syncversion !== $versionid) {
+                        \mod_cmi5\content_library::map_au_to_version(
+                            $selection->singleauid, $syncversion);
+                    }
+                }
+            } catch (\moodle_exception $e) {
+                $errors[empty($data['libraryauid']) ? 'packageid' : 'libraryauid'] = $e->getMessage();
+            }
+        }
+
         // On create, require either a package upload or a library selection.
         if (empty($this->current->instance)) {
             if (($data['packagesource'] ?? 'upload') === 'upload') {
@@ -471,6 +518,9 @@ class mod_cmi5_mod_form extends moodleform_mod {
         // On edit of library-linked instance, check for AU IRI mismatches in package switch or version sync.
         if (!empty($this->current->instance) && !empty($this->current->packageid)) {
             $newpackageid = (int) ($data['packageid'] ?? 0);
+            if (!$newpackageid) {
+                $errors['packageid'] = get_string('required');
+            }
             if ($newpackageid && $newpackageid !== (int) $this->current->packageid) {
                 $libpackage = \mod_cmi5\content_library::get_package($newpackageid);
                 if ($libpackage && !empty($libpackage->latestversion)) {

@@ -59,6 +59,8 @@ class library_list_packages extends external_api {
         if (!in_array($params['sort'], content_library::VALID_SORTS, true)) {
             $params['sort'] = content_library::SORT_RECENT;
         }
+        $params['offset'] = max(0, $params['offset']);
+        $params['limit'] = max(1, min(100, $params['limit']));
 
         $systemcontext = \context_system::instance();
         $context = $params['contextid'] ? \context::instance_by_id($params['contextid'], MUST_EXIST) : $systemcontext;

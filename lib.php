@@ -72,6 +72,16 @@ function cmi5_add_instance($data, $mform = null) {
     $packagesource = $data->packagesource ?? 'upload';
     $packageid = !empty($data->packageid) ? (int) $data->packageid : null;
     $libraryauid = $data->libraryauid ?? '';
+    $libraryselection = null;
+    if ($packagesource === 'library' && !$packageid) {
+        throw new \moodle_exception('picker:invalidpackage', 'cmi5');
+    }
+    if ($packagesource === 'library') {
+        // Validate before inserting the activity so a forged selection cannot create
+        // a dangling package link or an activity with no AUs.
+        $libraryselection = \mod_cmi5\content_library::resolve_package_selection(
+            $packageid, (string) $libraryauid);
+    }
 
     $data->timecreated = time();
     $data->timemodified = time();
@@ -116,13 +126,11 @@ function cmi5_add_instance($data, $mform = null) {
     $data->id = $DB->insert_record('cmi5', $record);
 
     if ($packagesource === 'library' && $packageid) {
-        // Resolve packageid to its latestversion.
-        $libpackage = \mod_cmi5\content_library::get_package($packageid);
-        $versionid = $libpackage ? (int) $libpackage->latestversion : 0;
+        $version = $libraryselection->version;
+        $versionid = (int) $version->id;
 
         // Auto-inherit profile from library package version if not explicitly set on the form.
         if (empty($record->profileid) && $versionid) {
-            $version = \mod_cmi5\content_library::get_version($versionid);
             if ($version && !empty($version->profileid)) {
                 $record->profileid = (int) $version->profileid;
                 $DB->set_field('cmi5', 'profileid', $record->profileid, ['id' => $data->id]);
@@ -135,11 +143,7 @@ function cmi5_add_instance($data, $mform = null) {
         }
 
         // Parse the AU selection: format is "packageid:auid" or empty for all.
-        $singleauid = null;
-        if (!empty($libraryauid) && strpos($libraryauid, ':') !== false) {
-            [, $singleauid] = explode(':', $libraryauid, 2);
-            $singleauid = (int) $singleauid;
-        }
+        $singleauid = $libraryselection->singleauid;
         // Copy structure from library package version to activity.
         if ($versionid) {
             \mod_cmi5\content_library::copy_structure_to_activity($versionid, $data->id, $singleauid);
@@ -209,36 +213,66 @@ function cmi5_update_instance($data, $mform = null) {
     $cmi5 = $DB->get_record('cmi5', ['id' => $data->id]);
     $newpackageid = (int) ($data->packageid ?? 0);
 
-    // Handle switch to a different library package (library-linked staying library).
-    if (!empty($cmi5->packageid) && $newpackageid && $newpackageid !== (int) $cmi5->packageid) {
-        $libpackage = \mod_cmi5\content_library::get_package($newpackageid);
-        if ($libpackage) {
-            $versionid = (int) $libpackage->latestversion;
-            $DB->set_field('cmi5', 'packageid', $newpackageid, ['id' => $data->id]);
-            if ($versionid) {
-                $DB->set_field('cmi5', 'packageversionid', $versionid, ['id' => $data->id]);
-                $singleauid = null;
-                if (!empty($data->libraryauid) && strpos($data->libraryauid, ':') !== false) {
-                    [, $singleauid] = explode(':', $data->libraryauid, 2);
-                    $singleauid = (int) $singleauid;
-                }
-                \mod_cmi5\content_library::copy_structure_to_activity($versionid, $data->id, $singleauid);
-                \mod_cmi5\content_library::increment_usage($versionid);
-                if (empty($record->profileid)) {
-                    $version = \mod_cmi5\content_library::get_version($versionid);
-                    if ($version && !empty($version->profileid)) {
-                        $DB->set_field('cmi5', 'profileid', (int) $version->profileid, ['id' => $data->id]);
-                    }
-                }
+    // Handle switching to a library package, including an upload-based activity.
+    if ($newpackageid && $newpackageid !== (int) $cmi5->packageid) {
+        $selection = \mod_cmi5\content_library::resolve_package_selection(
+            $newpackageid, (string) ($data->libraryauid ?? ''));
+        $versionid = (int) $selection->version->id;
+        $transaction = $DB->start_delegated_transaction();
+        try {
+            \mod_cmi5\content_library::copy_structure_to_activity(
+                $versionid, $data->id, $selection->singleauid);
+            if (!empty($cmi5->packageversionid)) {
+                \mod_cmi5\content_library::decrement_usage((int) $cmi5->packageversionid);
             }
+            \mod_cmi5\content_library::increment_usage($versionid);
+
+            $updated = (object) [
+                'id' => $data->id,
+                'packageid' => $newpackageid,
+                'packageversionid' => $versionid,
+                'courseid_iri' => $selection->version->courseid_iri ?? null,
+            ];
+            if (empty($record->profileid) && !empty($selection->version->profileid)) {
+                $updated->profileid = (int) $selection->version->profileid;
+            }
+            $DB->update_record('cmi5', $updated);
+            $transaction->allow_commit();
+        } catch (\Throwable $e) {
+            $transaction->rollback($e);
         }
     }
 
     // Handle sync to a different version of the same package.
     $syncversion = (int) ($data->syncversion ?? 0);
-    // IE check a version is selected, the activity IS linked to library, and the instructor is not switching to package
-    if ($syncversion > 0 && !empty($cmi5->packageid) && $newpackageid === (int) $cmi5->packageid) {
-        \mod_cmi5\content_library::sync_activity_to_version($data->id, $syncversion);
+    if (!empty($cmi5->packageid) && $newpackageid === (int) $cmi5->packageid) {
+        $currentversionid = (int) $cmi5->packageversionid;
+        $selection = \mod_cmi5\content_library::resolve_package_selection(
+            $newpackageid, (string) ($data->libraryauid ?? ''), $currentversionid, false);
+
+        if ($syncversion > 0) {
+            // Verify version ownership, then preserve a single-AU choice by matching its IRI.
+            \mod_cmi5\content_library::resolve_package_selection(
+                $newpackageid, '', $syncversion, false);
+            $singleauid = $selection->singleauid;
+            if ($singleauid !== null && $syncversion !== $currentversionid) {
+                $singleauid = \mod_cmi5\content_library::map_au_to_version($singleauid, $syncversion);
+            }
+            \mod_cmi5\content_library::sync_activity_to_version($data->id, $syncversion, $singleauid);
+        } else {
+            $currentvalue = \mod_cmi5\content_library::get_activity_au_selection(
+                $data->id, $newpackageid, $currentversionid);
+            if ($currentvalue !== (string) ($data->libraryauid ?? '')) {
+                $transaction = $DB->start_delegated_transaction();
+                try {
+                    \mod_cmi5\content_library::copy_structure_to_activity(
+                        $currentversionid, $data->id, $selection->singleauid);
+                    $transaction->allow_commit();
+                } catch (\Throwable $e) {
+                    $transaction->rollback($e);
+                }
+            }
+        }
     }
 
     // Handle package re-upload if a replacement file was provided.

@@ -393,7 +393,8 @@ class content_library {
         }
 
         if ($versionid > 0) {
-            $version = $DB->get_record('cmi5_package_versions', ['id' => $versionid], '*', MUST_EXIST);
+            $version = $DB->get_record('cmi5_package_versions',
+                ['id' => $versionid, 'packageid' => $packageid], '*', MUST_EXIST);
             // Merge version fields into the package object.
             $package->versionid = $version->id;
             $package->versionnumber = $version->versionnumber;
@@ -423,6 +424,104 @@ class content_library {
         }
 
         return $package;
+    }
+
+    /**
+     * Validate and resolve a package/AU selection from the activity form.
+     *
+     * @param int $packageid Package ID.
+     * @param string $auvalue Empty for all AUs, or "packageid:packageauid" for one AU.
+     * @param int $versionid Version to use, or 0 for the package's latest version.
+     * @param bool $activeonly Whether the package version must be active.
+     * @return \stdClass Object containing package, version and singleauid.
+     */
+    public static function resolve_package_selection(int $packageid, string $auvalue = '',
+            int $versionid = 0, bool $activeonly = true): \stdClass {
+        global $DB;
+
+        $package = $DB->get_record('cmi5_packages', ['id' => $packageid]);
+        if (!$package) {
+            throw new \moodle_exception('picker:invalidpackage', 'cmi5');
+        }
+
+        if ($versionid <= 0) {
+            $versionid = (int) $package->latestversion;
+        }
+        $version = $DB->get_record('cmi5_package_versions', [
+            'id' => $versionid,
+            'packageid' => $packageid,
+        ]);
+        if (!$version || ($activeonly && (int) $version->status !== self::STATUS_ACTIVE)) {
+            throw new \moodle_exception('picker:invalidpackage', 'cmi5');
+        }
+
+        $singleauid = null;
+        if ($auvalue !== '') {
+            if (!preg_match('/^(\d+):(\d+)$/', $auvalue, $matches)
+                    || (int) $matches[1] !== $packageid) {
+                throw new \moodle_exception('picker:invalidau', 'cmi5');
+            }
+            $singleauid = (int) $matches[2];
+            if (!$DB->record_exists('cmi5_package_aus', [
+                'id' => $singleauid,
+                'versionid' => $versionid,
+            ])) {
+                throw new \moodle_exception('picker:invalidau', 'cmi5');
+            }
+        }
+
+        return (object) [
+            'package' => $package,
+            'version' => $version,
+            'singleauid' => $singleauid,
+        ];
+    }
+
+    /**
+     * Reconstruct the picker value for an activity using only one AU.
+     *
+     * @param int $cmi5id Activity instance ID.
+     * @param int $packageid Package ID.
+     * @param int $versionid Package version ID.
+     * @return string Empty for all AUs, or "packageid:packageauid" for one AU.
+     */
+    public static function get_activity_au_selection(int $cmi5id, int $packageid, int $versionid): string {
+        global $DB;
+
+        $activityaus = $DB->get_records('cmi5_aus', ['cmi5id' => $cmi5id, 'retired' => 0]);
+        $packageaus = $DB->get_records('cmi5_package_aus', ['versionid' => $versionid]);
+        if (count($activityaus) !== 1 || count($packageaus) <= 1) {
+            return '';
+        }
+
+        $activityau = reset($activityaus);
+        foreach ($packageaus as $packageau) {
+            if (trim($packageau->auid) === trim($activityau->auid)) {
+                return $packageid . ':' . $packageau->id;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Find the equivalent AU in another version by its cmi5 AU IRI.
+     *
+     * @param int $singleauid Source cmi5_package_aus row ID.
+     * @param int $targetversionid Target package version ID.
+     * @return int Target AU row ID.
+     */
+    public static function map_au_to_version(int $singleauid, int $targetversionid): int {
+        global $DB;
+
+        $sourceau = $DB->get_record('cmi5_package_aus', ['id' => $singleauid], '*', MUST_EXIST);
+        $targetau = $DB->get_record('cmi5_package_aus', [
+            'versionid' => $targetversionid,
+            'auid' => $sourceau->auid,
+        ]);
+        if (!$targetau) {
+            throw new \moodle_exception('picker:invalidau', 'cmi5');
+        }
+        return (int) $targetau->id;
     }
 
     /**
@@ -911,27 +1010,36 @@ class content_library {
             return $result;
         }
 
-        $newversion = $DB->get_record('cmi5_package_versions', ['id' => $newversionid], '*', MUST_EXIST);
-
-        // Decrement old version usage.
-        if (!empty($cmi5->packageversionid)) {
-            self::decrement_usage((int) $cmi5->packageversionid);
+        $newversion = $DB->get_record('cmi5_package_versions',
+            ['id' => $newversionid, 'packageid' => $cmi5->packageid], '*', MUST_EXIST);
+        if ($singleauid !== null && !$DB->record_exists('cmi5_package_aus', [
+            'id' => $singleauid,
+            'versionid' => $newversionid,
+        ])) {
+            throw new \moodle_exception('picker:invalidau', 'cmi5');
         }
 
-        // Copy structure from new version.
-        self::copy_structure_to_activity($newversionid, $cmi5id, $singleauid);
+        $transaction = $DB->start_delegated_transaction();
+        try {
+            // Decrement old version usage.
+            if (!empty($cmi5->packageversionid)) {
+                self::decrement_usage((int) $cmi5->packageversionid);
+            }
 
-        // Update activity record.
-        $DB->set_field('cmi5', 'packageversionid', $newversionid, ['id' => $cmi5id]);
-        $DB->set_field('cmi5', 'timemodified', time(), ['id' => $cmi5id]);
+            // Copy structure from new version.
+            self::copy_structure_to_activity($newversionid, $cmi5id, $singleauid);
 
-        // Copy courseid_iri from the package version.
-        if (!empty($newversion->courseid_iri)) {
+            // Update activity record.
+            $DB->set_field('cmi5', 'packageversionid', $newversionid, ['id' => $cmi5id]);
+            $DB->set_field('cmi5', 'timemodified', time(), ['id' => $cmi5id]);
             $DB->set_field('cmi5', 'courseid_iri', $newversion->courseid_iri, ['id' => $cmi5id]);
-        }
 
-        // Increment new version usage.
-        self::increment_usage($newversionid);
+            // Increment new version usage.
+            self::increment_usage($newversionid);
+            $transaction->allow_commit();
+        } catch (\Throwable $e) {
+            $transaction->rollback($e);
+        }
 
         $result->success = true;
         $result->newversionid = $newversionid;
