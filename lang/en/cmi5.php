@@ -131,6 +131,7 @@ $string['progress:upnext'] = 'Up next';
 $string['progress:position'] = 'Unit {$a->index} of {$a->total}';
 $string['launch:opensnewwindow'] = 'Opens in a new window';
 $string['launch:openwindow'] = 'Open in another window';
+$string['launch:openannounce'] = '{$a} is open in another window.';
 $string['launch:gotowindow'] = 'Go to window';
 $string['launch:didntopen'] = 'Window didn\'t open?';
 $string['launch:again'] = 'Launch again';

@@ -44,7 +44,14 @@ let goToWindowText = '';
  */
 export const init = (courseModuleId, launchMethod) => {
     const root = document.querySelector('.mod-cmi5-view');
-    if (!root || launchMethod !== 0) {
+    if (!root) {
+        return;
+    }
+
+    initHelpTooltips(root);
+    initScrollableList(root);
+
+    if (launchMethod !== 0) {
         return;
     }
 
@@ -64,6 +71,47 @@ export const init = (courseModuleId, launchMethod) => {
             launch(lastLaunch.auid, lastLaunch.url);
         }
     });
+};
+
+/**
+ * Let Esc close the help tooltip (WCAG 1.4.13). It shows again on the next hover or focus.
+ *
+ * @param {HTMLElement} root The activity view.
+ */
+const initHelpTooltips = (root) => {
+    root.querySelectorAll('.mod-cmi5-help').forEach((help) => {
+        help.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                help.classList.add('is-dismissed');
+            }
+        });
+        const reset = () => help.classList.remove('is-dismissed');
+        help.addEventListener('mouseleave', reset);
+        help.addEventListener('focusout', reset);
+        help.addEventListener('mouseenter', reset);
+    });
+};
+
+/**
+ * Make the AU list keyboard-focusable only while it scrolls sideways, so keyboard users can scroll it
+ * without an extra tab stop when everything fits.
+ *
+ * @param {HTMLElement} root The activity view.
+ */
+const initScrollableList = (root) => {
+    const list = root.querySelector('.mod-cmi5-au-list');
+    if (!list || typeof ResizeObserver === 'undefined') {
+        return;
+    }
+    const update = () => {
+        if (list.scrollWidth > list.clientWidth + 1) {
+            list.setAttribute('tabindex', '0');
+        } else {
+            list.removeAttribute('tabindex');
+        }
+    };
+    new ResizeObserver(update).observe(list);
+    update();
 };
 
 /**
@@ -124,10 +172,20 @@ const markOpen = (auid) => {
         }
     }
 
+    const title = row?.dataset.title ?? '';
     const card = document.querySelector('.mod-cmi5-progress-card');
     const openTitle = card?.querySelector('.mod-cmi5-open-title');
     if (card && openTitle) {
-        openTitle.textContent = row?.dataset.title ?? '';
+        openTitle.textContent = title;
         card.classList.add('is-open');
+    }
+
+    // Tell screen reader users where the unit went; the visual changes above are silent.
+    const announcer = document.querySelector('.mod-cmi5-announce');
+    if (announcer) {
+        getString('launch:openannounce', 'mod_cmi5', title).then((text) => {
+            announcer.textContent = text;
+            return text;
+        }).catch(Notification.exception);
     }
 };
