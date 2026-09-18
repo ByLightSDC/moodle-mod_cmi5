@@ -1,0 +1,80 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/library_picker/pages
+
+    Numbered pagination and result range for the content library browse modal.
+    Rendered client-side by the mod_cmi5/library_picker AMD module.
+
+    Context variables required:
+    * pages - array of {number, active, ellipsis}
+    * hasprev - bool
+    * hasnext - bool
+    * prevpage - page number of the previous page
+    * nextpage - page number of the next page
+    * from - first result number shown
+    * to - last result number shown
+    * total - total number of matching packages
+    * multipage - bool, more than one page exists
+
+    Example context (json):
+    {
+        "pages": [{"number": 1, "active": true, "ellipsis": false},
+                  {"number": 2, "active": false, "ellipsis": false}],
+        "hasprev": false,
+        "hasnext": true,
+        "prevpage": 1,
+        "nextpage": 2,
+        "from": 1,
+        "to": 9,
+        "total": 12,
+        "multipage": true
+    }
+}}
+<div class="cmi5-picker-pages-inner">
+    {{#multipage}}
+    <nav aria-label="{{#str}}picker:pagination, cmi5{{/str}}">
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item{{^hasprev}} disabled{{/hasprev}}">
+                <button type="button" class="page-link" data-action="page" data-page="{{prevpage}}"
+                        {{^hasprev}}disabled{{/hasprev}}
+                        aria-label="{{#str}}picker:previous, cmi5{{/str}}">&laquo;</button>
+            </li>
+            {{#pages}}
+            {{#ellipsis}}
+            <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+            {{/ellipsis}}
+            {{^ellipsis}}
+            <li class="page-item{{#active}} active{{/active}}">
+                <button type="button" class="page-link" data-action="page" data-page="{{number}}"
+                        {{#active}}aria-current="page"{{/active}}
+                        aria-label="{{#str}}picker:gotopage, cmi5, {{number}}{{/str}}">{{number}}</button>
+            </li>
+            {{/ellipsis}}
+            {{/pages}}
+            <li class="page-item{{^hasnext}} disabled{{/hasnext}}">
+                <button type="button" class="page-link" data-action="page" data-page="{{nextpage}}"
+                        {{^hasnext}}disabled{{/hasnext}}
+                        aria-label="{{#str}}picker:next, cmi5{{/str}}">&raquo;</button>
+            </li>
+        </ul>
+    </nav>
+    {{/multipage}}
+    <span class="cmi5-picker-range" aria-live="polite">
+        {{#str}}picker:range, cmi5, {"from": {{from}}, "to": {{to}}, "total": {{total}}}{{/str}}
+    </span>
+</div>

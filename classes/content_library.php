@@ -44,6 +44,16 @@ class content_library {
     /** @var int Package status: active. */
     const STATUS_ACTIVE = 1;
 
+    /** @var string Sort packages by most recently modified. */
+    const SORT_RECENT = 'recent';
+    /** @var string Sort packages alphabetically by title. */
+    const SORT_TITLE = 'title';
+    /** @var string Sort packages by number of activities using them. */
+    const SORT_USAGE = 'usage';
+
+    /** @var array Valid sort keys for package listings. */
+    const VALID_SORTS = [self::SORT_RECENT, self::SORT_TITLE, self::SORT_USAGE];
+
     /** @var array AU fields tracked for changelog computation. */
     const TRACKED_AU_FIELDS = [
         'title', 'description', 'url', 'launchmethod', 'moveoncriteria',
@@ -383,7 +393,8 @@ class content_library {
         }
 
         if ($versionid > 0) {
-            $version = $DB->get_record('cmi5_package_versions', ['id' => $versionid], '*', MUST_EXIST);
+            $version = $DB->get_record('cmi5_package_versions',
+                ['id' => $versionid, 'packageid' => $packageid], '*', MUST_EXIST);
             // Merge version fields into the package object.
             $package->versionid = $version->id;
             $package->versionnumber = $version->versionnumber;
@@ -416,9 +427,107 @@ class content_library {
     }
 
     /**
+     * Validate and resolve a package/AU selection from the activity form.
+     *
+     * @param int $packageid Package ID.
+     * @param string $auvalue Empty for all AUs, or "packageid:packageauid" for one AU.
+     * @param int $versionid Version to use, or 0 for the package's latest version.
+     * @param bool $activeonly Whether the package version must be active.
+     * @return \stdClass Object containing package, version and singleauid.
+     */
+    public static function resolve_package_selection(int $packageid, string $auvalue = '',
+            int $versionid = 0, bool $activeonly = true): \stdClass {
+        global $DB;
+
+        $package = $DB->get_record('cmi5_packages', ['id' => $packageid]);
+        if (!$package) {
+            throw new \moodle_exception('picker:invalidpackage', 'cmi5');
+        }
+
+        if ($versionid <= 0) {
+            $versionid = (int) $package->latestversion;
+        }
+        $version = $DB->get_record('cmi5_package_versions', [
+            'id' => $versionid,
+            'packageid' => $packageid,
+        ]);
+        if (!$version || ($activeonly && (int) $version->status !== self::STATUS_ACTIVE)) {
+            throw new \moodle_exception('picker:invalidpackage', 'cmi5');
+        }
+
+        $singleauid = null;
+        if ($auvalue !== '') {
+            if (!preg_match('/^(\d+):(\d+)$/', $auvalue, $matches)
+                    || (int) $matches[1] !== $packageid) {
+                throw new \moodle_exception('picker:invalidau', 'cmi5');
+            }
+            $singleauid = (int) $matches[2];
+            if (!$DB->record_exists('cmi5_package_aus', [
+                'id' => $singleauid,
+                'versionid' => $versionid,
+            ])) {
+                throw new \moodle_exception('picker:invalidau', 'cmi5');
+            }
+        }
+
+        return (object) [
+            'package' => $package,
+            'version' => $version,
+            'singleauid' => $singleauid,
+        ];
+    }
+
+    /**
+     * Reconstruct the picker value for an activity using only one AU.
+     *
+     * @param int $cmi5id Activity instance ID.
+     * @param int $packageid Package ID.
+     * @param int $versionid Package version ID.
+     * @return string Empty for all AUs, or "packageid:packageauid" for one AU.
+     */
+    public static function get_activity_au_selection(int $cmi5id, int $packageid, int $versionid): string {
+        global $DB;
+
+        $activityaus = $DB->get_records('cmi5_aus', ['cmi5id' => $cmi5id, 'retired' => 0]);
+        $packageaus = $DB->get_records('cmi5_package_aus', ['versionid' => $versionid]);
+        if (count($activityaus) !== 1 || count($packageaus) <= 1) {
+            return '';
+        }
+
+        $activityau = reset($activityaus);
+        foreach ($packageaus as $packageau) {
+            if (trim($packageau->auid) === trim($activityau->auid)) {
+                return $packageid . ':' . $packageau->id;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Find the equivalent AU in another version by its cmi5 AU IRI.
+     *
+     * @param int $singleauid Source cmi5_package_aus row ID.
+     * @param int $targetversionid Target package version ID.
+     * @return int Target AU row ID.
+     */
+    public static function map_au_to_version(int $singleauid, int $targetversionid): int {
+        global $DB;
+
+        $sourceau = $DB->get_record('cmi5_package_aus', ['id' => $singleauid], '*', MUST_EXIST);
+        $targetau = $DB->get_record('cmi5_package_aus', [
+            'versionid' => $targetversionid,
+            'auid' => $sourceau->auid,
+        ]);
+        if (!$targetau) {
+            throw new \moodle_exception('picker:invalidau', 'cmi5');
+        }
+        return (int) $targetau->id;
+    }
+
+    /**
      * List packages in the library with optional filtering.
      *
-     * @param string $search Search string to filter by title.
+     * @param string $search Search string to filter by title or description.
      * @param int $status Filter by status (-1 for all). Checks latest version status.
      * @param int $offset Pagination offset.
      * @param int $limit Maximum results.
@@ -428,33 +537,75 @@ class content_library {
             int $offset = 0, int $limit = 50): array {
         global $DB;
 
-        $conditions = [];
-        $params = [];
-
-        if ($status >= 0) {
-            $conditions[] = 'EXISTS (SELECT 1 FROM {cmi5_package_versions} v WHERE v.id = p.latestversion AND v.status = :status)';
-            $params['status'] = $status;
-        }
-
-        if (!empty($search)) {
-            $conditions[] = $DB->sql_like('p.title', ':search', false);
-            $params['search'] = '%' . $DB->sql_like_escape($search) . '%';
-        }
-
-        $where = !empty($conditions) ? implode(' AND ', $conditions) : '1=1';
+        [$where, $params] = self::build_package_filter($search, $status);
 
         $sql = "SELECT p.* FROM {cmi5_packages} p WHERE {$where} ORDER BY p.timemodified DESC";
         return array_values($DB->get_records_sql($sql, $params, $offset, $limit));
     }
 
     /**
-     * Get the total count of packages matching the filter.
+     * List packages along with the metadata the picker grid needs.
      *
-     * @param string $search Search string.
-     * @param int $status Filter by status (-1 for all).
-     * @return int Total count.
+     * This resolves the latest version, its AU count and the package's total usage
+     * in a single query, so callers rendering a list of cards do not need to call
+     * get_package_details() once per package.
+     *
+     * @param string $search Search string to filter by title or description.
+     * @param int $status Filter by status (-1 for all). Checks latest version status.
+     * @param int $offset Pagination offset.
+     * @param int $limit Maximum results.
+     * @param string $sort One of 'recent', 'title' or 'usage'.
+     * @param int $source Filter by source type (-1 for all).
+     * @return array Array of package records with versionid, versionnumber, source,
+     *               aucount and usagecount fields populated.
      */
-    public static function count_packages(string $search = '', int $status = -1): int {
+    public static function list_packages_with_meta(string $search = '', int $status = -1,
+            int $offset = 0, int $limit = 50, string $sort = self::SORT_RECENT,
+            int $source = -1): array {
+        global $DB;
+
+        [$where, $params] = self::build_package_filter($search, $status, $source);
+
+        $sql = "SELECT p.id, p.title, p.description, p.timecreated, p.timemodified, p.latestversion,
+                       v.id AS versionid, v.versionnumber, v.source, v.status,
+                       (SELECT COUNT(1) FROM {cmi5_package_aus} a WHERE a.versionid = v.id) AS aucount,
+                       (SELECT COALESCE(SUM(v2.usagecount), 0) FROM {cmi5_package_versions} v2
+                         WHERE v2.packageid = p.id) AS usagecount
+                  FROM {cmi5_packages} p
+             LEFT JOIN {cmi5_package_versions} v ON v.id = p.latestversion
+                 WHERE {$where}
+              ORDER BY " . self::sort_clause($sort);
+
+        return array_values($DB->get_records_sql($sql, $params, $offset, $limit));
+    }
+
+    /**
+     * Map a sort key to an ORDER BY clause.
+     *
+     * @param string $sort One of 'recent', 'title' or 'usage'.
+     * @return string The ORDER BY clause body.
+     */
+    private static function sort_clause(string $sort): string {
+        switch ($sort) {
+            case self::SORT_TITLE:
+                return 'p.title ASC';
+            case self::SORT_USAGE:
+                return 'usagecount DESC, p.title ASC';
+            case self::SORT_RECENT:
+            default:
+                return 'p.timemodified DESC';
+        }
+    }
+
+    /**
+     * Build the shared WHERE clause used by the package listing and counting queries.
+     *
+     * @param string $search Search string matched against title and description.
+     * @param int $status Filter by status (-1 for all).
+     * @param int $source Filter by source type (-1 for all).
+     * @return array [string $where, array $params]
+     */
+    private static function build_package_filter(string $search, int $status, int $source = -1): array {
         global $DB;
 
         $conditions = [];
@@ -465,12 +616,37 @@ class content_library {
             $params['status'] = $status;
         }
 
+        if ($source >= 0) {
+            $conditions[] = 'EXISTS (SELECT 1 FROM {cmi5_package_versions} vs WHERE vs.id = p.latestversion AND vs.source = :source)';
+            $params['source'] = $source;
+        }
+
         if (!empty($search)) {
-            $conditions[] = $DB->sql_like('p.title', ':search', false);
-            $params['search'] = '%' . $DB->sql_like_escape($search) . '%';
+            $titlelike = $DB->sql_like('p.title', ':searchtitle', false);
+            $desclike = $DB->sql_like('p.description', ':searchdesc', false);
+            $conditions[] = "({$titlelike} OR {$desclike})";
+            $escaped = '%' . $DB->sql_like_escape($search) . '%';
+            $params['searchtitle'] = $escaped;
+            $params['searchdesc'] = $escaped;
         }
 
         $where = !empty($conditions) ? implode(' AND ', $conditions) : '1=1';
+
+        return [$where, $params];
+    }
+
+    /**
+     * Get the total count of packages matching the filter.
+     *
+     * @param string $search Search string matched against title and description.
+     * @param int $status Filter by status (-1 for all).
+     * @param int $source Filter by source type (-1 for all).
+     * @return int Total count.
+     */
+    public static function count_packages(string $search = '', int $status = -1, int $source = -1): int {
+        global $DB;
+
+        [$where, $params] = self::build_package_filter($search, $status, $source);
 
         return $DB->count_records_sql("SELECT COUNT(*) FROM {cmi5_packages} p WHERE {$where}", $params);
     }
@@ -834,27 +1010,36 @@ class content_library {
             return $result;
         }
 
-        $newversion = $DB->get_record('cmi5_package_versions', ['id' => $newversionid], '*', MUST_EXIST);
-
-        // Decrement old version usage.
-        if (!empty($cmi5->packageversionid)) {
-            self::decrement_usage((int) $cmi5->packageversionid);
+        $newversion = $DB->get_record('cmi5_package_versions',
+            ['id' => $newversionid, 'packageid' => $cmi5->packageid], '*', MUST_EXIST);
+        if ($singleauid !== null && !$DB->record_exists('cmi5_package_aus', [
+            'id' => $singleauid,
+            'versionid' => $newversionid,
+        ])) {
+            throw new \moodle_exception('picker:invalidau', 'cmi5');
         }
 
-        // Copy structure from new version.
-        self::copy_structure_to_activity($newversionid, $cmi5id, $singleauid);
+        $transaction = $DB->start_delegated_transaction();
+        try {
+            // Decrement old version usage.
+            if (!empty($cmi5->packageversionid)) {
+                self::decrement_usage((int) $cmi5->packageversionid);
+            }
 
-        // Update activity record.
-        $DB->set_field('cmi5', 'packageversionid', $newversionid, ['id' => $cmi5id]);
-        $DB->set_field('cmi5', 'timemodified', time(), ['id' => $cmi5id]);
+            // Copy structure from new version.
+            self::copy_structure_to_activity($newversionid, $cmi5id, $singleauid);
 
-        // Copy courseid_iri from the package version.
-        if (!empty($newversion->courseid_iri)) {
+            // Update activity record.
+            $DB->set_field('cmi5', 'packageversionid', $newversionid, ['id' => $cmi5id]);
+            $DB->set_field('cmi5', 'timemodified', time(), ['id' => $cmi5id]);
             $DB->set_field('cmi5', 'courseid_iri', $newversion->courseid_iri, ['id' => $cmi5id]);
-        }
 
-        // Increment new version usage.
-        self::increment_usage($newversionid);
+            // Increment new version usage.
+            self::increment_usage($newversionid);
+            $transaction->allow_commit();
+        } catch (\Throwable $e) {
+            $transaction->rollback($e);
+        }
 
         $result->success = true;
         $result->newversionid = $newversionid;

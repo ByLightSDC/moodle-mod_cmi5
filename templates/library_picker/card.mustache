@@ -1,0 +1,95 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/library_picker/card
+
+    A single content library package card in the picker grid.
+
+    This template is rendered both server-side (mod_cmi5\output\library_picker) and
+    client-side by the mod_cmi5/library_picker AMD module, so both must supply the
+    same context.
+
+    Context variables required:
+    * id - package ID
+    * title - package title
+    * description - shortened plain-text description
+    * hasdescription - bool
+    * initials - one or two letters for the generated tile
+    * tone - tile colour tone, 1 to 6
+    * versionnumber - latest version number
+    * hasversion - bool
+    * aucount - number of AUs in the latest version
+    * hasaus - bool
+    * usagecount - number of activities using the package
+    * hasusage - bool
+    * isexternal - bool, latest version is an externally hosted AU
+    * selected - bool, this card is the current selection
+
+    Example context (json):
+    {
+        "id": 7,
+        "title": "Fire Safety Basics",
+        "description": "An introduction to workplace fire safety.",
+        "hasdescription": true,
+        "initials": "FS",
+        "tone": 3,
+        "versionnumber": 2,
+        "hasversion": true,
+        "aucount": 4,
+        "hasaus": true,
+        "usagecount": 12,
+        "hasusage": true,
+        "isexternal": false,
+        "selected": false
+    }
+}}
+<div class="cmi5-picker-cell" data-region="package-card" data-packageid="{{id}}"
+     data-title="{{title}}" data-aucount="{{aucount}}">
+    <label class="cmi5-picker-card{{#selected}} cmi5-picker-card-selected{{/selected}}"
+           for="cmi5-picker-pkg-{{id}}">
+        <input type="radio" name="cmi5packagepick" value="{{id}}" id="cmi5-picker-pkg-{{id}}"
+               class="cmi5-picker-radio" data-action="select-package" {{#selected}}checked{{/selected}}>
+        <span class="cmi5-picker-tile cmi5-picker-tone-{{tone}}" aria-hidden="true">{{initials}}</span>
+        <span class="cmi5-picker-body">
+            <span class="cmi5-picker-title">{{title}}</span>
+            <span class="cmi5-picker-desc">
+                {{#hasdescription}}{{description}}{{/hasdescription}}
+                {{^hasdescription}}<em>{{#str}}picker:nodescription, cmi5{{/str}}</em>{{/hasdescription}}
+            </span>
+            <span class="cmi5-picker-meta">
+                {{#hasversion}}
+                <span class="badge badge-secondary bg-secondary">{{#str}}picker:version, cmi5, {{versionnumber}}{{/str}}</span>
+                {{/hasversion}}
+                {{#hasaus}}
+                <span class="badge badge-light bg-light text-dark">{{#str}}picker:aucount, cmi5, {{aucount}}{{/str}}</span>
+                {{/hasaus}}
+                {{#isexternal}}
+                <span class="badge badge-info bg-info">{{#str}}library:external, cmi5{{/str}}</span>
+                {{/isexternal}}
+                {{#hasusage}}
+                <span class="cmi5-picker-usage">{{#str}}picker:usedby, cmi5, {{usagecount}}{{/str}}</span>
+                {{/hasusage}}
+            </span>
+        </span>
+        <span class="cmi5-picker-check" aria-hidden="true">&#10003;</span>
+    </label>
+    <div class="cmi5-picker-actions">
+        <button type="button" class="btn btn-link btn-sm p-0" data-action="view-details" data-packageid="{{id}}">
+            {{#str}}library:viewdetails, cmi5{{/str}}
+        </button>
+    </div>
+</div>
