@@ -14,6 +14,10 @@ const pool = new Pool({
   user: config.db.user,
   password: config.db.password,
   idleTimeoutMillis: 500,
+  // Fail fast if Postgres is unreachable (e.g. DB port not exposed) or a
+  // query stalls, instead of hanging until the test timeout.
+  connectionTimeoutMillis: 10_000,
+  query_timeout: 10_000,
   allowExitOnIdle: true,
 });
 
