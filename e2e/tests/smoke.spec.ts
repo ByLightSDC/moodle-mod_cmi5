@@ -7,7 +7,8 @@ import { test, expect } from '@playwright/test';
  * named by E2E_BASE_URL and render a page. No plugin logic yet.
  */
 test('Moodle login page is reachable', async ({ page }) => {
-  await page.goto('/login/index.php');
+  // Use installed English strings consistently for the login controls.
+  await page.goto('/login/index.php?lang=en');
 
   // Moodle's login form has a submit button labelled "Log in".
   await expect(page.getByRole('button', { name: /log in/i })).toBeVisible();

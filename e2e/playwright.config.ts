@@ -36,6 +36,11 @@ export default defineConfig({
     // Every page.goto('/x') is resolved against this.
     baseURL: process.env.E2E_BASE_URL || 'http://localhost:8000',
 
+    // Fail fast if a click/fill or page load gets no response, rather than
+    // silently eating the whole per-test budget.
+    actionTimeout: 10_000,
+    navigationTimeout: 10_000,
+
     // Capture a trace (DOM snapshots + network + console) when a test fails,
     // so you can open it in the trace viewer and step through what happened.
     trace: 'retain-on-failure',

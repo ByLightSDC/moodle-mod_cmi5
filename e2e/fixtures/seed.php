@@ -84,6 +84,11 @@ function e2e_user(string $username): stdClass {
     global $DB, $CFG;
     $user = $DB->get_record('user', ['username' => $username, 'deleted' => 0]);
     if ($user) {
+        // Users from earlier runs may carry an uninstalled site-default lang.
+        if ($user->lang !== 'en') {
+            $DB->set_field('user', 'lang', 'en', ['id' => $user->id]);
+            $user->lang = 'en';
+        }
         return $user;
     }
     $new = (object)[
@@ -95,6 +100,9 @@ function e2e_user(string $username): stdClass {
         'lastname' => 'E2E',
         'email' => $username . '@e2e.invalid',
         'password' => 'Passw0rd!e2e',
+        // 'en' always ships with Moodle; the site default may name a pack that
+        // isn't installed, which makes every AJAX string/template call fail.
+        'lang' => 'en',
     ];
     $new->id = user_create_user($new, true, false);
     return $DB->get_record('user', ['id' => $new->id], '*', MUST_EXIST);
