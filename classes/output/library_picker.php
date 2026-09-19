@@ -236,6 +236,21 @@ class library_picker implements renderable, templatable {
      * @return int A tone index between 1 and TONE_COUNT.
      */
     public static function tone(string $title): int {
-        return (int) (crc32($title) % self::TONE_COUNT) + 1;
+        return (self::title_hash($title) % self::TONE_COUNT) + 1;
+    }
+
+    /**
+     * Hash a title to a small number. Mirrors titleHash() in amd/src/library_picker.js, byte for byte.
+     *
+     * @param string $title The text to hash.
+     * @return int A number between 0 and 1000002.
+     */
+    public static function title_hash(string $title): int {
+        $hash = 0;
+        $length = strlen($title);
+        for ($i = 0; $i < $length; $i++) {
+            $hash = ($hash * 31 + ord($title[$i])) % 1000003;
+        }
+        return $hash;
     }
 }
