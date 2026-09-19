@@ -1,22 +1,74 @@
 {{!
     @template mod_cmi5/launch_frame
 
-    Iframe container for embedded AU launch.
+    Embedded AU launch: a slim top bar over the AU iframe, with a start-up card until the AU loads.
 
     Context variables:
     * launchurl - full launch URL for the AU
     * title - AU title
+    * activityname - cmi5 activity name
+    * hasposition - boolean, whether to show the AU's position
+    * position - e.g. "Unit 3 of 5"
+    * startingdesc - sentence shown while the AU loads
     * returnurl - URL to return to activity view
+
+    Example context (json):
+    {
+        "launchurl": "https://example.com/au/index.html",
+        "title": "Module 1",
+        "activityname": "Security basics",
+        "hasposition": true,
+        "position": "Unit 1 of 3",
+        "startingdesc": "Module 1 will appear here in a moment.",
+        "returnurl": "#"
+    }
 }}
 <style>
 html, body { overflow: hidden; }
 .toast-wrapper { position: fixed; top: 0; right: 0; z-index: 9999; }
 </style>
-<div class="mod-cmi5-launch-frame d-flex flex-column vh-100" style="overflow-y: hidden;">
-    <iframe src="{{launchurl}}"
-            class="mod-cmi5-iframe w-100 flex-grow-1"
-            style="border: none;"
-            allowfullscreen
-            allow="microphone; camera; autoplay; encrypted-media">
-    </iframe>
+<div class="mod-cmi5-launch-frame vh-100">
+    <header class="mod-cmi5-frame-bar">
+        <a href="{{returnurl}}" class="mod-cmi5-frame-back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 6l-6 6 6 6"/></svg>
+            {{#str}}launch:back, cmi5{{/str}}
+        </a>
+        <span class="mod-cmi5-frame-divider" aria-hidden="true"></span>
+        <div class="mod-cmi5-frame-heading">
+            <h1 class="mod-cmi5-frame-title">{{title}}</h1>
+            <div class="mod-cmi5-frame-meta">{{#hasposition}}{{position}} · {{/hasposition}}{{activityname}}</div>
+        </div>
+        <div class="mod-cmi5-frame-save">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 10"/></svg>
+            {{#str}}launch:autosave, cmi5{{/str}}
+        </div>
+        <button type="button" class="mod-cmi5-frame-iconbtn mod-cmi5-frame-fullscreen" aria-label="{{#str}}launch:fullscreen, cmi5{{/str}}" title="{{#str}}launch:fullscreen, cmi5{{/str}}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg>
+        </button>
+    </header>
+    <div class="mod-cmi5-frame-stage">
+        <iframe src="{{launchurl}}"
+                class="mod-cmi5-iframe"
+                title="{{title}}"
+                allowfullscreen
+                allow="microphone; camera; autoplay; encrypted-media; fullscreen">
+        </iframe>
+        <div class="mod-cmi5-frame-loading" role="status">
+            <div class="mod-cmi5-frame-card">
+                <span class="mod-cmi5-spinner" aria-hidden="true"></span>
+                <div class="mod-cmi5-frame-card-title">{{#str}}launch:starting, cmi5{{/str}}</div>
+                <div class="mod-cmi5-frame-card-desc">{{startingdesc}}</div>
+                <ol class="mod-cmi5-frame-steps">
+                    <li class="is-done">{{#str}}launch:stepregistration, cmi5{{/str}}</li>
+                    <li class="is-done">{{#str}}launch:stepsession, cmi5{{/str}}</li>
+                    <li class="is-current">{{#str}}launch:steploading, cmi5{{/str}}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
 </div>
+{{#js}}
+require(['mod_cmi5/launch_frame'], function(frame) {
+    frame.init();
+});
+{{/js}}

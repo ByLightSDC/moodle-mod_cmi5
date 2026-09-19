@@ -30,94 +30,207 @@
     * isteacher - boolean, whether user has viewreports capability
     * cancleardata - boolean, whether user can reset/delete learner registrations (managecontent)
     * ismetrics - boolean, whether metrics tab should be active
+    * aucount - number of AUs
+    * newwindow - boolean, whether AUs open in a new window
+    * hasprogress - boolean, whether to show the learner progress card
+    * progress - satisfied, total, segments, legend, hasnext, next (id, title, launchurl, actiontext, heading, position)
+    * updateavailable, latestversionnumber, haschangelog, changecount, changelogentries, syncurl - package update banner
+
+    Example context (json):
+    {
+        "cmid": 5,
+        "cmi5id": 1,
+        "hasaus": true,
+        "aucount": 1,
+        "canlaunch": true,
+        "newwindow": true,
+        "hasprogress": true,
+        "progress": {
+            "satisfied": 0,
+            "total": 1,
+            "segments": [{"statusclass": "inprogress"}],
+            "legend": [{"statusclass": "inprogress", "text": "1 in progress"}],
+            "hasnext": true,
+            "next": {"id": 7, "title": "Module 1", "launchurl": "#", "actiontext": "Resume",
+                "heading": "Continue where you left off", "position": "Unit 1 of 1"}
+        },
+        "aus": [{"id": 7, "index": 1, "title": "Module 1", "statusclass": "inprogress", "isinprogress": true,
+            "statustext": "In progress", "hasscore": false, "launchurl": "#", "actiontext": "Resume",
+            "emphasis": true, "newwindow": true}]
+    }
 }}
 <div class="mod-cmi5-view" data-cmid="{{cmid}}" data-cmi5id="{{cmi5id}}">
+    <div class="mod-cmi5-announce sr-only visually-hidden" role="status" aria-live="polite"></div>
     {{#updateavailable}}
-    <div class="alert alert-info">
-        {{#str}}library:updateavailable, cmi5, {{latestversionnumber}}{{/str}}
-        {{#changelogsummary}} ({{changelogsummary}}){{/changelogsummary}}
-        <a href="{{syncurl}}" class="btn btn-sm btn-outline-primary ml-2">
-            {{#str}}library:reviewandupdate, cmi5{{/str}}
-        </a>
-        {{#haschangelog}}
-        <details class="mt-2">
-            <summary>{{changelogsummary}}</summary>
-            <ul>
-                {{#changelogentries}}
-                <li>{{description}}</li>
-                {{/changelogentries}}
-            </ul>
-        </details>
-        {{/haschangelog}}
-    </div>
+    <section class="mod-cmi5-update" aria-labelledby="mod-cmi5-update-title">
+        <span class="mod-cmi5-update-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>
+        </span>
+        <div class="mod-cmi5-update-body">
+            <div class="mod-cmi5-update-title" id="mod-cmi5-update-title">{{#str}}library:updateavailable, cmi5, {{latestversionnumber}}{{/str}}</div>
+            {{#haschangelog}}
+            <details class="mod-cmi5-update-changes">
+                <summary>{{#str}}library:viewchanges, cmi5, {{changecount}}{{/str}}</summary>
+                <ul>
+                    {{#changelogentries}}
+                    <li>{{description}}</li>
+                    {{/changelogentries}}
+                </ul>
+            </details>
+            {{/haschangelog}}
+        </div>
+        <a href="{{syncurl}}" class="mod-cmi5-btn mod-cmi5-btn-primary">{{#str}}library:reviewandupdate, cmi5{{/str}}</a>
+    </section>
     {{/updateavailable}}
 
-    {{#coursesatisfied}}
-    <div class="alert alert-success">
-        {{#str}}coursesatisfied, cmi5{{/str}}
-    </div>
-    {{/coursesatisfied}}
+    {{#hasprogress}}
+    {{#progress}}
+    <section class="mod-cmi5-progress-card{{#coursesatisfied}} is-satisfied{{/coursesatisfied}}" aria-label="{{#str}}progress:heading, cmi5{{/str}}">
+        <div class="mod-cmi5-progress-summary">
+            <p class="mod-cmi5-progress-count">
+                <span class="mod-cmi5-progress-number" aria-hidden="true">{{satisfied}}<span class="mod-cmi5-progress-total"> / {{total}}</span></span>
+                <span class="mod-cmi5-progress-label" aria-hidden="true">{{#str}}progress:satisfied, cmi5{{/str}}</span>
+                <span class="sr-only visually-hidden">{{#str}}progress:summary, cmi5, { "satisfied": {{satisfied}}, "total": {{total}} }{{/str}}</span>
+            </p>
+            <div class="mod-cmi5-progress-bar" style="grid-template-columns: repeat({{total}}, minmax(0, 1fr));" aria-hidden="true">
+                {{#segments}}<span class="mod-cmi5-seg mod-cmi5-status-{{statusclass}}"></span>{{/segments}}
+            </div>
+            <ul class="mod-cmi5-progress-legend">
+                {{#legend}}
+                <li><span class="mod-cmi5-seg-key mod-cmi5-status-{{statusclass}}" aria-hidden="true"></span>{{text}}</li>
+                {{/legend}}
+            </ul>
+        </div>
 
-    <ul class="nav nav-tabs mb-3" id="cmi5-view-tabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <a class="nav-link {{^ismetrics}}active{{/ismetrics}}"
-            href="?id={{cmid}}&tab=aus"
-            role="tab"
-            aria-selected="{{^ismetrics}}true{{/ismetrics}}{{#ismetrics}}false{{/ismetrics}}">
-                {{#str}}aulist, cmi5{{/str}}
+        {{#coursesatisfied}}
+        <div class="mod-cmi5-next mod-cmi5-next-satisfied">
+            <span class="mod-cmi5-medal" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+            </span>
+            <div class="mod-cmi5-next-text">
+                <div class="mod-cmi5-next-title">{{#str}}coursesatisfied, cmi5{{/str}}</div>
+                <div class="mod-cmi5-next-meta">{{#str}}coursesatisfied_desc, cmi5{{/str}}</div>
+            </div>
+        </div>
+        {{/coursesatisfied}}
+        {{^coursesatisfied}}
+        {{#hasnext}}
+        {{#next}}
+        <div class="mod-cmi5-next mod-cmi5-next-idle">
+            <div class="mod-cmi5-next-text">
+                <div class="mod-cmi5-next-heading">{{heading}}</div>
+                <div class="mod-cmi5-next-title">{{title}}</div>
+                <div class="mod-cmi5-next-meta">{{position}}{{#newwindow}} · {{#str}}launch:opensnewwindow, cmi5{{/str}}{{/newwindow}}</div>
+            </div>
+            <a href="{{launchurl}}" class="mod-cmi5-btn mod-cmi5-btn-primary mod-cmi5-launch-btn" data-auid="{{id}}">
+                {{actiontext}}<span class="sr-only visually-hidden">: {{title}}{{#newwindow}} ({{#str}}launch:opensnewwindow, cmi5{{/str}}){{/newwindow}}</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
             </a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link {{#ismetrics}}active{{/ismetrics}}"
-            href="?id={{cmid}}&tab=metrics"
-            role="tab"
-            aria-selected="{{#ismetrics}}true{{/ismetrics}}{{^ismetrics}}false{{/ismetrics}}">
-                {{#str}}metrics:tab, cmi5{{/str}}
-            </a>
-        </li>
-    </ul>
+        </div>
+        {{/next}}
+        {{/hasnext}}
+        {{/coursesatisfied}}
+
+        {{#newwindow}}
+        <div class="mod-cmi5-next mod-cmi5-next-open">
+            <div class="mod-cmi5-next-text">
+                <div class="mod-cmi5-next-heading mod-cmi5-live"><span class="mod-cmi5-live-dot" aria-hidden="true"></span>{{#str}}launch:openwindow, cmi5{{/str}}</div>
+                <div class="mod-cmi5-next-title mod-cmi5-open-title"></div>
+                <div class="mod-cmi5-next-meta">{{#str}}launch:didntopen, cmi5{{/str}} <button type="button" class="mod-cmi5-linkbtn mod-cmi5-relaunch">{{#str}}launch:again, cmi5{{/str}}</button></div>
+            </div>
+            <button type="button" class="mod-cmi5-btn mod-cmi5-btn-primary mod-cmi5-focus-window">
+                {{#str}}launch:gotowindow, cmi5{{/str}}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+            </button>
+        </div>
+        {{/newwindow}}
+    </section>
+    {{/progress}}
+    {{/hasprogress}}
+
+    <nav aria-label="{{#str}}activitynavigation, cmi5{{/str}}">
+        <ul class="mod-cmi5-tabs" id="cmi5-view-tabs">
+            <li class="mod-cmi5-tab{{^ismetrics}} is-active{{/ismetrics}}">
+                <a class="mod-cmi5-tab-link"
+                   href="?id={{cmid}}&amp;tab=aus"{{^ismetrics}} aria-current="page"{{/ismetrics}}>
+                    {{#str}}aulist, cmi5{{/str}}
+                    {{#hasaus}}<span class="mod-cmi5-tab-count">{{aucount}}</span>{{/hasaus}}
+                </a>
+                <span class="mod-cmi5-help">
+                    <button type="button" class="mod-cmi5-help-btn" aria-label="{{#str}}auhelp_label, cmi5{{/str}}" aria-describedby="mod-cmi5-auhelp">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>
+                    </button>
+                    <span class="mod-cmi5-help-tip" id="mod-cmi5-auhelp" role="tooltip">
+                        <strong>{{#str}}auhelp_title, cmi5{{/str}}</strong>
+                        {{#str}}auhelp, cmi5{{/str}}
+                    </span>
+                </span>
+            </li>
+            <li class="mod-cmi5-tab{{#ismetrics}} is-active{{/ismetrics}}">
+                <a class="mod-cmi5-tab-link"
+                   href="?id={{cmid}}&amp;tab=metrics"{{#ismetrics}} aria-current="page"{{/ismetrics}}>
+                    {{#str}}metrics:tab, cmi5{{/str}}
+                </a>
+            </li>
+        </ul>
+    </nav>
 
     <div class="tab-content" id="cmi5-view-tab-content">
-        <div class="tab-pane fade {{^ismetrics}}show active{{/ismetrics}}" id="cmi5-pane-activity"
-             role="tabpanel" aria-labelledby="cmi5-tab-activity">
+        <div class="tab-pane fade {{^ismetrics}}show active{{/ismetrics}}" id="cmi5-pane-activity">
             {{#hasaus}}
-            <div class="mod-cmi5-au-list">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>{{#str}}name{{/str}}</th>
-                            <th>{{#str}}austatus, cmi5{{/str}}</th>
-                            <th>{{#str}}auscore, cmi5{{/str}}</th>
+            <div class="mod-cmi5-au-list" role="region" aria-label="{{#str}}aulist, cmi5{{/str}}">
+                <table class="mod-cmi5-units" role="table">
+                    <thead role="rowgroup">
+                        <tr role="row">
+                            <th scope="col" role="columnheader" class="mod-cmi5-au-main">{{#str}}assignableunit, cmi5{{/str}}</th>
+                            <th scope="col" role="columnheader" class="mod-cmi5-au-status">{{#str}}austatus, cmi5{{/str}}</th>
+                            <th scope="col" role="columnheader" class="mod-cmi5-au-score">{{#str}}auscore, cmi5{{/str}}</th>
                             {{#canlaunch}}
-                            <th>{{#str}}actions{{/str}}</th>
+                            <th scope="col" role="columnheader" class="mod-cmi5-au-action"><span class="sr-only visually-hidden">{{#str}}actions{{/str}}</span></th>
                             {{/canlaunch}}
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         {{#aus}}
-                        <tr class="mod-cmi5-au mod-cmi5-au-{{statusclass}}" data-auid="{{id}}">
-                            <td>
-                                <strong>{{title}}</strong>
-                                {{#description}}
-                                <br><small class="text-muted">{{{description}}}</small>
-                                {{/description}}
+                        <tr class="mod-cmi5-au mod-cmi5-au-{{statusclass}}" role="row" data-auid="{{id}}" data-title="{{title}}">
+                            <td class="mod-cmi5-au-main" role="cell">
+                                <div class="mod-cmi5-au-unit">
+                                    {{> mod_cmi5/status_glyph}}
+                                    <div class="mod-cmi5-au-text">
+                                        <div class="mod-cmi5-au-title">{{title}}</div>
+                                        <div class="mod-cmi5-au-open mod-cmi5-live"><span class="mod-cmi5-live-dot" aria-hidden="true"></span>{{#str}}launch:openwindow, cmi5{{/str}}</div>
+                                        {{#description}}
+                                        <div class="mod-cmi5-au-desc">{{{description}}}</div>
+                                        {{/description}}
+                                    </div>
+                                </div>
                             </td>
-                            <td>
-                                {{statustext}}
+                            <td class="mod-cmi5-au-status" role="cell">
+                                <span class="mod-cmi5-pill mod-cmi5-status-{{statusclass}}">{{statustext}}</span>
                             </td>
-                            <td>
+                            <td class="mod-cmi5-au-score" role="cell">
                                 {{#hasscore}}
-                                {{score}}
+                                <div class="mod-cmi5-score">
+                                    <span class="mod-cmi5-score-value">{{score}}%</span>
+                                    <span class="mod-cmi5-score-track" aria-hidden="true"><span class="mod-cmi5-score-fill" style="width: {{scorewidth}}%;"></span></span>
+                                </div>
                                 {{/hasscore}}
                                 {{^hasscore}}
-                                -
+                                <span class="mod-cmi5-score-none" aria-hidden="true">&mdash;</span>
+                                <span class="sr-only visually-hidden">{{#str}}noscore, cmi5{{/str}}</span>
                                 {{/hasscore}}
                             </td>
                             {{#canlaunch}}
-                            <td>
-                                <a href="{{launchurl}}" class="btn btn-primary btn-sm mod-cmi5-launch-btn"
+                            <td class="mod-cmi5-au-action" role="cell">
+                                <a href="{{launchurl}}" class="mod-cmi5-btn mod-cmi5-btn-row mod-cmi5-launch-btn{{#emphasis}} mod-cmi5-btn-tinted{{/emphasis}}"
                                    data-auid="{{id}}" data-launchmethod="{{launchmethod}}">
-                                    {{#str}}launchau, cmi5{{/str}}
+                                    <span class="mod-cmi5-launch-label">{{actiontext}}</span><span class="sr-only visually-hidden">: {{title}}{{#newwindow}} ({{#str}}launch:opensnewwindow, cmi5{{/str}}){{/newwindow}}</span>
+                                    {{#newwindow}}
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+                                    {{/newwindow}}
+                                    {{^newwindow}}
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+                                    {{/newwindow}}
                                 </a>
                             </td>
                             {{/canlaunch}}
@@ -135,8 +248,7 @@
             {{/hasaus}}
         </div>
 
-        <div class="tab-pane fade {{#ismetrics}}show active{{/ismetrics}}" id="cmi5-pane-metrics"
-             role="tabpanel" aria-labelledby="cmi5-tab-metrics">
+        <div class="tab-pane fade {{#ismetrics}}show active{{/ismetrics}}" id="cmi5-pane-metrics">
             {{> mod_cmi5/metrics}}
         </div>
     </div>

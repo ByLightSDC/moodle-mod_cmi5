@@ -41,5 +41,11 @@ require_login($cmi5->course, true, $cm);
 
 // If session was initialized but not terminated, the AU exited without sending Terminated.
 // The scheduled task will handle abandonment after timeout.
-// Iframe: redirect the iframe to the activity view.
-redirect(new moodle_url('/mod/cmi5/view.php', ['id' => $cm->id]));
+// The AU navigates its own iframe here, so a plain redirect would load the activity page inside the
+// launch frame. Send the whole window there instead.
+$viewurl = (new moodle_url('/mod/cmi5/view.php', ['id' => $cm->id]))->out(false);
+$jsurl = json_encode($viewurl, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' . s(get_string('launch:back', 'cmi5')) . '</title></head><body>';
+echo '<script>(window.top || window).location.replace(' . $jsurl . ');</script>';
+echo '<noscript><a href="' . s($viewurl) . '" target="_top">' . s(get_string('launch:back', 'cmi5')) . '</a></noscript>';
+echo '</body></html>';

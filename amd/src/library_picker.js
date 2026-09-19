@@ -76,23 +76,14 @@ const SELECTORS = {
 };
 
 /**
- * Compute a CRC32 checksum, matching PHP's crc32() so tile colours stay stable
- * between server-rendered and client-rendered markup.
+ * Hash a title to a small number. Mirrors library_picker::title_hash(), so tile colours match
+ * between server-rendered and client-rendered markup. Works on UTF-8 bytes, as PHP does.
  *
  * @param {String} text The text to hash.
- * @return {Number} The unsigned 32 bit checksum.
+ * @return {Number} A number between 0 and 1000002.
  */
-const crc32 = (text) => {
-    const bytes = new TextEncoder().encode(text);
-    let crc = 0xFFFFFFFF;
-    for (let i = 0; i < bytes.length; i++) {
-        crc ^= bytes[i];
-        for (let bit = 0; bit < 8; bit++) {
-            crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
-        }
-    }
-    return (crc ^ 0xFFFFFFFF) >>> 0;
-};
+const titleHash = (text) => new TextEncoder().encode(text)
+    .reduce((hash, byte) => (hash * 31 + byte) % 1000003, 0);
 
 /**
  * Derive up to two initials from a package title. Mirrors library_picker::initials().
@@ -118,7 +109,7 @@ const initials = (title) => {
  * @param {String} title The package title.
  * @return {Number} A tone index between 1 and TONE_COUNT.
  */
-const tone = (title) => (crc32(title) % TONE_COUNT) + 1;
+const tone = (title) => (titleHash(title) % TONE_COUNT) + 1;
 
 /**
  * Shorten a description for display on a card.
