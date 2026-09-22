@@ -310,10 +310,7 @@ foreach ($packages as $pkg) {
     $latestversion = !empty($versions) ? reset($versions) : null;
     $source = $latestversion ? $sourcestrings[(int) $latestversion->source] ?? '' : '';
     $statusactive = $latestversion ? ((int) $latestversion->status === 1) : true;
-    $usagecount = 0;
-    foreach ($versions as $ver) {
-        $usagecount += (int) $ver->usagecount;
-    }
+    $usagecount = \mod_cmi5\content_library::count_package_usage((int) $pkg->id);
 
     $packagesdata[] = [
         'id' => (int) $pkg->id,

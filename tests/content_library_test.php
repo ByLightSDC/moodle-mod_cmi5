@@ -1,0 +1,170 @@
+<?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+namespace mod_cmi5;
+
+defined('MOODLE_INTERNAL') || die();
+
+/**
+ * Tests for content library package usage reporting.
+ *
+ * @package    mod_cmi5
+ * @copyright  2026 Bylight
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers     \mod_cmi5\content_library
+ */
+final class content_library_test extends \advanced_testcase {
+
+    /**
+     * Actual activity references take precedence over cached usage counts.
+     */
+    public function test_usage_counts_are_derived_from_activity_references(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course([
+            'fullname' => 'Hidden usage course',
+            'shortname' => 'hiddenusage',
+            'visible' => 0,
+        ]);
+        [$package, $version1, $version2] = $this->create_versioned_package();
+
+        $this->create_activity($course->id, 'Version one activity', $package->id, $version1->id);
+        $this->create_activity($course->id, 'Latest activity', $package->id, $version2->id);
+        $this->create_activity($course->id, 'Legacy latest activity', $package->id, null);
+        $this->create_activity($course->id, 'Dangling package link', null, $version1->id);
+
+        $this->assertSame(2, content_library::count_version_usage($version1->id));
+        $this->assertSame(2, content_library::count_version_usage($version2->id));
+        $this->assertSame(4, content_library::count_package_usage($package->id));
+
+        $versions = content_library::get_package_versions($package->id);
+        $this->assertSame(2, (int) $versions[0]->usagecount);
+        $this->assertSame(2, (int) $versions[1]->usagecount);
+
+        $details = content_library::get_package_details($package->id, $version2->id);
+        $this->assertSame(2, (int) $details->usagecount);
+
+        $packages = content_library::list_packages_with_meta('', -1);
+        $this->assertCount(1, $packages);
+        $this->assertSame(4, (int) $packages[0]->usagecount);
+
+        // Confirm that the deliberately incorrect cache values remain irrelevant.
+        $this->assertSame(88, (int) $DB->get_field('cmi5_package_versions', 'usagecount',
+            ['id' => $version2->id]));
+    }
+
+    /**
+     * Legacy package-only references belong to the latest version only.
+     */
+    public function test_legacy_reference_is_not_attributed_to_an_older_version(): void {
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course();
+        [$package, $version1, $version2] = $this->create_versioned_package();
+        $this->create_activity($course->id, 'Legacy activity', $package->id, null);
+
+        $this->assertSame(0, content_library::count_version_usage($version1->id));
+        $this->assertSame(1, content_library::count_version_usage($version2->id));
+    }
+
+    /**
+     * Usage details include hidden courses and activities without course-module rows.
+     */
+    public function test_usage_details_include_incomplete_activity_references(): void {
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course([
+            'fullname' => 'Hidden usage course',
+            'shortname' => 'hiddenusage',
+            'visible' => 0,
+        ]);
+        [$package, $version1] = $this->create_versioned_package();
+        $activityid = $this->create_activity(
+            $course->id, 'Activity without course module', $package->id, $version1->id);
+
+        $usage = content_library::get_version_usage($version1->id);
+
+        $this->assertCount(1, $usage);
+        $this->assertSame($activityid, (int) $usage[0]->cmi5id);
+        $this->assertSame('Hidden usage course', $usage[0]->coursename);
+        $this->assertSame(0, (int) $usage[0]->coursevisible);
+        $this->assertNull($usage[0]->cmid);
+    }
+
+    /**
+     * Create a package containing two versions with intentionally stale counters.
+     *
+     * @return array Package, first version and second version records.
+     */
+    private function create_versioned_package(): array {
+        global $DB;
+
+        $now = time();
+        $package = (object) [
+            'title' => 'Usage test package',
+            'description' => '',
+            'timecreated' => $now,
+            'timemodified' => $now,
+        ];
+        $package->id = $DB->insert_record('cmi5_packages', $package);
+
+        $version1 = (object) [
+            'packageid' => $package->id,
+            'versionnumber' => 1,
+            'source' => content_library::SOURCE_ZIP,
+            'usagecount' => 99,
+            'status' => content_library::STATUS_ACTIVE,
+            'createdby' => 2,
+            'timecreated' => $now,
+        ];
+        $version1->id = $DB->insert_record('cmi5_package_versions', $version1);
+
+        $version2 = clone $version1;
+        unset($version2->id);
+        $version2->versionnumber = 2;
+        $version2->usagecount = 88;
+        $version2->id = $DB->insert_record('cmi5_package_versions', $version2);
+
+        $package->latestversion = $version2->id;
+        $DB->update_record('cmi5_packages', $package);
+
+        return [$package, $version1, $version2];
+    }
+
+    /**
+     * Create a minimal cmi5 activity reference.
+     *
+     * @param int $courseid Course ID.
+     * @param string $name Activity name.
+     * @param int|null $packageid Package ID.
+     * @param int|null $versionid Package version ID.
+     * @return int Activity ID.
+     */
+    private function create_activity(int $courseid, string $name, ?int $packageid, ?int $versionid): int {
+        global $DB;
+
+        return $DB->insert_record('cmi5', (object) [
+            'course' => $courseid,
+            'name' => $name,
+            'packageid' => $packageid,
+            'packageversionid' => $versionid,
+            'timecreated' => time(),
+            'timemodified' => time(),
+        ]);
+    }
+}

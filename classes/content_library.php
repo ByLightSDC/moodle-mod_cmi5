@@ -372,8 +372,137 @@ class content_library {
      */
     public static function get_package_versions(int $packageid): array {
         global $DB;
-        return array_values($DB->get_records('cmi5_package_versions',
-            ['packageid' => $packageid], 'versionnumber DESC'));
+
+        // The stored counter is only a cache. Resolve all version counts from current
+        // activity references in one query, including legacy activities which use the
+        // package's latest version without storing packageversionid.
+        $sql = "SELECT v.id, v.packageid, v.versionnumber, v.source, v.externalurl,
+                       v.sha256hash, v.courseid_iri, v.profileid, v.status,
+                       v.changelog, v.createdby, v.timecreated,
+                       (SELECT COUNT(1)
+                          FROM {cmi5} c
+                         WHERE c.packageversionid = v.id
+                            OR (v.id = p.latestversion
+                                AND c.packageid = p.id
+                                AND (c.packageversionid IS NULL OR c.packageversionid = 0))) AS usagecount
+                  FROM {cmi5_package_versions} v
+                  JOIN {cmi5_packages} p ON p.id = v.packageid
+                 WHERE v.packageid = :packageid
+              ORDER BY v.versionnumber DESC";
+
+        return array_values($DB->get_records_sql($sql, ['packageid' => $packageid]));
+    }
+
+    /**
+     * Return activities that currently depend on a package version.
+     *
+     * Activities with a direct packageversionid reference are always included. Legacy
+     * activities which only have packageid set resolve through the package's latestversion,
+     * so they are included when querying that version as well.
+     *
+     * Course-module data is left joined deliberately: an incomplete or pending-deletion
+     * activity record still represents a dependency and must remain visible to management
+     * and deletion checks.
+     *
+     * @param int $versionid Package version ID.
+     * @param int $offset Result offset.
+     * @param int $limit Maximum records to return; 0 means no limit.
+     * @return array List of activity usage records.
+     */
+    public static function get_version_usage(int $versionid, int $offset = 0, int $limit = 0): array {
+        global $DB;
+
+        $version = $DB->get_record('cmi5_package_versions', ['id' => $versionid],
+            'id, packageid', MUST_EXIST);
+        $package = $DB->get_record('cmi5_packages', ['id' => $version->packageid],
+            'id, latestversion', MUST_EXIST);
+        $moduleid = (int) $DB->get_field('modules', 'id', ['name' => 'cmi5']);
+
+        [$where, $params] = self::version_usage_condition($version, $package);
+        $params['moduleid'] = $moduleid;
+
+        $sql = "SELECT c.id AS cmi5id, c.name AS activityname, c.course AS courseid,
+                       cr.fullname AS coursename, cr.visible AS coursevisible,
+                       cm.id AS cmid, cm.visible AS activityvisible,
+                       cm.deletioninprogress
+                  FROM {cmi5} c
+             LEFT JOIN {course} cr ON cr.id = c.course
+             LEFT JOIN {course_modules} cm
+                    ON cm.course = c.course
+                   AND cm.instance = c.id
+                   AND cm.module = :moduleid
+                 WHERE {$where}
+              ORDER BY cr.sortorder ASC, cr.fullname ASC, c.name ASC, c.id ASC";
+
+        return array_values($DB->get_records_sql($sql, $params, max(0, $offset), max(0, $limit)));
+    }
+
+    /**
+     * Count activities that currently depend on a package version.
+     *
+     * @param int $versionid Package version ID.
+     * @return int Number of activity references.
+     */
+    public static function count_version_usage(int $versionid): int {
+        global $DB;
+
+        $version = $DB->get_record('cmi5_package_versions', ['id' => $versionid],
+            'id, packageid', MUST_EXIST);
+        $package = $DB->get_record('cmi5_packages', ['id' => $version->packageid],
+            'id, latestversion', MUST_EXIST);
+        [$where, $params] = self::version_usage_condition($version, $package);
+
+        return (int) $DB->count_records_sql("SELECT COUNT(1) FROM {cmi5} c WHERE {$where}", $params);
+    }
+
+    /**
+     * Count activities that currently depend on any version of a package.
+     *
+     * This also catches inconsistent records where packageid is missing but
+     * packageversionid still points to a version owned by the package.
+     *
+     * @param int $packageid Package ID.
+     * @return int Number of activity references.
+     */
+    public static function count_package_usage(int $packageid): int {
+        global $DB;
+
+        $DB->get_record('cmi5_packages', ['id' => $packageid], 'id', MUST_EXIST);
+
+        $sql = "SELECT COUNT(1)
+                  FROM {cmi5} c
+                 WHERE c.packageid = :activitypackageid
+                    OR EXISTS (
+                           SELECT 1
+                             FROM {cmi5_package_versions} linkedversion
+                            WHERE linkedversion.id = c.packageversionid
+                              AND linkedversion.packageid = :versionpackageid
+                       )";
+
+        return (int) $DB->count_records_sql($sql, [
+            'activitypackageid' => $packageid,
+            'versionpackageid' => $packageid,
+        ]);
+    }
+
+    /**
+     * Build the condition used by version usage list and count queries.
+     *
+     * @param \stdClass $version Package version record.
+     * @param \stdClass $package Package record.
+     * @return array SQL condition and parameters.
+     */
+    private static function version_usage_condition(\stdClass $version, \stdClass $package): array {
+        $params = ['versionid' => (int) $version->id];
+        $conditions = ['c.packageversionid = :versionid'];
+
+        if ((int) $package->latestversion === (int) $version->id) {
+            $conditions[] = "(c.packageid = :legacypackageid
+                              AND (c.packageversionid IS NULL OR c.packageversionid = 0))";
+            $params['legacypackageid'] = (int) $version->packageid;
+        }
+
+        return ['(' . implode(' OR ', $conditions) . ')', $params];
     }
 
     /**
@@ -403,7 +532,7 @@ class content_library {
             $package->sha256hash = $version->sha256hash;
             $package->courseid_iri = $version->courseid_iri;
             $package->profileid = $version->profileid;
-            $package->usagecount = $version->usagecount;
+            $package->usagecount = self::count_version_usage((int) $version->id);
             $package->status = $version->status;
             $package->changelog = $version->changelog;
             $package->createdby = $version->createdby;
@@ -569,8 +698,11 @@ class content_library {
         $sql = "SELECT p.id, p.title, p.description, p.timecreated, p.timemodified, p.latestversion,
                        v.id AS versionid, v.versionnumber, v.source, v.status,
                        (SELECT COUNT(1) FROM {cmi5_package_aus} a WHERE a.versionid = v.id) AS aucount,
-                       (SELECT COALESCE(SUM(v2.usagecount), 0) FROM {cmi5_package_versions} v2
-                         WHERE v2.packageid = p.id) AS usagecount
+                       (SELECT COUNT(1)
+                          FROM {cmi5} ci
+                     LEFT JOIN {cmi5_package_versions} linkedversion
+                            ON linkedversion.id = ci.packageversionid
+                         WHERE ci.packageid = p.id OR linkedversion.packageid = p.id) AS usagecount
                   FROM {cmi5_packages} p
              LEFT JOIN {cmi5_package_versions} v ON v.id = p.latestversion
                  WHERE {$where}
@@ -661,34 +793,43 @@ class content_library {
     public static function delete_package(int $packageid, bool $force = false): void {
         global $DB;
 
-        $package = $DB->get_record('cmi5_packages', ['id' => $packageid], '*', MUST_EXIST);
+        $DB->get_record('cmi5_packages', ['id' => $packageid], 'id', MUST_EXIST);
 
-        // Sum usage across all versions.
-        $totalusage = (int) $DB->get_field_sql(
-            "SELECT COALESCE(SUM(usagecount), 0) FROM {cmi5_package_versions} WHERE packageid = :pkgid",
-            ['pkgid' => $packageid]
-        );
+        // Count live activity references rather than summing the denormalised usagecount
+        // column. That counter is only a cache and can drift from the real dependencies,
+        // which would let a package still in use be deleted without warning.
+        $totalusage = self::count_package_usage($packageid);
 
         if ($totalusage > 0 && !$force) {
             throw new \moodle_exception('library:packageinuse', 'mod_cmi5', '', $totalusage);
         }
 
-        // If forcing deletion, unlink activities that reference this package.
+        $versionids = $DB->get_fieldset_select('cmi5_package_versions', 'id',
+            'packageid = :pkgid', ['pkgid' => $packageid]);
+
+        // If forcing deletion, unlink every activity that references this package, either
+        // directly through packageid or indirectly through one of its versions. In each
+        // pair the column used by the WHERE clause is cleared last, otherwise the second
+        // update would match nothing.
         if ($force && $totalusage > 0) {
-            $DB->set_field('cmi5', 'packageid', null, ['packageid' => $packageid]);
+            if (!empty($versionids)) {
+                [$insql, $inparams] = $DB->get_in_or_equal($versionids, SQL_PARAMS_NAMED, 'ver');
+                $DB->set_field_select('cmi5', 'packageid', null, "packageversionid {$insql}", $inparams);
+                $DB->set_field_select('cmi5', 'packageversionid', null, "packageversionid {$insql}", $inparams);
+            }
             $DB->set_field('cmi5', 'packageversionid', null, ['packageid' => $packageid]);
+            $DB->set_field('cmi5', 'packageid', null, ['packageid' => $packageid]);
         }
 
         // Delete all versions and their content.
-        $versions = $DB->get_records('cmi5_package_versions', ['packageid' => $packageid]);
         $syscontext = \context_system::instance();
         $fs = get_file_storage();
 
-        foreach ($versions as $version) {
-            $fs->delete_area_files($syscontext->id, 'mod_cmi5', 'library_package', $version->id);
-            $fs->delete_area_files($syscontext->id, 'mod_cmi5', 'library_content', $version->id);
-            $DB->delete_records('cmi5_package_aus', ['versionid' => $version->id]);
-            $DB->delete_records('cmi5_package_blocks', ['versionid' => $version->id]);
+        foreach ($versionids as $versionid) {
+            $fs->delete_area_files($syscontext->id, 'mod_cmi5', 'library_package', $versionid);
+            $fs->delete_area_files($syscontext->id, 'mod_cmi5', 'library_content', $versionid);
+            $DB->delete_records('cmi5_package_aus', ['versionid' => $versionid]);
+            $DB->delete_records('cmi5_package_blocks', ['versionid' => $versionid]);
         }
 
         $DB->delete_records('cmi5_package_versions', ['packageid' => $packageid]);
