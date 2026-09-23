@@ -1,188 +1,209 @@
 {{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
     @template mod_cmi5/library
 
-    Content Library management page template.
+    Content Library list page: the library summary, the filter tabs and one row per course.
+
+    Uses the same shell as mod_cmi5/library_package_detail, so the list and the course it
+    opens read as one screen: the summary card, the tab strip and the bordered row container
+    are the same components.
 
     Context variables required:
-    * haspackages - bool
-    * packages - array of package objects
-    * search - current search string
-    * searchurl - form action URL
-    * uploadurl - upload action URL
-    * registerauurl - register AU action URL
-    * sesskey - session key
-    * draftitemid - draft item ID for file upload
+    * addurl - where "Add a course" goes
+    * isempty - the library holds no courses at all
+    * packagecount, packagecountlabel - the summary card's headline number and its label
+    * hastotals - show the summary facts (false while searching)
+    * versionstotal, inuselabel, unusedlabel - the summary facts
+    * search, hassearch, searchurl, clearurl - the search form and its current term
+    * isalltab, isinusetab, isunusedtab - which filter is active
+    * taballurl, tabinuseurl, tabunusedurl - filter links
+    * allcount, inusecount, unusedcount - filter counts
+    * packages - the rows; each has viewurl, title, versionnumber, statusactive, meta,
+      usagelabel, hasusage, usageurl, candelete, deleteurl, deleteconfirm
+    * hasresults - the current filter matched at least one course
+    * nomatchestitle, nomatcheshelp - the no-results copy
+
+    Example context (json):
+    {
+        "addurl": "#",
+        "packagecount": 7,
+        "packagecountlabel": "courses in the library",
+        "hastotals": true,
+        "versionstotal": "18 across all courses",
+        "inuselabel": "26 activities on 5 courses",
+        "unusedlabel": "2 courses can be deleted",
+        "searchurl": "#",
+        "isalltab": true,
+        "taballurl": "#", "tabinuseurl": "#", "tabunusedurl": "#",
+        "allcount": 7, "inusecount": 5, "unusedcount": 2,
+        "hasresults": true,
+        "packages": [
+            {"viewurl": "#", "title": "Aviation Safety Fundamentals", "versionnumber": 4,
+                "statusactive": true, "meta": "ZIP upload · 4 versions · added 14/08/26 by Dana Whitfield",
+                "usagelabel": "6 activities", "hasusage": true, "usageurl": "#", "candelete": false}
+        ]
+    }
 }}
 
 <div class="mod-cmi5-library">
 
-    {{! Search bar }}
-    <form method="get" action="{{searchurl}}" class="mb-3">
-        <div class="input-group">
-            <input type="text" name="search" value="{{search}}" class="form-control"
-                   placeholder="{{#str}}search{{/str}}...">
-            <div class="input-group-append">
-                <button type="submit" class="btn btn-outline-secondary">{{#str}}search{{/str}}</button>
+    <div class="mod-cmi5-lib-head">
+        <div class="mod-cmi5-lib-head-text">
+            <h2 class="mod-cmi5-lib-title">{{#str}}contentlibrary, cmi5{{/str}}</h2>
+            <p class="mod-cmi5-lib-desc">{{#str}}library:intro, cmi5{{/str}}</p>
+        </div>
+        <a href="{{addurl}}" class="mod-cmi5-btn mod-cmi5-btn-tinted">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>
+            {{#str}}library:addcourse, cmi5{{/str}}
+        </a>
+    </div>
+
+    {{^isempty}}
+    <section class="mod-cmi5-lib-summary" aria-label="{{#str}}library:librarysummary, cmi5{{/str}}">
+        <div class="mod-cmi5-lib-summary-main">
+            <p class="mod-cmi5-lib-count">
+                <span class="mod-cmi5-lib-count-number" aria-hidden="true">{{packagecount}}</span>
+                <span class="mod-cmi5-lib-count-label">{{packagecountlabel}}</span>
+            </p>
+        
+        </div>
+        <form method="get" action="{{searchurl}}" class="mod-cmi5-lib-summary-side">
+            {{#filter}}<input type="hidden" name="filter" value="{{filter}}">{{/filter}}
+            <div class="mod-cmi5-lib-search">
+                <label class="mod-cmi5-lib-showing" for="cmi5-lib-search">{{#str}}library:findcourse, cmi5{{/str}}</label>
+                <input type="search" id="cmi5-lib-search" name="search" value="{{search}}" class="form-control"
+                       placeholder="{{#str}}library:searchplaceholder, cmi5{{/str}}">
+            </div>
+            <button type="submit" class="mod-cmi5-btn mod-cmi5-btn-row mod-cmi5-lib-search-submit">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.2-4.2"/></svg>
+                {{#str}}library:searchsubmit, cmi5{{/str}}
+            </button>
+        </form>
+    </section>
+
+    <nav aria-label="{{#str}}library:libraryfilters, cmi5{{/str}}">
+        <ul class="mod-cmi5-tabs">
+            <li class="mod-cmi5-tab{{#isalltab}} is-active{{/isalltab}}">
+                <a class="mod-cmi5-tab-link" href="{{taballurl}}"{{#isalltab}} aria-current="page"{{/isalltab}}>
+                    {{#str}}library:tab_all, cmi5{{/str}}
+                    <span class="mod-cmi5-tab-count">{{allcount}}</span>
+                </a>
+            </li>
+            <li class="mod-cmi5-tab{{#isinusetab}} is-active{{/isinusetab}}">
+                <a class="mod-cmi5-tab-link" href="{{tabinuseurl}}"{{#isinusetab}} aria-current="page"{{/isinusetab}}>
+                    {{#str}}library:tab_inuse, cmi5{{/str}}
+                    <span class="mod-cmi5-tab-count">{{inusecount}}</span>
+                </a>
+            </li>
+            <li class="mod-cmi5-tab{{#isunusedtab}} is-active{{/isunusedtab}}">
+                <a class="mod-cmi5-tab-link" href="{{tabunusedurl}}"{{#isunusedtab}} aria-current="page"{{/isunusedtab}}>
+                    {{#str}}library:tab_unused, cmi5{{/str}}
+                    <span class="mod-cmi5-tab-count">{{unusedcount}}</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {{/isempty}}
+
+    <div class="mod-cmi5-lib-tree">
+
+        {{#hasresults}}
+        <div class="mod-cmi5-lib-row mod-cmi5-lib-tree-head" aria-hidden="true">
+            <span class="mod-cmi5-lib-cell-main">{{#str}}library:coursecolumn, cmi5{{/str}}</span>
+            <span class="mod-cmi5-lib-cell-usage">{{#str}}library:usagecolumn, cmi5{{/str}}</span>
+            <span class="mod-cmi5-lib-cell-rowactions">{{#str}}library:actions, cmi5{{/str}}</span>
+        </div>
+
+        {{#packages}}
+        <div class="mod-cmi5-lib-row mod-cmi5-lib-package{{^statusactive}} is-disabled{{/statusactive}}">
+            <span class="mod-cmi5-lib-cell-main">
+                <svg class="mod-cmi5-lib-package-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
+                <span class="mod-cmi5-lib-package-body">
+                    <span class="mod-cmi5-lib-package-line">
+                        <a class="mod-cmi5-lib-package-title" href="{{viewurl}}">{{title}}</a>
+                        {{#versionnumber}}
+                        <span class="mod-cmi5-lib-chip">v{{versionnumber}}</span>
+                        {{/versionnumber}}
+                        {{#statusactive}}
+                        <span class="mod-cmi5-pill mod-cmi5-status-satisfied">{{#str}}library:status_active, cmi5{{/str}}</span>
+                        {{/statusactive}}
+                        {{^statusactive}}
+                        <span class="mod-cmi5-pill mod-cmi5-status-notstarted">{{#str}}library:status_disabled, cmi5{{/str}}</span>
+                        {{/statusactive}}
+                    </span>
+                    <span class="mod-cmi5-lib-package-meta">{{{meta}}}</span>
+                </span>
+            </span>
+            <span class="mod-cmi5-lib-cell-usage">
+                {{#hasusage}}<a href="{{usageurl}}">{{usagelabel}}</a>{{/hasusage}}
+                {{^hasusage}}<span class="mod-cmi5-lib-none">{{#str}}library:notused, cmi5{{/str}}</span>{{/hasusage}}
+            </span>
+            <span class="mod-cmi5-lib-cell-rowactions">
+                <a href="{{viewurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}library:viewdetails, cmi5{{/str}}</a>
+                {{#candelete}}
+                <a href="{{deleteurl}}" class="mod-cmi5-btn mod-cmi5-btn-row mod-cmi5-btn-danger"
+                   data-action="cmi5-confirm" data-confirm="{{deleteconfirm}}">
+                    {{#str}}library:deletecourse, cmi5{{/str}}
+                </a>
+                {{/candelete}}
+                {{^candelete}}
+                <span class="mod-cmi5-lib-blocked">{{#str}}library:deleteblocked, cmi5{{/str}}</span>
+                {{/candelete}}
+            </span>
+        </div>
+        {{/packages}}
+        {{/hasresults}}
+
+        {{^hasresults}}
+        <div class="mod-cmi5-lib-empty">
+            <div class="mod-cmi5-lib-empty-inner">
+                {{#isempty}}
+                <svg class="mod-cmi5-lib-empty-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
+                <h3 class="mod-cmi5-lib-empty-title">{{#str}}library:emptyheading, cmi5{{/str}}</h3>
+                <p class="mod-cmi5-lib-empty-body">{{#str}}library:emptybody, cmi5{{/str}}</p>
+                <div class="mod-cmi5-lib-empty-actions">
+                    <a href="{{addurl}}" class="mod-cmi5-btn mod-cmi5-btn-primary">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>
+                        {{#str}}library:uploadcmi5package, cmi5{{/str}}
+                    </a>
+                    <a href="{{addexternalurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}library:tab_externalau, cmi5{{/str}}</a>
+                </div>
+                {{/isempty}}
+                {{^isempty}}
+                <h3 class="mod-cmi5-lib-empty-title">{{nomatchestitle}}</h3>
+                <p class="mod-cmi5-lib-empty-body">{{nomatcheshelp}}</p>
+                <div class="mod-cmi5-lib-empty-actions">
+                    <a href="{{clearurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}library:clearsearch, cmi5{{/str}}</a>
+                </div>
+                {{/isempty}}
             </div>
         </div>
-    </form>
+        {{/hasresults}}
 
-    {{! Action buttons }}
-    <div class="mb-3 d-flex gap-2">
-        <button type="button" class="btn btn-primary" data-toggle="collapse" data-target="#upload-form"
-                data-bs-toggle="collapse" data-bs-target="#upload-form">
-            {{#str}}library:uploadpackage, cmi5{{/str}}
-        </button>
-        <button type="button" class="btn btn-secondary" data-toggle="collapse" data-target="#register-au-form"
-                data-bs-toggle="collapse" data-bs-target="#register-au-form">
-            {{#str}}library:registerexternalau, cmi5{{/str}}
-        </button>
     </div>
 
-    {{! Upload form (collapsed) }}
-    <div id="upload-form" class="collapse card card-body mb-3">
-        <h4>{{#str}}library:uploadpackage, cmi5{{/str}}</h4>
-        <form method="post" action="{{uploadurl}}" enctype="multipart/form-data">
-            <input type="hidden" name="sesskey" value="{{sesskey}}">
-            <div class="form-group">
-                <label for="upload-title">{{#str}}library:title, cmi5{{/str}}</label>
-                <input type="text" name="title" id="upload-title" class="form-control"
-                       placeholder="{{#str}}library:title, cmi5{{/str}} (leave blank to auto-detect)">
-            </div>
-            <div class="form-group">
-                <label for="upload-desc">{{#str}}library:description, cmi5{{/str}}</label>
-                <textarea name="description" id="upload-desc" class="form-control" rows="2"></textarea>
-            </div>
-            <div class="form-group">
-                <label for="upload-file">{{#str}}packagefile, cmi5{{/str}}</label>
-                <input type="file" name="packagezip" id="upload-file" class="form-control" accept=".zip">
-            </div>
-            {{#hasprofiles}}
-            <div class="form-group">
-                <label for="upload-profileid">{{#str}}library:launchprofile, cmi5{{/str}}</label>
-                <select name="profileid" id="upload-profileid" class="form-control">
-                    <option value="0">{{#str}}profile:none, cmi5{{/str}}</option>
-                    {{#profiles}}
-                    <option value="{{id}}">{{name}}</option>
-                    {{/profiles}}
-                </select>
-            </div>
-            {{/hasprofiles}}
-            <button type="submit" class="btn btn-primary">{{#str}}library:uploadpackage, cmi5{{/str}}</button>
-        </form>
-    </div>
-
-    {{! Register external AU form (collapsed) }}
-    <div id="register-au-form" class="collapse card card-body mb-3">
-        <h4>{{#str}}library:registerexternalau, cmi5{{/str}}</h4>
-        <form method="post" action="{{registerauurl}}">
-            <input type="hidden" name="sesskey" value="{{sesskey}}">
-            <div class="form-group">
-                <label for="au-title">{{#str}}library:title, cmi5{{/str}} *</label>
-                <input type="text" name="autitle" id="au-title" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="au-iri">{{#str}}library:auid, cmi5{{/str}} *</label>
-                <input type="text" name="auirid" id="au-iri" class="form-control"
-                       placeholder="https://example.com/au/my-activity" required>
-            </div>
-            <div class="form-group">
-                <label for="au-url">{{#str}}library:auurl, cmi5{{/str}} *</label>
-                <input type="url" name="auurl" id="au-url" class="form-control"
-                       placeholder="https://content.example.com/activity/index.html" required>
-            </div>
-            <div class="form-group">
-                <label for="au-desc">{{#str}}library:description, cmi5{{/str}}</label>
-                <textarea name="audescription" id="au-desc" class="form-control" rows="2"></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group col-md-6">
-                    <label for="au-launch">{{#str}}launchmethod, cmi5{{/str}}</label>
-                    <select name="aulaunchmethod" id="au-launch" class="form-control">
-                        <option value="AnyWindow">AnyWindow</option>
-                        <option value="OwnWindow">OwnWindow</option>
-                    </select>
-                </div>
-                <div class="form-group col-md-6">
-                    <label for="au-moveon">{{#str}}library:moveoncriteria, cmi5{{/str}}</label>
-                    <select name="aumoveoncriteria" id="au-moveon" class="form-control">
-                        <option value="NotApplicable">NotApplicable</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Passed">Passed</option>
-                        <option value="CompletedAndPassed">CompletedAndPassed</option>
-                        <option value="CompletedOrPassed">CompletedOrPassed</option>
-                    </select>
-                </div>
-            </div>
-            {{#hasprofiles}}
-            <div class="form-group">
-                <label for="au-profileid">{{#str}}library:launchprofile, cmi5{{/str}}</label>
-                <select name="profileid" id="au-profileid" class="form-control">
-                    <option value="0">{{#str}}profile:none, cmi5{{/str}}</option>
-                    {{#profiles}}
-                    <option value="{{id}}">{{name}}</option>
-                    {{/profiles}}
-                </select>
-            </div>
-            {{/hasprofiles}}
-            <button type="submit" class="btn btn-primary">{{#str}}library:registerexternalau, cmi5{{/str}}</button>
-        </form>
-    </div>
-
-    {{! Package list }}
-    {{#haspackages}}
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>{{#str}}library:title, cmi5{{/str}}</th>
-                <th>{{#str}}library:source, cmi5{{/str}}</th>
-                <th>{{#str}}library:status, cmi5{{/str}}</th>
-                <th>{{#str}}library:usagecount, cmi5{{/str}}</th>
-                <th>{{#str}}library:timecreated, cmi5{{/str}}</th>
-                <th>{{#str}}library:actions, cmi5{{/str}}</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{#packages}}
-            <tr>
-                <td>
-                    <a href="{{viewurl}}">{{title}}</a>
-                    {{#versioncount}}
-                    <span class="badge badge-secondary bg-secondary ml-1">v{{versioncount}}</span>
-                    {{/versioncount}}
-                </td>
-                <td>{{source}}</td>
-                <td>
-                    {{#statusactive}}
-                        <span class="badge badge-success">{{#str}}library:status_active, cmi5{{/str}}</span>
-                    {{/statusactive}}
-                    {{^statusactive}}
-                        <span class="badge badge-secondary">{{#str}}library:status_disabled, cmi5{{/str}}</span>
-                    {{/statusactive}}
-                </td>
-                <td>{{usagecount}}</td>
-                <td>{{timecreated}}</td>
-                <td>
-                    <a href="{{viewurl}}" class="btn btn-sm btn-outline-primary">
-                        {{#str}}library:viewdetails, cmi5{{/str}}
-                    </a>
-                    {{#candelete}}
-                    <a href="{{deleteurl}}" class="btn btn-sm btn-outline-danger"
-                       onclick="return confirm('{{#str}}library:deleteconfirm, cmi5, {{title}}{{/str}}');">
-                        {{#str}}library:delete, cmi5{{/str}}
-                    </a>
-                    {{/candelete}}
-                </td>
-            </tr>
-            {{/packages}}
-        </tbody>
-    </table>
-    {{/haspackages}}
-
-    {{^haspackages}}
-    <div class="alert alert-info">
-        {{#str}}library:nopackages, cmi5{{/str}}
-    </div>
-    {{/haspackages}}
+    {{#hasresults}}
+    <p class="mod-cmi5-lib-footnote">{{#str}}library:listfootnote, cmi5{{/str}}</p>
+    {{/hasresults}}
 
 </div>
+{{#js}}
+require(['mod_cmi5/library_confirm'], function(confirm) {
+    confirm.init();
+});
+{{/js}}

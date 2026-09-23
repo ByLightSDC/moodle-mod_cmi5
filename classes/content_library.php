@@ -86,22 +86,9 @@ class content_library {
         // Compute hash for dedup detection.
         $sha256 = $zipfile->get_contenthash();
 
-        // Extract to temp dir.
+        // Extract to temp dir and read the manifest.
         $tempdir = make_request_directory();
-        $packer = get_file_packer('application/zip');
-        $zipfile->extract_to_pathname($packer, $tempdir);
-
-        // Parse cmi5.xml.
-        $cmi5xmlpath = $tempdir . '/cmi5.xml';
-        if (!file_exists($cmi5xmlpath)) {
-            throw new \moodle_exception('cmi5xmlnotfound', 'mod_cmi5');
-        }
-        $xmlcontent = file_get_contents($cmi5xmlpath);
-        if ($xmlcontent === false) {
-            throw new \moodle_exception('cmi5xmlreaderror', 'mod_cmi5');
-        }
-
-        $structure = cmi5_package::parse_cmi5_xml_static($xmlcontent);
+        $structure = self::read_package_zip($zipfile, $tempdir);
 
         // Use parsed title/description if not overridden.
         if (empty($title)) {
@@ -223,6 +210,155 @@ class content_library {
 
         $zipfile = reset($files);
         return self::upload_package($zipfile, $title, $description, $profileid, $packageid);
+    }
+
+    /**
+     * Extract a package ZIP and parse the cmi5.xml manifest inside it.
+     *
+     * @param \stored_file $zipfile The ZIP to read.
+     * @param string $tempdir Directory the ZIP is extracted into. The caller owns it, so that
+     *                        upload_package() can go on to store the extracted content files.
+     * @return \stdClass The parsed structure, exactly as cmi5_package returns it.
+     */
+    private static function read_package_zip(\stored_file $zipfile, string $tempdir): \stdClass {
+        $packer = get_file_packer('application/zip');
+        $zipfile->extract_to_pathname($packer, $tempdir);
+
+        $cmi5xmlpath = $tempdir . '/cmi5.xml';
+        if (!file_exists($cmi5xmlpath)) {
+            throw new \moodle_exception('cmi5xmlnotfound', 'mod_cmi5');
+        }
+        $xmlcontent = file_get_contents($cmi5xmlpath);
+        if ($xmlcontent === false) {
+            throw new \moodle_exception('cmi5xmlreaderror', 'mod_cmi5');
+        }
+
+        return cmi5_package::parse_cmi5_xml_static($xmlcontent);
+    }
+
+    /**
+     * Read a package ZIP without storing anything.
+     *
+     * This backs the "check what we read" step of the add flow: the admin sees the structure
+     * the manifest declares, and only then decides to commit it. Nothing here touches the
+     * database or the permanent file areas.
+     *
+     * The blocks and AUs come back keyed the way the stored records are, so the result can be
+     * handed straight to build_structure_tree() and rendered by the same code that draws a
+     * stored version.
+     *
+     * @param \stored_file $zipfile The ZIP to inspect.
+     * @return \stdClass Object with courseid, coursetitle, coursedescription, blocks, aus,
+     *                   aucount, blockcount, sha256, filename, filesize and existingpackage.
+     */
+    public static function inspect_package(\stored_file $zipfile): \stdClass {
+        $tempdir = make_request_directory();
+        $parsed = self::read_package_zip($zipfile, $tempdir);
+
+        $inspection = self::normalize_parsed_structure($parsed);
+        $inspection->sha256 = $zipfile->get_contenthash();
+        $inspection->filename = $zipfile->get_filename();
+        $inspection->filesize = (int) $zipfile->get_filesize();
+        $inspection->existingpackage = self::find_package_by_course_iri($inspection->courseid);
+
+        return $inspection;
+    }
+
+    /**
+     * Read a package ZIP held in a draft file area without storing anything.
+     *
+     * @param int $draftitemid The draft area item ID holding the uploaded ZIP.
+     * @return \stdClass The inspection result, as inspect_package() describes it.
+     */
+    public static function inspect_draft_package(int $draftitemid): \stdClass {
+        global $USER;
+
+        $fs = get_file_storage();
+        $usercontext = \context_user::instance($USER->id);
+
+        $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'sortorder, id', false);
+        if (empty($files)) {
+            throw new \moodle_exception('packagenotfound', 'mod_cmi5');
+        }
+
+        return self::inspect_package(reset($files));
+    }
+
+    /**
+     * Give a freshly parsed structure the shape the stored records have.
+     *
+     * The parser carries a block's own XML id in parentblockid, while everything downstream
+     * expects the numeric row id of the parent. save_package_structure() resolves that against
+     * the ids the database hands back; here there is no database, so blocks get sequential
+     * synthetic ids and the same mapping is applied.
+     *
+     * @param \stdClass $parsed The structure from cmi5_package::parse_cmi5_xml_static().
+     * @return \stdClass Structure with numeric ids on blocks and numeric parentblockid links.
+     */
+    private static function normalize_parsed_structure(\stdClass $parsed): \stdClass {
+        $blockidmap = [];
+        $blocks = [];
+        $nextid = 1;
+
+        foreach ($parsed->blocks as $block) {
+            $record = clone $block;
+            $record->id = $nextid++;
+            // Parents are always parsed before their children, so the map is already populated.
+            $record->parentblockid = $block->parentblockid !== null
+                ? ($blockidmap[$block->parentblockid] ?? null)
+                : null;
+            $blockidmap[$block->blockid] = $record->id;
+            unset($record->children);
+            $blocks[] = $record;
+        }
+
+        $aus = [];
+        foreach ($parsed->aus as $index => $au) {
+            $record = clone $au;
+            // AUs are not stored yet, but the tree builder sorts on id to break sortorder ties.
+            $record->id = $index + 1;
+            $record->parentblockid = $au->parentblockid !== null
+                ? ($blockidmap[$au->parentblockid] ?? null)
+                : null;
+            $record->isexternal = 0;
+            $aus[] = $record;
+        }
+
+        $inspection = new \stdClass();
+        $inspection->courseid = $parsed->courseid;
+        $inspection->coursetitle = $parsed->coursetitle;
+        $inspection->coursedescription = $parsed->coursedescription ?? '';
+        $inspection->blocks = $blocks;
+        $inspection->aus = $aus;
+        $inspection->aucount = count($aus);
+        $inspection->blockcount = count($blocks);
+
+        return $inspection;
+    }
+
+    /**
+     * Find the package whose latest version already declares a course IRI.
+     *
+     * Used to tell an admin that the ZIP they are adding belongs to a course the library
+     * already holds, so they can add it as a version instead of a second course.
+     *
+     * @param string $courseiri The course IRI from the manifest.
+     * @return \stdClass|null The package record with versionnumber set, or null when it is new.
+     */
+    public static function find_package_by_course_iri(string $courseiri): ?\stdClass {
+        global $DB;
+
+        if (trim($courseiri) === '') {
+            return null;
+        }
+
+        $sql = "SELECT p.id, p.title, v.versionnumber
+                  FROM {cmi5_packages} p
+                  JOIN {cmi5_package_versions} v ON v.id = p.latestversion
+                 WHERE v.courseid_iri = :iri";
+        $record = $DB->get_record_sql($sql, ['iri' => $courseiri], IGNORE_MULTIPLE);
+
+        return $record ?: null;
     }
 
     /**
@@ -856,8 +992,8 @@ class content_library {
      * @param int $limit Maximum results.
      * @param string $sort One of 'recent', 'title' or 'usage'.
      * @param int $source Filter by source type (-1 for all).
-     * @return array Array of package records with versionid, versionnumber, source,
-     *               aucount and usagecount fields populated.
+     * @return array Array of package records with versionid, versionnumber, source, status,
+     *               versiontimecreated, createdby, versioncount, aucount and usagecount populated.
      */
     public static function list_packages_with_meta(string $search = '', int $status = -1,
             int $offset = 0, int $limit = 50, string $sort = self::SORT_RECENT,
@@ -868,6 +1004,8 @@ class content_library {
 
         $sql = "SELECT p.id, p.title, p.description, p.timecreated, p.timemodified, p.latestversion,
                        v.id AS versionid, v.versionnumber, v.source, v.status,
+                       v.timecreated AS versiontimecreated, v.createdby,
+                       (SELECT COUNT(1) FROM {cmi5_package_versions} av WHERE av.packageid = p.id) AS versioncount,
                        (SELECT COUNT(1) FROM {cmi5_package_aus} a WHERE a.versionid = v.id) AS aucount,
                        (SELECT COUNT(1)
                           FROM {cmi5} ci

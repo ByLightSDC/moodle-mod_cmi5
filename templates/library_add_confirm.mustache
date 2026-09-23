@@ -1,0 +1,202 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/library_add_confirm
+
+    Step two of adding a course: what the manifest declares, before anything is stored.
+
+    The structure is drawn with the same rows as mod_cmi5/library_package_detail, so what
+    the admin approves here is what the course's detail page will show afterwards.
+
+    Context variables required:
+    * backurl, cancelurl - back to the file chooser, and out of the flow
+    * uploadurl, sesskey, draftitemid, profileid - the commit form
+    * readoktitle, readmeta - the "read without errors" banner. Built in PHP because a file
+      name may contain a comma, which the mustache string helper reads as an argument break.
+    * aucount, structuresummary - the summary card's headline
+    * courseid_iri - the course IRI from the manifest
+    * isnewcourse - no package in the library declares this IRI
+    * existinglabel, existinghelp - shown instead when one does
+    * title, description - the parsed values, editable before committing
+    * structure - ordered rows, each either a block (isblock) or an AU (isau)
+    * hasorphans, orphannote - units declared outside any block
+
+    Example context (json):
+    {
+        "backurl": "#", "cancelurl": "#", "uploadurl": "#",
+        "sesskey": "abc123", "draftitemid": 42, "profileid": 0,
+        "readoktitle": "aviation-safety.zip read without errors",
+        "readmeta": "48.2 MB · 3 assignable units in 1 block",
+        "aucount": 3,
+        "structuresummary": "3 assignable units in 1 block",
+        "courseid_iri": "https://example.org/courses/aviation-safety",
+        "isnewcourse": true,
+        "title": "Aviation Safety Fundamentals",
+        "description": "Ramp and emergency response training.",
+        "structure": [
+            {"isblock": true, "title": "Ground Operations", "blockid": "https://example.org/ground",
+                "indent": 12, "aucountlabel": "3 units"},
+            {"isau": true, "index": 1, "title": "Ramp Safety Awareness", "indent": 24,
+                "moveoncriteria": "CompletedAndPassed", "hasmasteryscore": true, "masteryscore": "0.8"}
+        ]
+    }
+}}
+
+<div class="mod-cmi5-library">
+
+    <a href="{{backurl}}" class="mod-cmi5-lib-back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        {{#str}}library:choosedifferentfile, cmi5{{/str}}
+    </a>
+
+    <div class="mod-cmi5-lib-head">
+        <div class="mod-cmi5-lib-head-text">
+            <h2 class="mod-cmi5-lib-title">{{#str}}library:confirmheading, cmi5{{/str}}</h2>
+            <p class="mod-cmi5-lib-desc">{{#str}}library:confirmintro, cmi5{{/str}}</p>
+        </div>
+    </div>
+
+    <div class="mod-cmi5-read mod-cmi5-status-satisfied">
+        <span class="mod-cmi5-read-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>
+        </span>
+        <div class="mod-cmi5-read-body">
+            <div class="mod-cmi5-read-title">{{readoktitle}}</div>
+            <div class="mod-cmi5-read-meta">{{readmeta}}</div>
+        </div>
+    </div>
+
+    <section class="mod-cmi5-lib-summary" aria-label="{{#str}}library:packagesummary, cmi5{{/str}}">
+        <div class="mod-cmi5-lib-summary-main">
+            <p class="mod-cmi5-lib-count">
+                <span class="mod-cmi5-lib-count-number" aria-hidden="true">{{aucount}}</span>
+                <span class="mod-cmi5-lib-count-label">{{structuresummary}}</span>
+            </p>
+            <dl class="mod-cmi5-lib-facts">
+                <dt>{{#str}}library:source, cmi5{{/str}}</dt>
+                <dd>{{#str}}library:source_zip, cmi5{{/str}}</dd>
+                {{#courseid_iri}}
+                <dt>{{#str}}library:courseidiri, cmi5{{/str}}</dt>
+                <dd><code>{{courseid_iri}}</code></dd>
+                {{/courseid_iri}}
+            </dl>
+        </div>
+        <div class="mod-cmi5-lib-summary-side">
+            <div class="mod-cmi5-lib-summary-version-text">
+                <div class="mod-cmi5-lib-showing">{{#str}}library:willbeaddedas, cmi5{{/str}}</div>
+                <div class="mod-cmi5-lib-version-line">
+                    {{#isnewcourse}}
+                    <span class="mod-cmi5-lib-version-number">v1</span>
+                    <span class="mod-cmi5-pill mod-cmi5-status-satisfied">{{#str}}library:newcourse, cmi5{{/str}}</span>
+                    {{/isnewcourse}}
+                    {{^isnewcourse}}
+                    <span class="mod-cmi5-lib-version-number">v{{existingversion}}</span>
+                    <span class="mod-cmi5-pill mod-cmi5-status-completed">{{#str}}library:existingcourse, cmi5{{/str}}</span>
+                    {{/isnewcourse}}
+                </div>
+                <div class="mod-cmi5-lib-version-meta">
+                    {{#isnewcourse}}{{#str}}library:newcoursehelp, cmi5{{/str}}{{/isnewcourse}}
+                    {{^isnewcourse}}{{existinghelp}}{{/isnewcourse}}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <h3 class="mod-cmi5-add-step-title">{{#str}}library:structureheading, cmi5{{/str}}</h3>
+
+    {{#hasstructure}}
+    <div class="mod-cmi5-lib-tree">
+        <div class="mod-cmi5-lib-row mod-cmi5-lib-tree-head" aria-hidden="true">
+            <span class="mod-cmi5-lib-cell-main">{{#str}}library:structureitem, cmi5{{/str}}</span>
+            <span class="mod-cmi5-lib-cell-moveon">{{#str}}library:moveoncriteria, cmi5{{/str}}</span>
+            <span class="mod-cmi5-lib-cell-mastery">{{#str}}library:masteryscore, cmi5{{/str}}</span>
+        </div>
+
+        <div class="mod-cmi5-lib-row mod-cmi5-lib-course">
+            <span class="mod-cmi5-lib-cell-main">
+                <svg class="mod-cmi5-lib-course-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
+                <span class="mod-cmi5-lib-course-title" data-region="cmi5-previewtitle">{{title}}</span>
+                <span class="mod-cmi5-lib-course-meta">{{#str}}library:course, cmi5{{/str}}</span>
+            </span>
+        </div>
+
+        {{#structure}}
+        {{#isblock}}
+        <div class="mod-cmi5-lib-row mod-cmi5-lib-block">
+            <span class="mod-cmi5-lib-cell-main" style="padding-left: {{indent}}px;">
+                <svg class="mod-cmi5-lib-block-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V7a2 2 0 0 1 2-2h3.5l2 2.5H18a2 2 0 0 1 2 2V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z"/></svg>
+                <span class="mod-cmi5-lib-block-title">{{title}}</span>
+                <span class="mod-cmi5-lib-block-meta">{{#str}}library:block, cmi5{{/str}} &middot; {{aucountlabel}}</span>
+            </span>
+            <code class="mod-cmi5-lib-block-id">{{blockid}}</code>
+        </div>
+        {{/isblock}}
+
+        {{#isau}}
+        <div class="mod-cmi5-lib-row">
+            <span class="mod-cmi5-lib-cell-main" style="padding-left: {{indent}}px;">
+                <svg class="mod-cmi5-lib-au-glyph" width="24" height="24" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+                    <circle cx="16" cy="16" r="13"/>
+                    <text x="16" y="21.2" text-anchor="middle">{{index}}</text>
+                </svg>
+                <span class="mod-cmi5-lib-au-title">{{title}}</span>
+                {{#orphan}}<span class="mod-cmi5-lib-tag-outline">{{#str}}library:notinablock, cmi5{{/str}}</span>{{/orphan}}
+            </span>
+            <span class="mod-cmi5-lib-cell-moveon">{{moveoncriteria}}</span>
+            <span class="mod-cmi5-lib-cell-mastery">
+                {{#hasmasteryscore}}{{masteryscore}}{{/hasmasteryscore}}
+                {{^hasmasteryscore}}<span class="mod-cmi5-lib-none">&mdash;</span>{{/hasmasteryscore}}
+            </span>
+        </div>
+        {{/isau}}
+        {{/structure}}
+    </div>
+    {{#hasorphans}}
+    <p class="mod-cmi5-lib-footnote">{{orphannote}}</p>
+    {{/hasorphans}}
+    {{/hasstructure}}
+
+    {{^hasstructure}}
+    <div class="alert alert-warning">{{#str}}noaus, cmi5{{/str}}</div>
+    {{/hasstructure}}
+
+    <form method="post" action="{{uploadurl}}" class="mod-cmi5-add">
+        <input type="hidden" name="sesskey" value="{{sesskey}}">
+        <input type="hidden" name="draftitemid" value="{{draftitemid}}">
+        <input type="hidden" name="profileid" value="{{profileid}}">
+
+        <h3 class="mod-cmi5-add-step-title">{{#str}}library:appearsas, cmi5{{/str}}</h3>
+
+        <div class="mod-cmi5-add-field">
+            <label for="cmi5-confirm-title">{{#str}}library:title, cmi5{{/str}}</label>
+            <input type="text" name="title" id="cmi5-confirm-title" class="form-control" value="{{title}}" required>
+            <span class="mod-cmi5-add-hint">{{#str}}library:titlefromfile, cmi5{{/str}}</span>
+        </div>
+
+        <div class="mod-cmi5-add-field">
+            <label for="cmi5-confirm-desc">{{#str}}library:description, cmi5{{/str}}</label>
+            <textarea name="description" id="cmi5-confirm-desc" class="form-control" rows="2">{{description}}</textarea>
+        </div>
+
+        <div class="mod-cmi5-add-actions">
+            <button type="submit" class="mod-cmi5-btn mod-cmi5-btn-primary">{{#str}}library:addtolibrary, cmi5{{/str}}</button>
+            <a href="{{backurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}library:choosedifferentfile, cmi5{{/str}}</a>
+            <a href="{{cancelurl}}" class="mod-cmi5-linkbtn mod-cmi5-add-actions-end">{{#str}}library:discard, cmi5{{/str}}</a>
+        </div>
+    </form>
+
+</div>

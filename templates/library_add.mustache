@@ -1,0 +1,254 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/library_add
+
+    Step one of adding a course to the content library.
+
+    The two sources are tabs rather than two buttons, because they are the same act with
+    different inputs. A ZIP goes on to a confirmation step; an external AU has no package
+    to read, so it commits from here.
+
+    Context variables required:
+    * backurl, cancelurl - back to the library list
+    * isziptab, isexternaltab - which source is active
+    * ziptaburl, externaltaburl - the source links
+    * inspecturl - POST target that reads the ZIP (step one of two)
+    * registerauurl - POST target that stores an external AU
+    * sesskey - session key
+    * maxbytes - the largest upload this site accepts, already formatted
+    * hasprofiles, profiles - launch parameter profiles for the dropdown
+
+    Example context (json):
+    {
+        "backurl": "#", "cancelurl": "#",
+        "isziptab": true,
+        "ziptaburl": "#", "externaltaburl": "#",
+        "inspecturl": "#", "registerauurl": "#",
+        "sesskey": "abc123",
+        "maxbytes": "512 MB",
+        "hasprofiles": true,
+        "profiles": [{"id": 1, "name": "Articulate Rise defaults"}]
+    }
+}}
+
+<div class="mod-cmi5-library">
+
+    <a href="{{backurl}}" class="mod-cmi5-lib-back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        {{#str}}library:backtolibrary, cmi5{{/str}}
+    </a>
+
+    <div class="mod-cmi5-lib-head">
+        <div class="mod-cmi5-lib-head-text">
+            <h2 class="mod-cmi5-lib-title">{{#str}}library:addcourse, cmi5{{/str}}</h2>
+            <p class="mod-cmi5-lib-desc">{{#str}}library:addintro, cmi5{{/str}}</p>
+        </div>
+    </div>
+
+    <nav aria-label="{{#str}}library:addsource, cmi5{{/str}}">
+        <ul class="mod-cmi5-tabs">
+            <li class="mod-cmi5-tab{{#isziptab}} is-active{{/isziptab}}">
+                <a class="mod-cmi5-tab-link" href="{{ziptaburl}}"{{#isziptab}} aria-current="page"{{/isziptab}}>
+                    {{#str}}library:tab_uploadpackage, cmi5{{/str}}
+                </a>
+            </li>
+            <li class="mod-cmi5-tab{{#isexternaltab}} is-active{{/isexternaltab}}">
+                <a class="mod-cmi5-tab-link" href="{{externaltaburl}}"{{#isexternaltab}} aria-current="page"{{/isexternaltab}}>
+                    {{#str}}library:tab_externalau, cmi5{{/str}}
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    {{#isziptab}}
+    <form method="post" action="{{inspecturl}}" enctype="multipart/form-data" class="mod-cmi5-add">
+        <input type="hidden" name="sesskey" value="{{sesskey}}">
+
+        <div class="mod-cmi5-add-step">
+            <div class="mod-cmi5-add-step-head">
+                <span class="mod-cmi5-add-step-number" aria-hidden="true">1</span>
+                <h3 class="mod-cmi5-add-step-title">{{#str}}library:step_choosefile, cmi5{{/str}}</h3>
+            </div>
+            <p class="mod-cmi5-add-step-help">{{#str}}library:step_choosefilehelp, cmi5{{/str}}</p>
+
+            <div class="mod-cmi5-add-step-body">
+                <label class="mod-cmi5-drop" data-region="cmi5-dropzone">
+                    <svg class="mod-cmi5-drop-icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+                    <span class="mod-cmi5-drop-title">{{#str}}library:dropzonetitle, cmi5{{/str}}</span>
+                    <span class="mod-cmi5-drop-or">
+                        <span class="mod-cmi5-drop-browse">{{#str}}library:dropzonebrowse, cmi5{{/str}}</span>
+                    </span>
+                    <span class="mod-cmi5-drop-hint">{{#str}}library:dropzonehint, cmi5, {{maxbytes}}{{/str}}</span>
+                    <input type="file" name="packagezip" accept=".zip" required
+                           class="mod-cmi5-drop-input" data-region="cmi5-fileinput">
+                </label>
+
+                <div class="mod-cmi5-file" data-region="cmi5-chosenfile" hidden>
+                    <svg class="mod-cmi5-file-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+                    <span class="mod-cmi5-file-body">
+                        <span class="mod-cmi5-file-name" data-region="cmi5-filename"></span>
+                        <span class="mod-cmi5-file-meta" data-region="cmi5-filemeta"
+                              data-readylabel="{{#str}}library:readytoread, cmi5{{/str}}"></span>
+                    </span>
+                    <button type="button" class="mod-cmi5-file-remove" data-action="cmi5-removefile"
+                            aria-label="{{#str}}library:removefile, cmi5{{/str}}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="mod-cmi5-add-step">
+            <div class="mod-cmi5-add-step-head">
+                <span class="mod-cmi5-add-step-number" aria-hidden="true">2</span>
+                <h3 class="mod-cmi5-add-step-title">{{#str}}library:step_launch, cmi5{{/str}}</h3>
+            </div>
+            <div class="mod-cmi5-add-step-body">
+                <div class="mod-cmi5-add-field">
+                    <label for="cmi5-add-profileid">{{#str}}library:launchprofile, cmi5{{/str}}</label>
+                    <select name="profileid" id="cmi5-add-profileid" class="form-control">
+                        <option value="0">{{#str}}library:profilenone, cmi5{{/str}}</option>
+                        {{#profiles}}
+                        <option value="{{id}}">{{name}}</option>
+                        {{/profiles}}
+                    </select>
+                    <span class="mod-cmi5-add-hint">{{#str}}library:profilehelp, cmi5{{/str}}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mod-cmi5-add-actions">
+            <button type="submit" class="mod-cmi5-btn mod-cmi5-btn-primary">
+                {{#str}}library:readpackage, cmi5{{/str}}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+            <a href="{{cancelurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}library:cancel, cmi5{{/str}}</a>
+            <span class="mod-cmi5-add-actions-note">{{#str}}library:readpackagenext, cmi5{{/str}}</span>
+        </div>
+    </form>
+    {{/isziptab}}
+
+    {{#isexternaltab}}
+    <form method="post" action="{{registerauurl}}" class="mod-cmi5-add">
+        <input type="hidden" name="sesskey" value="{{sesskey}}">
+
+        <div class="mod-cmi5-update">
+            <span class="mod-cmi5-update-icon" aria-hidden="true">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5"/><path d="M12 8h.01"/></svg>
+            </span>
+            <div class="mod-cmi5-update-body">
+                <div class="mod-cmi5-lib-older-meta">{{#str}}library:externalnote, cmi5{{/str}}</div>
+            </div>
+        </div>
+
+        <div class="mod-cmi5-add-step">
+            <div class="mod-cmi5-add-step-head">
+                <span class="mod-cmi5-add-step-number" aria-hidden="true">1</span>
+                <h3 class="mod-cmi5-add-step-title">{{#str}}library:step_whatitis, cmi5{{/str}}</h3>
+            </div>
+            <div class="mod-cmi5-add-step-body">
+                <div class="mod-cmi5-add-field">
+                    <label for="cmi5-au-title">
+                        {{#str}}library:title, cmi5{{/str}}
+                        <span class="mod-cmi5-add-required" aria-hidden="true">*</span>
+                    </label>
+                    <input type="text" name="autitle" id="cmi5-au-title" class="form-control" required>
+                </div>
+                <div class="mod-cmi5-add-field">
+                    <label for="cmi5-au-desc">{{#str}}library:description, cmi5{{/str}}</label>
+                    <textarea name="audescription" id="cmi5-au-desc" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="mod-cmi5-add-step">
+            <div class="mod-cmi5-add-step-head">
+                <span class="mod-cmi5-add-step-number" aria-hidden="true">2</span>
+                <h3 class="mod-cmi5-add-step-title">{{#str}}library:step_whereitlives, cmi5{{/str}}</h3>
+            </div>
+            <div class="mod-cmi5-add-step-body">
+                <div class="mod-cmi5-add-field">
+                    <label for="cmi5-au-iri">
+                        {{#str}}library:auid, cmi5{{/str}}
+                        <span class="mod-cmi5-add-required" aria-hidden="true">*</span>
+                    </label>
+                    <input type="text" name="auirid" id="cmi5-au-iri" class="form-control mod-cmi5-add-mono" required
+                           placeholder="https://example.org/au/my-activity">
+                    <span class="mod-cmi5-add-hint">{{#str}}library:auidhelp, cmi5{{/str}}</span>
+                </div>
+                <div class="mod-cmi5-add-field">
+                    <label for="cmi5-au-url">
+                        {{#str}}library:auurl, cmi5{{/str}}
+                        <span class="mod-cmi5-add-required" aria-hidden="true">*</span>
+                    </label>
+                    <input type="url" name="auurl" id="cmi5-au-url" class="form-control mod-cmi5-add-mono" required
+                           placeholder="https://content.example.org/activity/index.html">
+                </div>
+            </div>
+        </div>
+
+        <div class="mod-cmi5-add-step">
+            <div class="mod-cmi5-add-step-head">
+                <span class="mod-cmi5-add-step-number" aria-hidden="true">3</span>
+                <h3 class="mod-cmi5-add-step-title">{{#str}}library:step_howitlaunches, cmi5{{/str}}</h3>
+            </div>
+            <div class="mod-cmi5-add-step-body">
+                <div class="mod-cmi5-add-grid">
+                    <div class="mod-cmi5-add-field">
+                        <label for="cmi5-au-launch">{{#str}}launchmethod, cmi5{{/str}}</label>
+                        <select name="aulaunchmethod" id="cmi5-au-launch" class="form-control">
+                            <option value="AnyWindow">AnyWindow</option>
+                            <option value="OwnWindow">OwnWindow</option>
+                        </select>
+                    </div>
+                    <div class="mod-cmi5-add-field">
+                        <label for="cmi5-au-moveon">{{#str}}library:moveoncriteria, cmi5{{/str}}</label>
+                        <select name="aumoveoncriteria" id="cmi5-au-moveon" class="form-control">
+                            <option value="NotApplicable">NotApplicable</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Passed">Passed</option>
+                            <option value="CompletedAndPassed">CompletedAndPassed</option>
+                            <option value="CompletedOrPassed">CompletedOrPassed</option>
+                        </select>
+                    </div>
+                    <div class="mod-cmi5-add-field mod-cmi5-add-grid-wide">
+                        <label for="cmi5-au-profileid">{{#str}}library:launchprofile, cmi5{{/str}}</label>
+                        <select name="profileid" id="cmi5-au-profileid" class="form-control">
+                            <option value="0">{{#str}}profile:none, cmi5{{/str}}</option>
+                            {{#profiles}}
+                            <option value="{{id}}">{{name}}</option>
+                            {{/profiles}}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mod-cmi5-add-actions">
+            <button type="submit" class="mod-cmi5-btn mod-cmi5-btn-primary">{{#str}}library:addtolibrary, cmi5{{/str}}</button>
+            <a href="{{cancelurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}library:cancel, cmi5{{/str}}</a>
+        </div>
+    </form>
+    {{/isexternaltab}}
+
+</div>
+{{#js}}
+require(['mod_cmi5/library_add'], function(add) {
+    add.init();
+});
+{{/js}}
