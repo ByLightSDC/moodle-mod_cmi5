@@ -1727,12 +1727,31 @@
 }
 
 .mod-cmi5-lib-cell-action {
-    flex: 0 0 260px;
+    flex: 0 0 340px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: 0.5rem;
     flex-wrap: wrap;
+}
+
+.mod-cmi5-lib-delete-reason {
+    flex: 1 1 100%;
+    color: var(--c5-ink-3);
+    font-size: 0.75rem;
+    text-align: right;
+}
+
+.mod-cmi5-btn-danger {
+    border-color: #b42318;
+    color: #b42318;
+}
+
+.mod-cmi5-btn-danger:hover,
+.mod-cmi5-btn-danger:focus {
+    border-color: #912018;
+    background-color: #fff1f0;
+    color: #912018;
 }
 
 /* Course: the root of the cmi5 structure. */

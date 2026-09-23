@@ -393,6 +393,14 @@
                 {{^isviewing}}
                 <a href="{{viewurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}library:showversion, cmi5{{/str}}</a>
                 {{/isviewing}}
+                {{#candelete}}
+                <a href="{{deleteurl}}" class="mod-cmi5-btn mod-cmi5-btn-row mod-cmi5-btn-danger">
+                    {{#str}}library:deleteversion, cmi5{{/str}}
+                </a>
+                {{/candelete}}
+                {{^candelete}}
+                <span class="mod-cmi5-lib-delete-reason">{{deleteblockedreason}}</span>
+                {{/candelete}}
             </span>
         </div>
         {{/versions}}

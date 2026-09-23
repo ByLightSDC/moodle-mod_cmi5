@@ -331,6 +331,15 @@ $string['library:noarchive_help'] = 'External/API content has no uploaded ZIP.';
 $string['library:invalidpackageversion'] = 'The requested version does not belong to this package.';
 $string['library:noarchiveforversion'] = 'This version was created from external or API content and has no uploaded ZIP.';
 $string['library:archivefilemissing'] = 'The original ZIP for this version is missing from file storage.';
+$string['library:deleteversion'] = 'Delete';
+$string['library:deleteversionheading'] = 'Delete {$a->title} v{$a->version}';
+$string['library:deleteversionconfirm'] = 'Permanently delete {$a->title} v{$a->version}? Its original ZIP, extracted content, structure, and version details will be removed. This cannot be undone.';
+$string['library:versiondeleted'] = 'Version {$a} was deleted successfully.';
+$string['library:versionislatest'] = 'This is the latest version.';
+$string['library:versioninuse'] = 'This version is used by {$a} activities.';
+$string['library:versioninuse_one'] = 'This version is used by 1 activity.';
+$string['library:versionbusy'] = 'This content version is currently being changed. Please try again.';
+$string['eventlibraryversiondeleted'] = 'Content library version deleted';
 
 // Content library package detail page.
 $string['library:structure'] = 'Structure';

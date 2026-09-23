@@ -29,6 +29,124 @@ defined('MOODLE_INTERNAL') || die();
 final class content_library_test extends \advanced_testcase {
 
     /**
+     * Deleting an unused older version removes only that version and records an event.
+     */
+    public function test_delete_version_removes_only_unused_older_version(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        [$package, $version1, $version2] = $this->create_versioned_package();
+        $auid = $DB->insert_record('cmi5_package_aus', (object) [
+            'versionid' => $version1->id,
+            'auid' => 'https://example.test/au',
+            'title' => 'Version one AU',
+            'url' => 'index.html',
+            'launchmethod' => 'AnyWindow',
+            'moveoncriteria' => 'NotApplicable',
+            'sortorder' => 0,
+            'isexternal' => 0,
+        ]);
+        $blockid = $DB->insert_record('cmi5_package_blocks', (object) [
+            'versionid' => $version1->id,
+            'blockid' => 'https://example.test/block',
+            'title' => 'Version one block',
+            'sortorder' => 0,
+        ]);
+        $fs = get_file_storage();
+        foreach (['library_package' => 'course.zip', 'library_content' => 'index.html'] as $area => $filename) {
+            $fs->create_file_from_string([
+                'contextid' => \context_system::instance()->id,
+                'component' => 'mod_cmi5',
+                'filearea' => $area,
+                'itemid' => $version1->id,
+                'filepath' => '/',
+                'filename' => $filename,
+            ], $filename . ' content');
+        }
+
+        $sink = $this->redirectEvents();
+        content_library::delete_version($package->id, $version1->id);
+        $events = $sink->get_events();
+
+        $this->assertFalse($DB->record_exists('cmi5_package_versions', ['id' => $version1->id]));
+        $this->assertFalse($DB->record_exists('cmi5_package_aus', ['id' => $auid]));
+        $this->assertFalse($DB->record_exists('cmi5_package_blocks', ['id' => $blockid]));
+        $this->assertEmpty($fs->get_area_files(\context_system::instance()->id,
+            'mod_cmi5', 'library_package', $version1->id, 'id', false));
+        $this->assertEmpty($fs->get_area_files(\context_system::instance()->id,
+            'mod_cmi5', 'library_content', $version1->id, 'id', false));
+
+        $this->assertTrue($DB->record_exists('cmi5_packages', ['id' => $package->id]));
+        $this->assertTrue($DB->record_exists('cmi5_package_versions', ['id' => $version2->id]));
+        $this->assertSame((int) $version2->id,
+            (int) $DB->get_field('cmi5_packages', 'latestversion', ['id' => $package->id]));
+
+        $this->assertCount(1, $events);
+        $this->assertInstanceOf(\mod_cmi5\event\library_version_deleted::class, reset($events));
+    }
+
+    /**
+     * The latest version remains protected even when it is unused.
+     */
+    public function test_delete_version_rejects_latest_version(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        [$package, , $version2] = $this->create_versioned_package();
+
+        try {
+            content_library::delete_version($package->id, $version2->id);
+            $this->fail('Deleting the latest version should have failed.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame(get_string('library:versionislatest', 'cmi5'), $e->getMessage());
+        }
+
+        $this->assertTrue($DB->record_exists('cmi5_package_versions', ['id' => $version2->id]));
+    }
+
+    /**
+     * Live activity references protect a version even when its cached usage is zero.
+     */
+    public function test_delete_version_rejects_in_use_version_with_stale_counter(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+        [$package, $version1] = $this->create_versioned_package();
+        $DB->set_field('cmi5_package_versions', 'usagecount', 0, ['id' => $version1->id]);
+        $this->create_activity($course->id, 'Protected activity', $package->id, $version1->id);
+
+        try {
+            content_library::delete_version($package->id, $version1->id);
+            $this->fail('Deleting an in-use version should have failed.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame(get_string('library:versioninuse', 'cmi5', 1), $e->getMessage());
+        }
+
+        $this->assertTrue($DB->record_exists('cmi5_package_versions', ['id' => $version1->id]));
+    }
+
+    /**
+     * The deletion API enforces the library-management capability itself.
+     */
+    public function test_delete_version_requires_library_management_capability(): void {
+        $this->resetAfterTest();
+        $user = $this->getDataGenerator()->create_user();
+        $this->setUser($user);
+
+        [$package, $version1] = $this->create_versioned_package();
+
+        $this->expectException(\required_capability_exception::class);
+        content_library::delete_version($package->id, $version1->id);
+    }
+
+    /**
      * The original uploaded filename and content are retained for download.
      */
     public function test_get_version_archive_returns_original_zip(): void {

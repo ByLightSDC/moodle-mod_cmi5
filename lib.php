@@ -123,53 +123,65 @@ function cmi5_add_instance($data, $mform = null) {
     $record->timecreated = $data->timecreated;
     $record->timemodified = $data->timemodified;
 
-    $data->id = $DB->insert_record('cmi5', $record);
-
     if ($packagesource === 'library' && $packageid) {
-        $version = $libraryselection->version;
-        $versionid = (int) $version->id;
+        $versionid = (int) $libraryselection->version->id;
+        $versionlock = \mod_cmi5\content_library::acquire_version_lock($versionid);
+        try {
+            // Revalidate after locking so a version deleted while we waited cannot be assigned.
+            $libraryselection = \mod_cmi5\content_library::resolve_package_selection(
+                $packageid,
+                (string) $libraryauid,
+                $versionid
+            );
+            $version = $libraryselection->version;
+            $transaction = $DB->start_delegated_transaction();
+            try {
+                $data->id = $DB->insert_record('cmi5', $record);
 
-        // Auto-inherit profile from library package version if not explicitly set on the form.
-        if (empty($record->profileid) && $versionid) {
-            if ($version && !empty($version->profileid)) {
-                $record->profileid = (int) $version->profileid;
-                $DB->set_field('cmi5', 'profileid', $record->profileid, ['id' => $data->id]);
+                // Auto-inherit profile from the version if not explicitly set on the form.
+                if (empty($record->profileid) && !empty($version->profileid)) {
+                    $record->profileid = (int) $version->profileid;
+                    $DB->set_field('cmi5', 'profileid', $record->profileid, ['id' => $data->id]);
+                }
+
+                $DB->set_field('cmi5', 'packageversionid', $versionid, ['id' => $data->id]);
+                \mod_cmi5\content_library::copy_structure_to_activity(
+                    $versionid,
+                    $data->id,
+                    $libraryselection->singleauid
+                );
+                \mod_cmi5\content_library::increment_usage($versionid);
+
+                if (!empty($version->courseid_iri)) {
+                    $DB->set_field('cmi5', 'courseid_iri', $version->courseid_iri, ['id' => $data->id]);
+                }
+                $transaction->allow_commit();
+            } catch (\Throwable $e) {
+                $transaction->rollback($e);
             }
+        } finally {
+            $versionlock->release();
         }
+    } else {
+        $data->id = $DB->insert_record('cmi5', $record);
 
-        // Set packageversionid on the activity.
-        if ($versionid) {
-            $DB->set_field('cmi5', 'packageversionid', $versionid, ['id' => $data->id]);
+        if ($mform && !empty($draftitemid)) {
+            // Handle direct file upload and package parsing.
+            $cmid = $data->coursemodule;
+            $context = context_module::instance($cmid);
+
+            file_save_draft_area_files(
+                $draftitemid,
+                $context->id,
+                'mod_cmi5',
+                'package',
+                0,
+                ['maxfiles' => 1, 'accepted_types' => ['.zip']]
+            );
+
+            $package = new \mod_cmi5\cmi5_package($context, $data->id);
+            $package->process_uploaded_package();
         }
-
-        // Parse the AU selection: format is "packageid:auid" or empty for all.
-        $singleauid = $libraryselection->singleauid;
-        // Copy structure from library package version to activity.
-        if ($versionid) {
-            \mod_cmi5\content_library::copy_structure_to_activity($versionid, $data->id, $singleauid);
-            \mod_cmi5\content_library::increment_usage($versionid);
-
-            // Copy courseid_iri from the package version.
-            if (!empty($version->courseid_iri)) {
-                $DB->set_field('cmi5', 'courseid_iri', $version->courseid_iri, ['id' => $data->id]);
-            }
-        }
-    } else if ($mform && !empty($draftitemid)) {
-        // Handle direct file upload and package parsing.
-        $cmid = $data->coursemodule;
-        $context = context_module::instance($cmid);
-
-        file_save_draft_area_files(
-            $draftitemid,
-            $context->id,
-            'mod_cmi5',
-            'package',
-            0,
-            ['maxfiles' => 1, 'accepted_types' => ['.zip']]
-        );
-
-        $package = new \mod_cmi5\cmi5_package($context, $data->id);
-        $package->process_uploaded_package();
     }
 
     cmi5_grade_item_update($data);
@@ -218,28 +230,38 @@ function cmi5_update_instance($data, $mform = null) {
         $selection = \mod_cmi5\content_library::resolve_package_selection(
             $newpackageid, (string) ($data->libraryauid ?? ''));
         $versionid = (int) $selection->version->id;
-        $transaction = $DB->start_delegated_transaction();
+        $versionlock = \mod_cmi5\content_library::acquire_version_lock($versionid);
         try {
-            \mod_cmi5\content_library::copy_structure_to_activity(
-                $versionid, $data->id, $selection->singleauid);
-            if (!empty($cmi5->packageversionid)) {
-                \mod_cmi5\content_library::decrement_usage((int) $cmi5->packageversionid);
-            }
-            \mod_cmi5\content_library::increment_usage($versionid);
+            $selection = \mod_cmi5\content_library::resolve_package_selection(
+                $newpackageid,
+                (string) ($data->libraryauid ?? ''),
+                $versionid
+            );
+            $transaction = $DB->start_delegated_transaction();
+            try {
+                \mod_cmi5\content_library::copy_structure_to_activity(
+                    $versionid, $data->id, $selection->singleauid);
+                if (!empty($cmi5->packageversionid)) {
+                    \mod_cmi5\content_library::decrement_usage((int) $cmi5->packageversionid);
+                }
+                \mod_cmi5\content_library::increment_usage($versionid);
 
-            $updated = (object) [
-                'id' => $data->id,
-                'packageid' => $newpackageid,
-                'packageversionid' => $versionid,
-                'courseid_iri' => $selection->version->courseid_iri ?? null,
-            ];
-            if (empty($record->profileid) && !empty($selection->version->profileid)) {
-                $updated->profileid = (int) $selection->version->profileid;
+                $updated = (object) [
+                    'id' => $data->id,
+                    'packageid' => $newpackageid,
+                    'packageversionid' => $versionid,
+                    'courseid_iri' => $selection->version->courseid_iri ?? null,
+                ];
+                if (empty($record->profileid) && !empty($selection->version->profileid)) {
+                    $updated->profileid = (int) $selection->version->profileid;
+                }
+                $DB->update_record('cmi5', $updated);
+                $transaction->allow_commit();
+            } catch (\Throwable $e) {
+                $transaction->rollback($e);
             }
-            $DB->update_record('cmi5', $updated);
-            $transaction->allow_commit();
-        } catch (\Throwable $e) {
-            $transaction->rollback($e);
+        } finally {
+            $versionlock->release();
         }
     }
 
