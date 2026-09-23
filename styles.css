@@ -393,8 +393,8 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    min-height: 44px;
-    padding: 0 1.125rem;
+    min-height: 40px;
+    padding: 0 0.75rem;
     border: 1px solid transparent;
     border-radius: 10px;
     font-size: 0.875rem;
@@ -1608,20 +1608,28 @@
     overflow-wrap: anywhere;
 }
 
+/* Paired with .mod-cmi5-lib-summary-side on the list page: the pane grows past
+ * its basis rather than squeezing, and wraps the button under the text when it
+ * can't keep both on one line. */
 .mod-cmi5-lib-summary-version {
-    flex: 0 0 26rem;
+    flex: 1 1 24rem;
     box-sizing: border-box;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem 1rem;
     min-width: 0;
     padding: 1rem 1.25rem 1rem 1.5rem;
     border-left: 1px solid var(--c5-line);
     background-color: var(--c5-surface);
 }
 
+.mod-cmi5-lib-summary-version > .mod-cmi5-btn {
+    flex: 0 0 auto;
+}
+
 .mod-cmi5-lib-summary-version-text {
-    flex: 1 1 auto;
+    flex: 1 1 12rem;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -1636,8 +1644,9 @@
 
 .mod-cmi5-lib-version-line {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.25rem 0.5rem;
 }
 
 .mod-cmi5-lib-version-number {
@@ -1726,20 +1735,33 @@
     font-size: 0.875rem;
 }
 
+/* Three fixed slots, so the actions line up in columns down the list however
+ * many of them a given version offers. */
 .mod-cmi5-lib-cell-action {
     flex: 0 0 340px;
-    display: flex;
+    display: grid;
+    grid-template-columns: 132px 96px 96px;
     align-items: center;
-    justify-content: flex-end;
     gap: 0.5rem;
-    flex-wrap: wrap;
 }
 
-.mod-cmi5-lib-delete-reason {
-    flex: 1 1 100%;
+.mod-cmi5-lib-action-slot {
+    display: flex;
+    min-width: 0;
+}
+
+.mod-cmi5-lib-action-slot > .mod-cmi5-btn {
+    width: 100%;
+    padding: 0 0.5rem;
+    gap: 0.375rem;
+}
+
+/* Takes the place of an action the version can't offer, in its slot. */
+.mod-cmi5-lib-action-note {
     color: var(--c5-ink-3);
     font-size: 0.75rem;
-    text-align: right;
+    line-height: 1.3;
+    text-align: center;
 }
 
 .mod-cmi5-btn-danger {
@@ -1752,6 +1774,18 @@
     border-color: #912018;
     background-color: #fff1f0;
     color: #912018;
+}
+
+[data-bs-theme=dark] .mod-cmi5-btn-danger {
+    border-color: #a8443c;
+    color: #f6afaa;
+}
+
+[data-bs-theme=dark] .mod-cmi5-btn-danger:hover,
+[data-bs-theme=dark] .mod-cmi5-btn-danger:focus {
+    border-color: #d9584f;
+    background-color: rgba(200, 65, 58, 0.18);
+    color: #f6afaa;
 }
 
 /* Course: the root of the cmi5 structure. */
@@ -1848,14 +1882,6 @@
     }
 }
 
-.mod-cmi5-lib-rail {
-    flex: 0 0 auto;
-    align-self: stretch;
-    width: 22px;
-    margin-left: 5px;
-    border-left: 2px solid var(--c5-line);
-}
-
 .mod-cmi5-lib-au-glyph {
     flex: 0 0 auto;
     display: block;
@@ -1905,7 +1931,7 @@
 /* Unit details, opened in place under their row. */
 
 .mod-cmi5-lib-au-detail {
-    padding: 0.25rem 1.5rem 1.125rem 4.0625rem;
+    padding: 0.25rem 1.5rem 1.125rem 3.375rem;
     background-color: var(--c5-open-bg);
 }
 
@@ -1979,12 +2005,6 @@
 }
 
 @media (max-width: 767px) {
-    .mod-cmi5-lib-summary-version {
-        flex: 1 1 100%;
-        border-top: 1px solid var(--c5-line);
-        border-left: 0;
-    }
-
     .mod-cmi5-lib-row {
         flex-wrap: wrap;
         gap: 0.25rem 0.75rem;
@@ -2001,9 +2021,13 @@
 
     .mod-cmi5-lib-cell-moveon,
     .mod-cmi5-lib-cell-mastery,
-    .mod-cmi5-lib-cell-usage,
-    .mod-cmi5-lib-cell-action {
+    .mod-cmi5-lib-cell-usage {
         flex: 0 0 auto;
+    }
+
+    .mod-cmi5-lib-cell-action {
+        flex: 1 1 100%;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .mod-cmi5-lib-cell-toggle {
@@ -2018,5 +2042,558 @@
 
     .mod-cmi5-lib-au-detail {
         padding-left: 1rem;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * Content library list page.
+ *
+ * The list reuses the detail page's shell: the same summary card, the same tab
+ * strip and the same bordered row container. Only the cells differ.
+ * ------------------------------------------------------------------------- */
+
+/* The summary card's right pane holds search here, the version chooser there.
+ *
+ * The pane may grow past its 24rem basis so the input keeps room for its
+ * placeholder, and the row wraps rather than squeezing the input when it can't.
+ */
+.mod-cmi5-lib-summary-side {
+    flex: 1 1 24rem;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem 1rem;
+    min-width: 0;
+    padding: 1rem 1.25rem 1rem 1.5rem;
+    border-left: 1px solid var(--c5-line);
+    background-color: var(--c5-surface);
+}
+
+.mod-cmi5-lib-search {
+    flex: 1 1 15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    min-width: 0;
+}
+
+.mod-cmi5-lib-search .form-control {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid var(--c5-control-border);
+    border-radius: 12px;
+    background-color: var(--c5-surface);
+    color: var(--c5-ink);
+    text-overflow: ellipsis;
+}
+
+.mod-cmi5-lib-search .form-control:hover {
+    border-color: var(--c5-ink-3);
+}
+
+.mod-cmi5-lib-search-submit {
+    flex: 0 0 auto;
+    min-height: 44px;
+    white-space: nowrap;
+}
+
+/* One package per row: title line over a source/versions/date meta line. */
+
+.mod-cmi5-lib-package {
+    min-height: 72px;
+}
+
+.mod-cmi5-lib-package-icon {
+    flex: 0 0 auto;
+    color: var(--c5-accent);
+}
+
+.mod-cmi5-lib-package.is-disabled .mod-cmi5-lib-package-icon,
+.mod-cmi5-lib-usage.is-disabled .mod-cmi5-lib-package-icon {
+    color: var(--c5-ink-faint);
+}
+
+.mod-cmi5-lib-package-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.mod-cmi5-lib-package-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.mod-cmi5-lib-package-title,
+.mod-cmi5-lib-package-title:visited {
+    color: var(--c5-ink);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.mod-cmi5-lib-package-title:hover,
+.mod-cmi5-lib-package-title:focus {
+    color: var(--c5-accent);
+    text-decoration: underline;
+}
+
+.mod-cmi5-lib-package-meta {
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+}
+
+/* A neutral chip for the version number, next to the coloured status pill. */
+.mod-cmi5-lib-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background-color: var(--c5-stage);
+    color: var(--c5-ink-2);
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.mod-cmi5-lib-cell-rowactions {
+    flex: 0 0 320px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+/* Sits where a Delete button would, so the rows stay aligned. */
+.mod-cmi5-lib-blocked {
+    width: 148px;
+    color: var(--c5-ink-3);
+    font-size: 0.75rem;
+    text-align: right;
+}
+
+/* Empty and no-results states, drawn inside the row container. */
+
+.mod-cmi5-lib-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 3rem 1.5rem;
+    border-top: 1px solid var(--c5-line-soft);
+}
+
+.mod-cmi5-lib-empty:first-child {
+    border-top: 0;
+}
+
+.mod-cmi5-lib-empty-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.625rem;
+    max-width: 29rem;
+    text-align: center;
+}
+
+.mod-cmi5-lib-empty-icon {
+    color: var(--c5-accent-tint-border);
+}
+
+.mod-cmi5-lib-empty-title {
+    margin: 0.375rem 0 0;
+    font-size: 1.125rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.mod-cmi5-lib-empty-body {
+    margin: 0;
+    color: var(--c5-ink-2);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.mod-cmi5-lib-empty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.625rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Version usage: which activities point at one version. Same row shell as the
+ * list and structure views, with a column per status.
+ * ------------------------------------------------------------------------- */
+
+.mod-cmi5-lib-usage {
+    min-height: 64px;
+}
+
+.mod-cmi5-lib-cell-activity {
+    flex: 0 0 220px;
+    min-width: 0;
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+}
+
+.mod-cmi5-lib-cell-status {
+    flex: 0 0 160px;
+    min-width: 0;
+}
+
+@media (max-width: 767px) {
+    .mod-cmi5-lib-cell-activity,
+    .mod-cmi5-lib-cell-status {
+        flex: 0 0 auto;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * Add a course: its own page, in the same shell as the detail page.
+ * ------------------------------------------------------------------------- */
+
+.mod-cmi5-add {
+    width: min(48rem, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 1.375rem;
+}
+
+.mod-cmi5-add-step {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.mod-cmi5-add-step-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.625rem;
+}
+
+.mod-cmi5-add-step-number {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background-color: var(--c5-accent);
+    color: var(--c5-on-accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.mod-cmi5-add-step-title {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+/* Everything under a step lines up past the step number. */
+.mod-cmi5-add-step-body {
+    margin-left: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+}
+
+.mod-cmi5-add-step-help {
+    margin: 0 0 0 2rem;
+    color: var(--c5-ink-2);
+    font-size: 0.875rem;
+}
+
+.mod-cmi5-add-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.875rem 1rem;
+}
+
+.mod-cmi5-add-grid-wide {
+    grid-column: 1 / -1;
+}
+
+.mod-cmi5-add .form-control {
+    min-height: 44px;
+    border-radius: 10px;
+    border-color: var(--c5-control-border);
+}
+
+.mod-cmi5-add textarea.form-control {
+    min-height: 0;
+}
+
+.mod-cmi5-add-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.mod-cmi5-add-field label {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-add-hint {
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+}
+
+.mod-cmi5-add-required {
+    color: #b42318;
+}
+
+[data-bs-theme=dark] .mod-cmi5-add-required {
+    color: #f6afaa;
+}
+
+.mod-cmi5-add-mono {
+    font-family: var(--font-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 0.8125rem;
+}
+
+.mod-cmi5-add-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--c5-line);
+}
+
+.mod-cmi5-add-actions-note {
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+}
+
+.mod-cmi5-add-actions-end {
+    margin-left: auto;
+}
+
+/* The file chooser: a drop target wrapping a visually hidden file input. */
+
+.mod-cmi5-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 13.75rem;
+    margin: 0;
+    padding: 2rem 1.5rem;
+    border: 2px dashed var(--c5-accent-tint-border);
+    border-radius: 14px;
+    background-color: var(--c5-open-bg);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.mod-cmi5-drop:hover,
+.mod-cmi5-drop.is-over {
+    border-color: var(--c5-accent);
+    background-color: var(--c5-accent-tint);
+}
+
+.mod-cmi5-drop:focus-within {
+    outline: 2px solid var(--c5-accent);
+    outline-offset: 2px;
+}
+
+.mod-cmi5-drop-icon {
+    color: var(--c5-accent);
+}
+
+.mod-cmi5-drop-title {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-drop-or {
+    color: var(--c5-ink-2);
+    font-size: 0.875rem;
+}
+
+.mod-cmi5-drop-browse {
+    color: var(--c5-accent);
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.mod-cmi5-drop-hint {
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+}
+
+/* The native input stays focusable, so the label works as a real control. */
+.mod-cmi5-drop-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* The chosen file, shown once something is picked. */
+
+.mod-cmi5-file {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 64px;
+    padding: 0.75rem 1.125rem;
+    border: 1px solid var(--c5-line);
+    border-radius: 14px;
+    background-color: var(--c5-surface);
+}
+
+.mod-cmi5-file[hidden] {
+    display: none;
+}
+
+.mod-cmi5-file-icon {
+    flex: 0 0 auto;
+    color: var(--c5-accent);
+}
+
+.mod-cmi5-file-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.mod-cmi5-file-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.mod-cmi5-file-meta {
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+}
+
+.mod-cmi5-file-remove {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--c5-control-border);
+    border-radius: 10px;
+    background-color: var(--c5-surface);
+    color: var(--c5-ink-2);
+    cursor: pointer;
+}
+
+.mod-cmi5-file-remove:hover,
+.mod-cmi5-file-remove:focus {
+    border-color: var(--c5-ink-3);
+    background-color: var(--c5-sunken);
+    color: var(--c5-ink);
+}
+
+/* The confirmation step's "read without errors" banner. */
+
+.mod-cmi5-read {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--c5-update-border);
+    border-radius: 12px;
+    background-color: var(--c5-update-bg);
+}
+
+.mod-cmi5-read-icon {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background-color: var(--st-bg);
+    color: var(--st-fg);
+}
+
+.mod-cmi5-read-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.mod-cmi5-read-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.mod-cmi5-read-meta {
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+}
+
+@media (max-width: 1199px) {
+    .mod-cmi5-lib-summary-side,
+    .mod-cmi5-lib-summary-version {
+        flex: 1 1 100%;
+        border-top: 1px solid var(--c5-line);
+        border-left: 0;
+    }
+}
+
+@media (max-width: 767px) {
+    .mod-cmi5-lib-search-submit,
+    .mod-cmi5-lib-summary-version > .mod-cmi5-btn {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+
+    .mod-cmi5-lib-cell-rowactions {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+    }
+
+    .mod-cmi5-lib-blocked {
+        width: auto;
+        text-align: left;
+    }
+
+    .mod-cmi5-add-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .mod-cmi5-add-step-body,
+    .mod-cmi5-add-step-help {
+        margin-left: 0;
     }
 }

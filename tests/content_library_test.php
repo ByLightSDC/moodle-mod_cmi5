@@ -367,6 +367,169 @@ final class content_library_test extends \advanced_testcase {
         }
     }
 
+
+    /**
+     * Inspecting a ZIP reports its structure and stores nothing.
+     */
+    public function test_inspect_package_reads_structure_without_storing(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $packagesbefore = $DB->count_records('cmi5_packages');
+        $versionsbefore = $DB->count_records('cmi5_package_versions');
+
+        $inspection = content_library::inspect_package($this->create_package_zip());
+
+        $this->assertSame('https://example.test/course', $inspection->courseid);
+        $this->assertSame('Inspected course', $inspection->coursetitle);
+        $this->assertSame(2, $inspection->aucount);
+        $this->assertSame(1, $inspection->blockcount);
+        $this->assertSame('package.zip', $inspection->filename);
+        $this->assertNull($inspection->existingpackage);
+
+        // Nothing at all should have been written.
+        $this->assertSame($packagesbefore, $DB->count_records('cmi5_packages'));
+        $this->assertSame($versionsbefore, $DB->count_records('cmi5_package_versions'));
+    }
+
+    /**
+     * The inspected structure is shaped so build_structure_tree() can nest it, which is what
+     * lets the confirmation step reuse the detail page's rows.
+     */
+    public function test_inspect_package_nests_units_under_their_block(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $inspection = content_library::inspect_package($this->create_package_zip());
+        $rows = content_library::build_structure_tree($inspection->blocks, $inspection->aus);
+
+        $this->assertCount(3, $rows);
+        $this->assertSame('block', $rows[0]['type']);
+        $this->assertSame(0, $rows[0]['depth']);
+        $this->assertSame(1, $rows[0]['aucount']);
+
+        // The unit inside the block sits one level down; the loose one stays at the top.
+        $this->assertSame('au', $rows[1]['type']);
+        $this->assertSame(1, $rows[1]['depth']);
+        $this->assertSame('Nested unit', $rows[1]['record']->title);
+
+        $this->assertSame('au', $rows[2]['type']);
+        $this->assertSame(0, $rows[2]['depth']);
+        $this->assertSame('Loose unit', $rows[2]['record']->title);
+    }
+
+    /**
+     * A ZIP declaring a course IRI the library already holds is reported as a new version.
+     */
+    public function test_inspect_package_finds_the_existing_course(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        [$package, , $version2] = $this->create_versioned_package();
+        $DB->set_field('cmi5_package_versions', 'courseid_iri', 'https://example.test/course',
+            ['id' => $version2->id]);
+
+        $inspection = content_library::inspect_package($this->create_package_zip());
+
+        $this->assertNotNull($inspection->existingpackage);
+        $this->assertSame((int) $package->id, (int) $inspection->existingpackage->id);
+        $this->assertSame(2, (int) $inspection->existingpackage->versionnumber);
+    }
+
+    /**
+     * A ZIP with no manifest is rejected rather than half-read.
+     */
+    public function test_inspect_package_rejects_a_zip_without_a_manifest(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $this->expectException(\moodle_exception::class);
+        content_library::inspect_package($this->create_package_zip(false));
+    }
+
+    /**
+     * The list query reports a package's version count alongside its usage.
+     */
+    public function test_list_packages_with_meta_counts_versions(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        [$package] = $this->create_versioned_package();
+
+        $rows = content_library::list_packages_with_meta();
+        $row = null;
+        foreach ($rows as $candidate) {
+            if ((int) $candidate->id === (int) $package->id) {
+                $row = $candidate;
+            }
+        }
+
+        $this->assertNotNull($row);
+        $this->assertSame(2, (int) $row->versioncount);
+        $this->assertSame(2, (int) $row->versionnumber);
+    }
+
+    /**
+     * Build a stored cmi5 ZIP: one block holding one unit, plus one unit outside it.
+     *
+     * @param bool $withmanifest Whether to include cmi5.xml, so the failure path can be tested.
+     * @return \stored_file The ZIP, in a draft area.
+     */
+    private function create_package_zip(bool $withmanifest = true): \stored_file {
+        global $USER;
+
+        $manifest = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<courseStructure xmlns="https://w3id.org/xapi/profiles/cmi5/v1/CourseStructure.xsd">
+  <course id="https://example.test/course">
+    <title><langstring lang="en-US">Inspected course</langstring></title>
+    <description><langstring lang="en-US">Read but not stored.</langstring></description>
+  </course>
+  <block id="https://example.test/block">
+    <title><langstring lang="en-US">Only block</langstring></title>
+    <description><langstring lang="en-US">Holds one unit.</langstring></description>
+    <au id="https://example.test/au/nested" moveOn="Passed" masteryScore="0.8">
+      <title><langstring lang="en-US">Nested unit</langstring></title>
+      <description><langstring lang="en-US">Inside the block.</langstring></description>
+      <url>nested/index.html</url>
+    </au>
+  </block>
+  <au id="https://example.test/au/loose" moveOn="Completed">
+    <title><langstring lang="en-US">Loose unit</langstring></title>
+    <description><langstring lang="en-US">Outside every block.</langstring></description>
+    <url>loose/index.html</url>
+  </au>
+</courseStructure>
+XML;
+
+        $workdir = make_request_directory();
+        if ($withmanifest) {
+            file_put_contents($workdir . '/cmi5.xml', $manifest);
+        }
+        file_put_contents($workdir . '/index.html', 'content');
+
+        $files = ['index.html' => $workdir . '/index.html'];
+        if ($withmanifest) {
+            $files['cmi5.xml'] = $workdir . '/cmi5.xml';
+        }
+
+        $packer = get_file_packer('application/zip');
+        $packer->archive_to_pathname($files, $workdir . '/package.zip');
+
+        return get_file_storage()->create_file_from_pathname([
+            'contextid' => \context_user::instance($USER->id)->id,
+            'component' => 'user',
+            'filearea' => 'draft',
+            'itemid' => file_get_unused_draft_itemid(),
+            'filepath' => '/',
+            'filename' => 'package.zip',
+        ], $workdir . '/package.zip');
+    }
+
     /**
      * Create a package containing two versions with intentionally stale counters.
      *
