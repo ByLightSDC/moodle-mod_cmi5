@@ -207,6 +207,7 @@ $string['completionaugroup'] = 'Require AU satisfaction';
 
 // Content library.
 $string['contentlibrary'] = 'Content Library';
+$string['contentlibrarylauncher'] = 'cmi5 Content Library';
 $string['contentlibrary_desc'] = 'Manage site-wide cmi5 content packages and external AUs.';
 $string['library:uploadpackage'] = 'Upload package';
 $string['library:uploadpackage_help'] = 'Upload a cmi5 ZIP package to the content library for reuse across activities.';

@@ -608,6 +608,29 @@ function cmi5_pluginfile($course, $cm, $context, $filearea, $args, $forcedownloa
 }
 
 /**
+ * Provide a Content Library item for the Moodle Workplace app drawer.
+ *
+ * The Workplace theme renders these items in the quick-access grid opened by
+ * the launcher icon. Only site-level content library managers should see it.
+ *
+ * @return array Menu items containing URL, label, and icon URL.
+ */
+function cmi5_theme_workplace_menu_items(): array {
+    global $OUTPUT;
+
+    $context = context_system::instance();
+    if (!has_capability('mod/cmi5:managelibrary', $context)) {
+        return [];
+    }
+
+    return [[
+        'url' => new moodle_url('/mod/cmi5/library.php'),
+        'name' => get_string('contentlibrarylauncher', 'cmi5'),
+        'imageurl' => $OUTPUT->image_url('icon', 'mod_cmi5')->out(false),
+    ]];
+}
+
+/**
  * Extend course navigation with cmi5 node.
  *
  * @param navigation_node $navref
