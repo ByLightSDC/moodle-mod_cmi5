@@ -54,6 +54,9 @@ class content_library {
     /** @var array Valid sort keys for package listings. */
     const VALID_SORTS = [self::SORT_RECENT, self::SORT_TITLE, self::SORT_USAGE];
 
+    /** @var string Lock factory used to coordinate version assignment and deletion. */
+    const VERSION_LOCK_FACTORY = 'mod_cmi5_content_library';
+
     /** @var array AU fields tracked for changelog computation. */
     const TRACKED_AU_FIELDS = [
         'title', 'description', 'url', 'launchmethod', 'moveoncriteria',
@@ -403,6 +406,131 @@ class content_library {
         }
 
         return reset($files);
+    }
+
+    /**
+     * Acquire the lock shared by operations which assign or delete a package version.
+     *
+     * The lock can be acquired even if the version no longer exists. Callers must
+     * revalidate the version after acquiring it and must always release the lock.
+     *
+     * @param int $versionid Package version ID.
+     * @return \core\lock\lock Acquired lock.
+     * @throws \moodle_exception If the lock cannot be acquired promptly.
+     */
+    public static function acquire_version_lock(int $versionid): \core\lock\lock {
+        $factory = \core\lock\lock_config::get_lock_factory(self::VERSION_LOCK_FACTORY);
+        $lock = $factory->get_lock('version-' . $versionid, 10);
+        if (!$lock) {
+            throw new \moodle_exception('library:versionbusy', 'cmi5');
+        }
+        return $lock;
+    }
+
+    /**
+     * Return the current deletion eligibility for a package version.
+     *
+     * Usage is always calculated from activity references, never the cached counter.
+     *
+     * @param int $packageid Package ID expected to own the version.
+     * @param int $versionid Package version ID.
+     * @return \stdClass Package, version, usage count and eligibility information.
+     * @throws \moodle_exception If the package/version pair is invalid.
+     */
+    public static function get_version_deletion_status(int $packageid, int $versionid): \stdClass {
+        global $DB;
+
+        $package = $DB->get_record('cmi5_packages', ['id' => $packageid]);
+        $version = $DB->get_record('cmi5_package_versions', [
+            'id' => $versionid,
+            'packageid' => $packageid,
+        ]);
+        if (!$package || !$version) {
+            throw new \moodle_exception('library:invalidpackageversion', 'cmi5');
+        }
+
+        $usagecount = self::count_version_usage($versionid);
+        $islatest = (int) $package->latestversion === $versionid;
+
+        return (object) [
+            'package' => $package,
+            'version' => $version,
+            'usagecount' => $usagecount,
+            'islatest' => $islatest,
+            'candelete' => !$islatest && $usagecount === 0,
+        ];
+    }
+
+    /**
+     * Permanently delete an unused, non-latest package version.
+     *
+     * Eligibility is checked only after acquiring the same lock used by activity
+     * assignment paths, preventing a new reference from racing the deletion.
+     *
+     * @param int $packageid Package ID expected to own the version.
+     * @param int $versionid Package version ID.
+     * @throws \moodle_exception If the version is protected or cannot be locked.
+     */
+    public static function delete_version(int $packageid, int $versionid): void {
+        global $DB;
+
+        require_capability('mod/cmi5:managelibrary', \context_system::instance());
+        $lock = self::acquire_version_lock($versionid);
+
+        try {
+            $status = self::get_version_deletion_status($packageid, $versionid);
+            if ($status->islatest) {
+                throw new \moodle_exception('library:versionislatest', 'cmi5');
+            }
+            if ($status->usagecount > 0) {
+                $errorcode = $status->usagecount === 1
+                    ? 'library:versioninuse_one'
+                    : 'library:versioninuse';
+                throw new \moodle_exception(
+                    $errorcode,
+                    'cmi5',
+                    '',
+                    $status->usagecount
+                );
+            }
+
+            $event = \mod_cmi5\event\library_version_deleted::create([
+                'context' => \context_system::instance(),
+                'objectid' => $versionid,
+                'other' => [
+                    'packageid' => $packageid,
+                    'packagetitle' => $status->package->title,
+                    'versionnumber' => (int) $status->version->versionnumber,
+                ],
+            ]);
+            $event->add_record_snapshot('cmi5_package_versions', $status->version);
+
+            $transaction = $DB->start_delegated_transaction();
+            try {
+                get_file_storage()->delete_area_files(
+                    \context_system::instance()->id,
+                    'mod_cmi5',
+                    'library_package',
+                    $versionid
+                );
+                get_file_storage()->delete_area_files(
+                    \context_system::instance()->id,
+                    'mod_cmi5',
+                    'library_content',
+                    $versionid
+                );
+                $DB->delete_records('cmi5_package_aus', ['versionid' => $versionid]);
+                $DB->delete_records('cmi5_package_blocks', ['versionid' => $versionid]);
+                $DB->delete_records('cmi5_package_versions', ['id' => $versionid]);
+                $transaction->allow_commit();
+            } catch (\Throwable $e) {
+                $transaction->rollback($e);
+            }
+
+            $event->trigger();
+        } finally {
+            $lock->release();
+        }
     }
 
     /**
@@ -1194,49 +1322,55 @@ class content_library {
             return $result;
         }
 
-        $newversion = $DB->get_record('cmi5_package_versions',
-            ['id' => $newversionid, 'packageid' => $cmi5->packageid], '*', MUST_EXIST);
-        if ($singleauid !== null && !$DB->record_exists('cmi5_package_aus', [
-            'id' => $singleauid,
-            'versionid' => $newversionid,
-        ])) {
-            throw new \moodle_exception('picker:invalidau', 'cmi5');
-        }
-
-        $transaction = $DB->start_delegated_transaction();
+        $lock = self::acquire_version_lock($newversionid);
         try {
-            // Decrement old version usage.
-            if (!empty($cmi5->packageversionid)) {
-                self::decrement_usage((int) $cmi5->packageversionid);
+            // Revalidate only after locking, in case deletion completed while waiting.
+            $newversion = $DB->get_record('cmi5_package_versions',
+                ['id' => $newversionid, 'packageid' => $cmi5->packageid], '*', MUST_EXIST);
+            if ($singleauid !== null && !$DB->record_exists('cmi5_package_aus', [
+                'id' => $singleauid,
+                'versionid' => $newversionid,
+            ])) {
+                throw new \moodle_exception('picker:invalidau', 'cmi5');
             }
 
-            // Copy structure from new version.
-            self::copy_structure_to_activity($newversionid, $cmi5id, $singleauid);
+            $transaction = $DB->start_delegated_transaction();
+            try {
+                // Decrement old version usage.
+                if (!empty($cmi5->packageversionid)) {
+                    self::decrement_usage((int) $cmi5->packageversionid);
+                }
 
-            // Update activity record.
-            $DB->set_field('cmi5', 'packageversionid', $newversionid, ['id' => $cmi5id]);
-            $DB->set_field('cmi5', 'timemodified', time(), ['id' => $cmi5id]);
-            $DB->set_field('cmi5', 'courseid_iri', $newversion->courseid_iri, ['id' => $cmi5id]);
+                // Copy structure from new version.
+                self::copy_structure_to_activity($newversionid, $cmi5id, $singleauid);
 
-            // Increment new version usage.
-            self::increment_usage($newversionid);
-            $transaction->allow_commit();
-        } catch (\Throwable $e) {
-            $transaction->rollback($e);
-        }
+                // Update activity record.
+                $DB->set_field('cmi5', 'packageversionid', $newversionid, ['id' => $cmi5id]);
+                $DB->set_field('cmi5', 'timemodified', time(), ['id' => $cmi5id]);
+                $DB->set_field('cmi5', 'courseid_iri', $newversion->courseid_iri, ['id' => $cmi5id]);
 
-        $result->success = true;
-        $result->newversionid = $newversionid;
-
-        // Collect changelog.
-        if (!empty($newversion->changelog)) {
-            $decoded = json_decode($newversion->changelog, true);
-            if (is_array($decoded)) {
-                $result->changelog = $decoded;
+                // Increment new version usage.
+                self::increment_usage($newversionid);
+                $transaction->allow_commit();
+            } catch (\Throwable $e) {
+                $transaction->rollback($e);
             }
-        }
 
-        return $result;
+            $result->success = true;
+            $result->newversionid = $newversionid;
+
+            // Collect changelog.
+            if (!empty($newversion->changelog)) {
+                $decoded = json_decode($newversion->changelog, true);
+                if (is_array($decoded)) {
+                    $result->changelog = $decoded;
+                }
+            }
+
+            return $result;
+        } finally {
+            $lock->release();
+        }
     }
 
     /**

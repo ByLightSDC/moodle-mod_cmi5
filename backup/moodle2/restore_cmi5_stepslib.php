@@ -66,6 +66,29 @@ class restore_cmi5_activity_structure_step extends restore_activity_structure_st
 
     protected function process_cmi5($data)
     {
+        $data = (object) $data;
+        if (empty($data->packageversionid)) {
+            $this->process_cmi5_locked($data);
+            return;
+        }
+
+        // Coordinate with version deletion. If deletion wins, the locked method
+        // sees the missing version and restores the activity as standalone content.
+        $versionlock = \mod_cmi5\content_library::acquire_version_lock((int) $data->packageversionid);
+        try {
+            $this->process_cmi5_locked($data);
+        } finally {
+            $versionlock->release();
+        }
+    }
+
+    /**
+     * Restore the activity while any referenced library version is locked.
+     *
+     * @param stdClass $data Activity data from the backup.
+     */
+    private function process_cmi5_locked($data)
+    {
         global $DB;
 
         $data = (object) $data;
@@ -86,14 +109,17 @@ class restore_cmi5_activity_structure_step extends restore_activity_structure_st
         );
 
         if (!empty($data->packageversionid)) {
-            $exists = $DB->record_exists('cmi5_package_versions', ['id' => $data->packageversionid]);
+            $version = $DB->get_record('cmi5_package_versions', ['id' => $data->packageversionid]);
+            $exists = $version && !empty($data->packageid) &&
+                (int) $version->packageid === (int) $data->packageid;
             if (!$exists) {
                 debugging(
                     'cmi5 restore: packageversionid=' . $data->packageversionid .
-                    ' not found on target - will restore content files from backup',
+                    ' not found for its package on target - restoring standalone content',
                     DEBUG_DEVELOPER
                 );
                 $data->packageversionid = null;
+                $data->packageid = null;
             }
         }
 

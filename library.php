@@ -62,6 +62,73 @@ if ($action === 'download') {
     send_stored_file($archive, 0, 0, true);
 }
 
+// Permanently delete an eligible package version. Confirmation submits by POST.
+if ($action === 'deleteversion') {
+    if (!$packageid || !$versionid || !data_submitted()) {
+        throw new invalid_parameter_exception('A POST request with a package and version is required');
+    }
+    require_sesskey();
+
+    $version = \mod_cmi5\content_library::get_version($versionid);
+    \mod_cmi5\content_library::delete_version($packageid, $versionid);
+    \core\notification::success(get_string('library:versiondeleted', 'cmi5', $version->versionnumber));
+    redirect(new moodle_url('/mod/cmi5/library.php', [
+        'action' => 'view',
+        'packageid' => $packageid,
+        'tab' => 'versions',
+    ]));
+}
+
+// Confirmation page for permanent version deletion.
+if ($action === 'confirmdelete') {
+    if (!$packageid || !$versionid) {
+        throw new invalid_parameter_exception('A package and version are required');
+    }
+
+    $status = \mod_cmi5\content_library::get_version_deletion_status($packageid, $versionid);
+    if ($status->islatest) {
+        throw new moodle_exception('library:versionislatest', 'cmi5');
+    }
+    if ($status->usagecount > 0) {
+        $errorcode = $status->usagecount === 1 ? 'library:versioninuse_one' : 'library:versioninuse';
+        throw new moodle_exception($errorcode, 'cmi5', '', $status->usagecount);
+    }
+
+    $confirmdata = (object) [
+        'title' => format_string($status->package->title),
+        'version' => (int) $status->version->versionnumber,
+    ];
+    $PAGE->set_url('/mod/cmi5/library.php', [
+        'action' => 'confirmdelete',
+        'packageid' => $packageid,
+        'versionid' => $versionid,
+    ]);
+    $PAGE->set_title(get_string('library:deleteversionheading', 'cmi5', $confirmdata));
+
+    $continueurl = new moodle_url('/mod/cmi5/library.php', [
+        'action' => 'deleteversion',
+        'packageid' => $packageid,
+        'versionid' => $versionid,
+        'sesskey' => sesskey(),
+    ]);
+    $cancelurl = new moodle_url('/mod/cmi5/library.php', [
+        'action' => 'view',
+        'packageid' => $packageid,
+        'versionid' => $versionid,
+        'tab' => 'versions',
+    ]);
+
+    echo $OUTPUT->header();
+    echo $OUTPUT->heading(get_string('library:deleteversionheading', 'cmi5', $confirmdata));
+    echo $OUTPUT->confirm(
+        get_string('library:deleteversionconfirm', 'cmi5', $confirmdata),
+        $continueurl,
+        $cancelurl
+    );
+    echo $OUTPUT->footer();
+    exit;
+}
+
 if ($action === 'upload' && data_submitted() && confirm_sesskey()) {
     $title = optional_param('title', '', PARAM_TEXT);
     $description = optional_param('description', '', PARAM_TEXT);
@@ -400,6 +467,18 @@ if ($action === 'view' && $packageid) {
             $latestversionnumber = (int) $ver->versionnumber;
         }
 
+        $versionusagecount = (int) $ver->usagecount;
+        $candelete = !$islatest && $versionusagecount === 0;
+        if ($islatest) {
+            $deleteblockedreason = get_string('library:versionislatest', 'cmi5');
+        } else if ($versionusagecount === 1) {
+            $deleteblockedreason = get_string('library:versioninuse_one', 'cmi5');
+        } else if ($versionusagecount > 1) {
+            $deleteblockedreason = get_string('library:versioninuse', 'cmi5', $versionusagecount);
+        } else {
+            $deleteblockedreason = '';
+        }
+
         $versionsdata[] = [
             'id' => (int) $ver->id,
             'versionnumber' => (int) $ver->versionnumber,
@@ -443,6 +522,13 @@ if ($action === 'view' && $packageid) {
             'candownload' => ((int) $ver->source === \mod_cmi5\content_library::SOURCE_ZIP),
             'downloadurl' => (new moodle_url('/mod/cmi5/library.php', [
                 'action' => 'download',
+                'packageid' => $packageid,
+                'versionid' => $ver->id,
+            ]))->out(false),
+            'candelete' => $candelete,
+            'deleteblockedreason' => $deleteblockedreason,
+            'deleteurl' => (new moodle_url('/mod/cmi5/library.php', [
+                'action' => 'confirmdelete',
                 'packageid' => $packageid,
                 'versionid' => $ver->id,
             ]))->out(false),
