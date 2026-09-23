@@ -309,7 +309,8 @@
 }
 
 .mod-cmi5-view,
-.mod-cmi5-launch-frame {
+.mod-cmi5-launch-frame,
+.mod-cmi5-library {
     --c5-ink: #1b2033;
     --c5-ink-2: #505869;
     --c5-ink-3: #636a7d;
@@ -340,7 +341,8 @@
 }
 
 [data-bs-theme=dark] .mod-cmi5-view,
-[data-bs-theme=dark] .mod-cmi5-launch-frame {
+[data-bs-theme=dark] .mod-cmi5-launch-frame,
+[data-bs-theme=dark] .mod-cmi5-library {
     --c5-ink: #e6e8ee;
     --c5-ink-2: #b4bac7;
     --c5-ink-3: #9aa1b0;
@@ -1450,5 +1452,549 @@
     .mod-cmi5-spinner,
     .mod-cmi5-frame-steps li.is-current::before {
         animation-duration: 2.4s;
+    }
+}
+
+/* Content library: package detail. Shares the activity view's tokens and furniture. */
+
+.mod-cmi5-library {
+    color: var(--c5-ink);
+}
+
+.mod-cmi5-library code {
+    color: var(--c5-ink-2);
+    font-size: 0.8125rem;
+    overflow-wrap: anywhere;
+}
+
+.mod-cmi5-lib-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 1rem;
+    color: var(--c5-accent);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.mod-cmi5-lib-back:hover {
+    color: var(--c5-accent-hover);
+    text-decoration: none;
+}
+
+.mod-cmi5-lib-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.mod-cmi5-lib-head-text {
+    flex: 1 1 20rem;
+    min-width: 0;
+}
+
+.mod-cmi5-lib-title {
+    margin: 0;
+    font-size: 1.625rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+.mod-cmi5-lib-desc {
+    margin: 0.25rem 0 0;
+    color: var(--c5-ink-2);
+    font-size: 0.875rem;
+}
+
+/* The add-version form: a disclosure whose summary is the page's primary action. */
+
+.mod-cmi5-lib-addversion {
+    flex: 0 0 auto;
+}
+
+.mod-cmi5-lib-addversion > summary {
+    display: inline-flex;
+    list-style: none;
+}
+
+.mod-cmi5-lib-addversion > summary::-webkit-details-marker {
+    display: none;
+}
+
+.mod-cmi5-lib-addversion > summary::marker {
+    content: "";
+}
+
+.mod-cmi5-lib-addversion > summary:focus-visible {
+    outline: 2px solid var(--c5-accent);
+    outline-offset: 2px;
+}
+
+.mod-cmi5-lib-form {
+    width: min(32rem, 100%);
+    margin-top: 0.75rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--c5-line);
+    border-radius: 14px;
+    background-color: var(--c5-surface);
+}
+
+.mod-cmi5-lib-form .form-group:last-of-type {
+    margin-bottom: 0.75rem;
+}
+
+/* Summary card: the same shape as the learner progress card. */
+
+.mod-cmi5-lib-summary {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    border: 1px solid var(--c5-line);
+    border-radius: 14px;
+    background-color: var(--c5-sunken);
+}
+
+.mod-cmi5-lib-summary-main {
+    flex: 1 1 22rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.625rem;
+    padding: 1rem 1.5rem;
+}
+
+.mod-cmi5-lib-count {
+    display: flex;
+    align-items: baseline;
+    gap: 0.625rem;
+    margin: 0;
+}
+
+.mod-cmi5-lib-count-number {
+    font-size: 1.625rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.mod-cmi5-lib-count-label {
+    color: var(--c5-ink-2);
+    font-size: 0.875rem;
+}
+
+.mod-cmi5-lib-facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.25rem 1rem;
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.mod-cmi5-lib-facts dt {
+    color: var(--c5-ink-2);
+    font-weight: 600;
+}
+
+.mod-cmi5-lib-facts dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.mod-cmi5-lib-summary-version {
+    flex: 0 0 26rem;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0;
+    padding: 1rem 1.25rem 1rem 1.5rem;
+    border-left: 1px solid var(--c5-line);
+    background-color: var(--c5-surface);
+}
+
+.mod-cmi5-lib-summary-version-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mod-cmi5-lib-showing {
+    color: var(--c5-ink-2);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-lib-version-line {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mod-cmi5-lib-version-number {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.mod-cmi5-lib-version-meta {
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+}
+
+.mod-cmi5-lib-older-meta {
+    color: var(--c5-ink-2);
+    font-size: 0.8125rem;
+}
+
+/* Rows shared by the structure tree and the version list. */
+
+.mod-cmi5-lib-tree,
+.mod-cmi5-lib-versions {
+    border: 1px solid var(--c5-line);
+    border-radius: 14px;
+    overflow: hidden;
+    background-color: var(--c5-surface);
+}
+
+.mod-cmi5-lib-row {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 56px;
+    padding: 0.5rem 1.5rem;
+    margin: 0;
+    border: 0;
+    border-top: 1px solid var(--c5-line-soft);
+    background-color: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+.mod-cmi5-lib-tree-head {
+    min-height: 40px;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top: 0;
+    background-color: var(--c5-sunken);
+    color: var(--c5-ink-3);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-lib-cell-main {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    min-width: 0;
+}
+
+.mod-cmi5-lib-cell-moveon {
+    flex: 0 0 176px;
+    font-size: 0.8125rem;
+    color: var(--c5-ink-2);
+}
+
+.mod-cmi5-lib-cell-mastery {
+    flex: 0 0 120px;
+    font-size: 0.8125rem;
+    color: var(--c5-ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.mod-cmi5-lib-cell-toggle {
+    flex: 0 0 40px;
+    display: flex;
+    justify-content: flex-end;
+    color: var(--c5-ink-3);
+}
+
+.mod-cmi5-lib-cell-usage {
+    flex: 0 0 140px;
+    font-size: 0.875rem;
+}
+
+.mod-cmi5-lib-cell-action {
+    flex: 0 0 172px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Course: the root of the cmi5 structure. */
+
+.mod-cmi5-lib-course {
+    min-height: 56px;
+    border-top-color: var(--c5-line);
+    background-color: var(--c5-surface);
+}
+
+.mod-cmi5-lib-course-icon {
+    flex: 0 0 auto;
+    color: var(--c5-accent);
+}
+
+.mod-cmi5-lib-course-title {
+    font-size: 1rem;
+    font-weight: 650;
+}
+
+.mod-cmi5-lib-course-meta {
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+/* Blocks: group headers the units sit inside. */
+
+.mod-cmi5-lib-block {
+    min-height: 48px;
+    background-color: var(--c5-sunken);
+}
+
+.mod-cmi5-lib-block-icon {
+    flex: 0 0 auto;
+    color: var(--c5-accent);
+}
+
+.mod-cmi5-lib-block-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-lib-block-meta {
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+}
+
+.mod-cmi5-lib-block-id {
+    min-width: 0;
+    margin-left: auto;
+    padding-left: 1rem;
+    color: var(--c5-ink-faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+
+/* Units: the whole row is the disclosure control for its details. */
+
+.mod-cmi5-lib-au-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.mod-cmi5-lib-au-row:hover {
+    background-color: var(--c5-sunken);
+}
+
+.mod-cmi5-lib-au-row:focus-visible {
+    outline: 2px solid var(--c5-accent);
+    outline-offset: -2px;
+}
+
+.mod-cmi5-lib-au-row[aria-expanded="true"] {
+    background-color: var(--c5-open-bg);
+}
+
+.mod-cmi5-lib-au-row[aria-expanded="true"] .mod-cmi5-lib-chevron {
+    transform: rotate(180deg);
+    color: var(--c5-accent);
+}
+
+.mod-cmi5-lib-chevron {
+    transition: transform 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mod-cmi5-lib-chevron,
+    .mod-cmi5-lib-au-row {
+        transition: none;
+    }
+}
+
+.mod-cmi5-lib-rail {
+    flex: 0 0 auto;
+    align-self: stretch;
+    width: 22px;
+    margin-left: 5px;
+    border-left: 2px solid var(--c5-line);
+}
+
+.mod-cmi5-lib-au-glyph {
+    flex: 0 0 auto;
+    display: block;
+}
+
+.mod-cmi5-lib-au-glyph circle {
+    fill: var(--c5-surface);
+    stroke: #b8becb;
+    stroke-width: 2;
+}
+
+[data-bs-theme=dark] .mod-cmi5-lib-au-glyph circle {
+    stroke: #5d6477;
+}
+
+.mod-cmi5-lib-au-glyph text {
+    fill: var(--c5-ink-2);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.mod-cmi5-lib-au-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mod-cmi5-lib-tag-outline {
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 11px;
+    border: 1px dashed var(--c5-control-border);
+    border-radius: 999px;
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.mod-cmi5-lib-none {
+    color: var(--c5-ink-faint);
+}
+
+/* Unit details, opened in place under their row. */
+
+.mod-cmi5-lib-au-detail {
+    padding: 0.25rem 1.5rem 1.125rem 4.0625rem;
+    background-color: var(--c5-open-bg);
+}
+
+.mod-cmi5-lib-au-detail[hidden] {
+    display: none;
+}
+
+.mod-cmi5-lib-au-desc {
+    max-width: 44rem;
+    margin: 0 0 0.75rem;
+    color: var(--c5-ink-2);
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+.mod-cmi5-lib-detail-grid {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
+    gap: 0.375rem 1rem;
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.mod-cmi5-lib-detail-grid dt {
+    color: var(--c5-ink-2);
+    font-weight: 600;
+}
+
+.mod-cmi5-lib-detail-grid dd {
+    min-width: 0;
+    margin: 0;
+}
+
+.mod-cmi5-lib-footnote {
+    margin: 0.875rem 0 0;
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+}
+
+/* Version list. */
+
+.mod-cmi5-lib-version.is-viewing {
+    background-color: var(--c5-open-bg);
+}
+
+.mod-cmi5-lib-version-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.mod-cmi5-lib-showing-tag {
+    color: var(--c5-accent);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-lib-changelog {
+    margin: 0.25rem 0 0;
+    padding-left: 1.125rem;
+    color: var(--c5-ink-2);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+@media (max-width: 991px) {
+    .mod-cmi5-lib-detail-grid {
+        grid-template-columns: max-content minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 767px) {
+    .mod-cmi5-lib-summary-version {
+        flex: 1 1 100%;
+        border-top: 1px solid var(--c5-line);
+        border-left: 0;
+    }
+
+    .mod-cmi5-lib-row {
+        flex-wrap: wrap;
+        gap: 0.25rem 0.75rem;
+        padding: 0.75rem 1rem;
+    }
+
+    .mod-cmi5-lib-tree-head {
+        display: none;
+    }
+
+    .mod-cmi5-lib-cell-main {
+        flex: 1 1 100%;
+    }
+
+    .mod-cmi5-lib-cell-moveon,
+    .mod-cmi5-lib-cell-mastery,
+    .mod-cmi5-lib-cell-usage,
+    .mod-cmi5-lib-cell-action {
+        flex: 0 0 auto;
+    }
+
+    .mod-cmi5-lib-cell-toggle {
+        flex: 1 1 auto;
+    }
+
+    .mod-cmi5-lib-block-id {
+        flex: 1 1 100%;
+        margin-left: 0;
+        padding-left: 0;
+    }
+
+    .mod-cmi5-lib-au-detail {
+        padding-left: 1rem;
     }
 }

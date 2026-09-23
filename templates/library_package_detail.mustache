@@ -1,103 +1,113 @@
 {{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
     @template mod_cmi5/library_package_detail
 
-    Content Library package detail page template with versioning.
+    Content Library package detail page: the version's block and AU hierarchy, its version
+    history, and the form for adding a version.
 
     Context variables required:
-    * title - package title
-    * description - package description
-    * courseid_iri - course ID IRI from cmi5.xml
-    * source - source type string
-    * usagecount - number of activities using this version
-    * timecreated - formatted creation date
-    * versionnumber - current version number
-    * versioncount - total number of versions
-    * hasaus - bool
-    * aus - array of AU objects
-    * hasblocks - bool
-    * blocks - array of block objects
-    * backurl - URL back to library list
-    * hasversions - bool
-    * versions - array of version objects
-    * packageid - package ID
-    * iszip - bool, whether this is a ZIP package
-    * isexternal - bool, whether this is an external AU package
-    * uploadversionurl - URL for uploading new version
-    * updateauurl - URL for updating external AU
-    * sesskey - session key
-    * hasprofiles - bool
-    * profiles - array of profile objects
+    * title, description, hasdescription - package title and description
+    * courseid_iri, source, timecreated, uploadername - version facts
+    * usagecount, hasusage, usagelabel - activities using the shown version
+    * hasprofile, profilename - launch parameter profile
+    * versionnumber, versioncount, islatest, isolderversion - version state
+    * latestversionnumber, latestversionurl - where to go when an older version is shown
+    * structure - ordered rows; each is either a block (isblock, title, blockid, indent,
+      aucountlabel) or an AU (isau, rowid, detailid, index, title, description, auid, url,
+      launchmethod, moveoncriteria, masteryscore, launchparameters, entitlementkey, isexternal,
+      nested, orphan, indent, hasparent, parenttitle)
+    * hasstructure, aucount, blockcount, structuresummary, aulabel
+    * isstructuretab, isversionstab, structuretaburl, versionstaburl, usagetaburl
+    * versions, hasversions - version history rows
+    * canaddversion, iszip, isexternal, uploadversionurl, updateauurl, sesskey
+    * hasprofiles, profiles - launch profiles for the add-version form
+    * backurl - URL back to the library list
+
+    Example context (json):
+    {
+        "title": "Aviation Safety Fundamentals",
+        "hasdescription": true,
+        "description": "Ramp and emergency response training.",
+        "source": "ZIP upload",
+        "timecreated": "14/08/26, 09:22",
+        "uploadername": "Dana Whitfield",
+        "usagelabel": "6 activities",
+        "hasusage": true,
+        "versionnumber": 4,
+        "versioncount": 4,
+        "islatest": true,
+        "aucount": 1,
+        "blockcount": 1,
+        "structuresummary": "1 assignable unit in 1 block",
+        "hasstructure": true,
+        "isstructuretab": true,
+        "structure": [
+            {"isblock": true, "title": "Ground Operations", "blockid": "https://example.org/ground",
+                "indent": 0, "aucountlabel": "1 unit"},
+            {"isau": true, "rowid": "cmi5-au-7", "detailid": "cmi5-au-detail-7", "index": 1,
+                "title": "Ramp Safety Awareness", "auid": "https://example.org/ramp",
+                "url": "ramp/index.html", "launchmethod": "AnyWindow",
+                "moveoncriteria": "CompletedAndPassed", "hasmasteryscore": true,
+                "masteryscore": "0.8", "nested": true, "indent": 0,
+                "hasparent": true, "parenttitle": "Ground Operations"}
+        ],
+        "hasversions": true,
+        "versions": [
+            {"versionnumber": 4, "islatest": true, "isviewing": true, "timecreated": "14/08/26",
+                "uploadername": "Dana Whitfield", "usagelabel": "6 activities", "viewurl": "#"}
+        ],
+        "backurl": "#"
+    }
 }}
 
-<div class="mod-cmi5-library-detail">
+<div class="mod-cmi5-library">
 
-    <div class="mb-3">
-        <a href="{{backurl}}" class="btn btn-outline-secondary">
-            &laquo; {{#str}}library:backtolibrary, cmi5{{/str}}
-        </a>
-    </div>
+    <a href="{{backurl}}" class="mod-cmi5-lib-back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        {{#str}}library:backtolibrary, cmi5{{/str}}
+    </a>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h3 class="card-title">
-                {{title}}
-                <span class="badge badge-info bg-info">v{{versionnumber}}</span>
-            </h3>
-            {{#description}}
-            <p class="card-text text-muted">{{description}}</p>
-            {{/description}}
-
-            <table class="table table-sm table-borderless mt-3" style="max-width: 500px;">
-                {{#courseid_iri}}
-                <tr>
-                    <th>{{#str}}library:courseidiri, cmi5{{/str}}</th>
-                    <td><code>{{courseid_iri}}</code></td>
-                </tr>
-                {{/courseid_iri}}
-                <tr>
-                    <th>{{#str}}library:source, cmi5{{/str}}</th>
-                    <td>{{source}}</td>
-                </tr>
-                <tr>
-                    <th>{{#str}}library:usagecount, cmi5{{/str}}</th>
-                    <td>{{usagecount}}</td>
-                </tr>
-                <tr>
-                    <th>{{#str}}library:timecreated, cmi5{{/str}}</th>
-                    <td>{{timecreated}}</td>
-                </tr>
-                {{#hasprofile}}
-                <tr>
-                    <th>{{#str}}library:launchprofile, cmi5{{/str}}</th>
-                    <td>{{profilename}}</td>
-                </tr>
-                {{/hasprofile}}
-                <tr>
-                    <th>{{#str}}library:versions, cmi5{{/str}}</th>
-                    <td>{{versioncount}}</td>
-                </tr>
-            </table>
+    <div class="mod-cmi5-lib-head">
+        <div class="mod-cmi5-lib-head-text">
+            <h2 class="mod-cmi5-lib-title">{{title}}</h2>
+            {{#hasdescription}}
+            <p class="mod-cmi5-lib-desc">{{{description}}}</p>
+            {{/hasdescription}}
         </div>
-    </div>
+        {{#canaddversion}}
+        <details class="mod-cmi5-lib-addversion">
+            <summary class="mod-cmi5-btn mod-cmi5-btn-tinted">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>
+                {{#iszip}}{{#str}}library:uploadnewversion, cmi5{{/str}}{{/iszip}}
+                {{#isexternal}}{{#str}}library:updateexternal, cmi5{{/str}}{{/isexternal}}
+            </summary>
 
-    {{! Upload new version form }}
-    {{#iszip}}
-    <div class="mb-4">
-        <button type="button" class="btn btn-primary" data-toggle="collapse" data-target="#upload-version-form"
-                data-bs-toggle="collapse" data-bs-target="#upload-version-form">
-            {{#str}}library:uploadnewversion, cmi5{{/str}}
-        </button>
-        <div id="upload-version-form" class="collapse card card-body mt-2">
-            <form method="post" action="{{uploadversionurl}}" enctype="multipart/form-data">
+            {{#iszip}}
+            <form method="post" action="{{uploadversionurl}}" enctype="multipart/form-data" class="mod-cmi5-lib-form">
                 <input type="hidden" name="sesskey" value="{{sesskey}}">
                 <div class="form-group">
-                    <label for="version-file">{{#str}}packagefile, cmi5{{/str}}</label>
-                    <input type="file" name="packagezip" id="version-file" class="form-control" accept=".zip" required>
+                    <label for="cmi5-version-file">{{#str}}packagefile, cmi5{{/str}}</label>
+                    <input type="file" name="packagezip" id="cmi5-version-file" class="form-control" accept=".zip" required>
                 </div>
                 {{#hasprofiles}}
                 <div class="form-group">
-                    <label for="version-profileid">{{#str}}library:launchprofile, cmi5{{/str}}</label>
-                    <select name="profileid" id="version-profileid" class="form-control">
+                    <label for="cmi5-version-profileid">{{#str}}library:launchprofile, cmi5{{/str}}</label>
+                    <select name="profileid" id="cmi5-version-profileid" class="form-control">
                         <option value="0">{{#str}}profile:none, cmi5{{/str}}</option>
                         {{#profiles}}
                         <option value="{{id}}">{{name}}</option>
@@ -105,49 +115,40 @@
                     </select>
                 </div>
                 {{/hasprofiles}}
-                <button type="submit" class="btn btn-primary">{{#str}}library:uploadnewversion, cmi5{{/str}}</button>
+                <button type="submit" class="mod-cmi5-btn mod-cmi5-btn-primary">{{#str}}library:uploadnewversion, cmi5{{/str}}</button>
             </form>
-        </div>
-    </div>
-    {{/iszip}}
+            {{/iszip}}
 
-    {{! Update external AU form }}
-    {{#isexternal}}
-    <div class="mb-4">
-        <button type="button" class="btn btn-primary" data-toggle="collapse" data-target="#update-au-form"
-                data-bs-toggle="collapse" data-bs-target="#update-au-form">
-            {{#str}}library:updateexternal, cmi5{{/str}}
-        </button>
-        <div id="update-au-form" class="collapse card card-body mt-2">
-            <form method="post" action="{{updateauurl}}">
+            {{#isexternal}}
+            <form method="post" action="{{updateauurl}}" class="mod-cmi5-lib-form">
                 <input type="hidden" name="sesskey" value="{{sesskey}}">
                 <div class="form-group">
-                    <label for="upd-au-title">{{#str}}library:title, cmi5{{/str}} *</label>
-                    <input type="text" name="autitle" id="upd-au-title" class="form-control" required>
+                    <label for="cmi5-upd-au-title">{{#str}}library:title, cmi5{{/str}}</label>
+                    <input type="text" name="autitle" id="cmi5-upd-au-title" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label for="upd-au-iri">{{#str}}library:auid, cmi5{{/str}} *</label>
-                    <input type="text" name="auirid" id="upd-au-iri" class="form-control" required>
+                    <label for="cmi5-upd-au-iri">{{#str}}library:auid, cmi5{{/str}}</label>
+                    <input type="text" name="auirid" id="cmi5-upd-au-iri" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label for="upd-au-url">{{#str}}library:auurl, cmi5{{/str}} *</label>
-                    <input type="url" name="auurl" id="upd-au-url" class="form-control" required>
+                    <label for="cmi5-upd-au-url">{{#str}}library:auurl, cmi5{{/str}}</label>
+                    <input type="url" name="auurl" id="cmi5-upd-au-url" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label for="upd-au-desc">{{#str}}library:description, cmi5{{/str}}</label>
-                    <textarea name="audescription" id="upd-au-desc" class="form-control" rows="2"></textarea>
+                    <label for="cmi5-upd-au-desc">{{#str}}library:description, cmi5{{/str}}</label>
+                    <textarea name="audescription" id="cmi5-upd-au-desc" class="form-control" rows="2"></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group col-md-6">
-                        <label for="upd-au-launch">{{#str}}launchmethod, cmi5{{/str}}</label>
-                        <select name="aulaunchmethod" id="upd-au-launch" class="form-control">
+                        <label for="cmi5-upd-au-launch">{{#str}}launchmethod, cmi5{{/str}}</label>
+                        <select name="aulaunchmethod" id="cmi5-upd-au-launch" class="form-control">
                             <option value="AnyWindow">AnyWindow</option>
                             <option value="OwnWindow">OwnWindow</option>
                         </select>
                     </div>
                     <div class="form-group col-md-6">
-                        <label for="upd-au-moveon">{{#str}}library:moveoncriteria, cmi5{{/str}}</label>
-                        <select name="aumoveoncriteria" id="upd-au-moveon" class="form-control">
+                        <label for="cmi5-upd-au-moveon">{{#str}}library:moveoncriteria, cmi5{{/str}}</label>
+                        <select name="aumoveoncriteria" id="cmi5-upd-au-moveon" class="form-control">
                             <option value="NotApplicable">NotApplicable</option>
                             <option value="Completed">Completed</option>
                             <option value="Passed">Passed</option>
@@ -158,8 +159,8 @@
                 </div>
                 {{#hasprofiles}}
                 <div class="form-group">
-                    <label for="upd-au-profileid">{{#str}}library:launchprofile, cmi5{{/str}}</label>
-                    <select name="profileid" id="upd-au-profileid" class="form-control">
+                    <label for="cmi5-upd-au-profileid">{{#str}}library:launchprofile, cmi5{{/str}}</label>
+                    <select name="profileid" id="cmi5-upd-au-profileid" class="form-control">
                         <option value="0">{{#str}}profile:none, cmi5{{/str}}</option>
                         {{#profiles}}
                         <option value="{{id}}">{{name}}</option>
@@ -167,111 +168,232 @@
                     </select>
                 </div>
                 {{/hasprofiles}}
-                <button type="submit" class="btn btn-primary">{{#str}}library:updateexternal, cmi5{{/str}}</button>
+                <button type="submit" class="mod-cmi5-btn mod-cmi5-btn-primary">{{#str}}library:updateexternal, cmi5{{/str}}</button>
             </form>
-        </div>
+            {{/isexternal}}
+        </details>
+        {{/canaddversion}}
     </div>
-    {{/isexternal}}
 
-    {{! Assignable Units }}
-    {{#hasaus}}
-    <h4>{{#str}}library:assignableunits, cmi5{{/str}}</h4>
-    <table class="table table-striped mb-4">
-        <thead>
-            <tr>
-                <th>{{#str}}library:title, cmi5{{/str}}</th>
-                <th>{{#str}}library:auid, cmi5{{/str}}</th>
-                <th>{{#str}}library:auurl, cmi5{{/str}}</th>
-                <th>{{#str}}launchmethod, cmi5{{/str}}</th>
-                <th>{{#str}}library:moveoncriteria, cmi5{{/str}}</th>
-                <th>{{#str}}library:masteryscore, cmi5{{/str}}</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{#aus}}
-            <tr>
-                <td>
-                    {{title}}
-                    {{#isexternal}}
-                        <span class="badge badge-info">{{#str}}library:external, cmi5{{/str}}</span>
-                    {{/isexternal}}
-                </td>
-                <td><code class="small">{{auid}}</code></td>
-                <td class="small text-truncate" style="max-width: 200px;">{{url}}</td>
-                <td>{{launchmethod}}</td>
-                <td>{{moveoncriteria}}</td>
-                <td>
+    {{#isolderversion}}
+    <section class="mod-cmi5-update" aria-labelledby="mod-cmi5-lib-older-title">
+        <span class="mod-cmi5-update-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+        </span>
+        <div class="mod-cmi5-update-body">
+            <div class="mod-cmi5-update-title" id="mod-cmi5-lib-older-title">
+                {{olderversiontitle}}
+            </div>
+            <div class="mod-cmi5-lib-older-meta">{{#str}}library:olderversiondesc, cmi5, {{latestversionnumber}}{{/str}}</div>
+        </div>
+        <a href="{{latestversionurl}}" class="mod-cmi5-btn mod-cmi5-btn-primary">{{#str}}library:gotolatest, cmi5, {{latestversionnumber}}{{/str}}</a>
+    </section>
+    {{/isolderversion}}
+
+    <section class="mod-cmi5-lib-summary" aria-label="{{#str}}library:packagesummary, cmi5{{/str}}">
+        <div class="mod-cmi5-lib-summary-main">
+            <p class="mod-cmi5-lib-count">
+                <span class="mod-cmi5-lib-count-number" aria-hidden="true">{{aucount}}</span>
+                <span class="mod-cmi5-lib-count-label">{{structuresummary}}</span>
+            </p>
+            <dl class="mod-cmi5-lib-facts">
+                <dt>{{#str}}library:source, cmi5{{/str}}</dt>
+                <dd>{{source}} &middot; {{uploadedlabel}}</dd>
+                {{#courseid_iri}}
+                <dt>{{#str}}library:courseidiri, cmi5{{/str}}</dt>
+                <dd><code>{{courseid_iri}}</code></dd>
+                {{/courseid_iri}}
+                {{#hasprofile}}
+                <dt>{{#str}}library:launchprofile, cmi5{{/str}}</dt>
+                <dd>{{profilename}}</dd>
+                {{/hasprofile}}
+            </dl>
+        </div>
+        <div class="mod-cmi5-lib-summary-version">
+            <div class="mod-cmi5-lib-summary-version-text">
+                <div class="mod-cmi5-lib-showing">{{#str}}library:showingversion, cmi5{{/str}}</div>
+                <div class="mod-cmi5-lib-version-line">
+                    <span class="mod-cmi5-lib-version-number">v{{versionnumber}}</span>
+                    {{#islatest}}
+                    <span class="mod-cmi5-pill mod-cmi5-status-satisfied">{{#str}}library:latest, cmi5{{/str}}</span>
+                    {{/islatest}}
+                    {{^islatest}}
+                    <span class="mod-cmi5-pill mod-cmi5-status-notstarted">{{#str}}library:olderversion, cmi5{{/str}}</span>
+                    {{/islatest}}
+                </div>
+                <div class="mod-cmi5-lib-version-meta">
+                    {{#hasusage}}<a href="{{usagetaburl}}">{{usagelabel}}</a>{{/hasusage}}
+                    {{^hasusage}}{{usagelabel}}{{/hasusage}}
+                </div>
+            </div>
+            <a href="{{versionstaburl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}library:changeversion, cmi5{{/str}}</a>
+        </div>
+    </section>
+
+    <nav aria-label="{{#str}}library:packagenavigation, cmi5{{/str}}">
+        <ul class="mod-cmi5-tabs">
+            <li class="mod-cmi5-tab{{#isstructuretab}} is-active{{/isstructuretab}}">
+                <a class="mod-cmi5-tab-link" href="{{structuretaburl}}"{{#isstructuretab}} aria-current="page"{{/isstructuretab}}>
+                    {{#str}}library:structure, cmi5{{/str}}
+                    <span class="mod-cmi5-tab-count">{{aucount}}</span>
+                </a>
+            </li>
+            <li class="mod-cmi5-tab{{#isversionstab}} is-active{{/isversionstab}}">
+                <a class="mod-cmi5-tab-link" href="{{versionstaburl}}"{{#isversionstab}} aria-current="page"{{/isversionstab}}>
+                    {{#str}}library:versions, cmi5{{/str}}
+                    <span class="mod-cmi5-tab-count">{{versioncount}}</span>
+                </a>
+            </li>
+            <li class="mod-cmi5-tab">
+                <a class="mod-cmi5-tab-link" href="{{usagetaburl}}">
+                    {{#str}}library:usagetab, cmi5{{/str}}
+                    <span class="mod-cmi5-tab-count">{{usagecount}}</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    {{#isstructuretab}}
+    {{#hasstructure}}
+    <div class="mod-cmi5-lib-tree" data-region="cmi5-structure">
+        <div class="mod-cmi5-lib-row mod-cmi5-lib-tree-head" aria-hidden="true">
+            <span class="mod-cmi5-lib-cell-main">{{#str}}library:structureitem, cmi5{{/str}}</span>
+            <span class="mod-cmi5-lib-cell-moveon">{{#str}}library:moveoncriteria, cmi5{{/str}}</span>
+            <span class="mod-cmi5-lib-cell-mastery">{{#str}}library:masteryscore, cmi5{{/str}}</span>
+            <span class="mod-cmi5-lib-cell-toggle"></span>
+        </div>
+
+        <div class="mod-cmi5-lib-row mod-cmi5-lib-course">
+            <span class="mod-cmi5-lib-cell-main">
+                <svg class="mod-cmi5-lib-course-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
+                <span class="mod-cmi5-lib-course-title">{{title}}</span>
+                <span class="mod-cmi5-lib-course-meta">{{#str}}library:course, cmi5{{/str}}</span>
+            </span>
+        </div>
+
+        {{#structure}}
+        {{#isblock}}
+        <div class="mod-cmi5-lib-row mod-cmi5-lib-block">
+            <span class="mod-cmi5-lib-cell-main" style="padding-left: {{indent}}px;">
+                <svg class="mod-cmi5-lib-block-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V7a2 2 0 0 1 2-2h3.5l2 2.5H18a2 2 0 0 1 2 2V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z"/></svg>
+                <span class="mod-cmi5-lib-block-title">{{title}}</span>
+                <span class="mod-cmi5-lib-block-meta">{{#str}}library:block, cmi5{{/str}} &middot; {{aucountlabel}}</span>
+            </span>
+            <code class="mod-cmi5-lib-block-id">{{blockid}}</code>
+        </div>
+        {{/isblock}}
+
+        {{#isau}}
+        <div class="mod-cmi5-lib-au">
+            <button type="button" class="mod-cmi5-lib-row mod-cmi5-lib-au-row" id="{{rowid}}"
+                    data-action="cmi5-toggle-au" aria-expanded="false" aria-controls="{{detailid}}">
+                <span class="mod-cmi5-lib-cell-main" style="padding-left: {{indent}}px;">
+                    {{#nested}}<span class="mod-cmi5-lib-rail" aria-hidden="true"></span>{{/nested}}
+                    <svg class="mod-cmi5-lib-au-glyph" width="24" height="24" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+                        <circle cx="16" cy="16" r="13"/>
+                        <text x="16" y="21.2" text-anchor="middle">{{index}}</text>
+                    </svg>
+                    <span class="mod-cmi5-lib-au-title">{{title}}</span>
+                    {{#isexternal}}<span class="mod-cmi5-pill mod-cmi5-status-notstarted">{{#str}}library:external, cmi5{{/str}}</span>{{/isexternal}}
+                    {{#orphan}}<span class="mod-cmi5-lib-tag-outline">{{#str}}library:notinablock, cmi5{{/str}}</span>{{/orphan}}
+                </span>
+                <span class="mod-cmi5-lib-cell-moveon">{{moveoncriteria}}</span>
+                <span class="mod-cmi5-lib-cell-mastery">
                     {{#hasmasteryscore}}{{masteryscore}}{{/hasmasteryscore}}
-                    {{^hasmasteryscore}}&mdash;{{/hasmasteryscore}}
-                </td>
-            </tr>
-            {{/aus}}
-        </tbody>
-    </table>
-    {{/hasaus}}
+                    {{^hasmasteryscore}}<span class="mod-cmi5-lib-none">&mdash;</span>{{/hasmasteryscore}}
+                </span>
+                <span class="mod-cmi5-lib-cell-toggle">
+                    <svg class="mod-cmi5-lib-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
+                </span>
+            </button>
 
-    {{! Blocks }}
-    {{#hasblocks}}
-    <h4>{{#str}}library:blocks, cmi5{{/str}}</h4>
-    <table class="table table-striped mb-4">
-        <thead>
-            <tr>
-                <th>{{#str}}library:title, cmi5{{/str}}</th>
-                <th>{{#str}}library:blockid, cmi5{{/str}}</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{#blocks}}
-            <tr>
-                <td>{{title}}</td>
-                <td><code class="small">{{blockid}}</code></td>
-            </tr>
-            {{/blocks}}
-        </tbody>
-    </table>
-    {{/hasblocks}}
+            <div class="mod-cmi5-lib-au-detail" id="{{detailid}}" role="region" aria-labelledby="{{rowid}}" hidden>
+                {{#hasdescription}}
+                <p class="mod-cmi5-lib-au-desc">{{{description}}}</p>
+                {{/hasdescription}}
+                <dl class="mod-cmi5-lib-detail-grid">
+                    <dt>{{#str}}library:auid, cmi5{{/str}}</dt>
+                    <dd><code>{{auid}}</code></dd>
+                    <dt>{{#str}}library:auurl, cmi5{{/str}}</dt>
+                    <dd><code>{{url}}</code></dd>
+                    <dt>{{#str}}launchmethod, cmi5{{/str}}</dt>
+                    <dd>{{launchmethod}}</dd>
+                    <dt>{{#str}}library:launchparameters, cmi5{{/str}}</dt>
+                    <dd>
+                        {{#haslaunchparameters}}<code>{{launchparameters}}</code>{{/haslaunchparameters}}
+                        {{^haslaunchparameters}}<span class="mod-cmi5-lib-none">{{#str}}library:notset, cmi5{{/str}}</span>{{/haslaunchparameters}}
+                    </dd>
+                    <dt>{{#str}}library:entitlementkey, cmi5{{/str}}</dt>
+                    <dd>
+                        {{#hasentitlementkey}}<code>{{entitlementkey}}</code>{{/hasentitlementkey}}
+                        {{^hasentitlementkey}}<span class="mod-cmi5-lib-none">{{#str}}library:notset, cmi5{{/str}}</span>{{/hasentitlementkey}}
+                    </dd>
+                    <dt>{{#str}}library:parentblock, cmi5{{/str}}</dt>
+                    <dd>
+                        {{#hasparent}}{{parenttitle}}{{/hasparent}}
+                        {{^hasparent}}<span class="mod-cmi5-lib-none">{{#str}}library:toplevel, cmi5{{/str}}</span>{{/hasparent}}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+        {{/isau}}
+        {{/structure}}
+    </div>
+    <p class="mod-cmi5-lib-footnote">{{#str}}library:structurefootnote, cmi5{{/str}}</p>
+    {{/hasstructure}}
 
-    {{! Version History }}
-    {{#hasversions}}
-    <h4>{{#str}}library:versionhistory, cmi5{{/str}}</h4>
-    <table class="table table-striped mb-4">
-        <thead>
-            <tr>
-                <th>{{#str}}library:versions, cmi5{{/str}}</th>
-                <th>{{#str}}library:source, cmi5{{/str}}</th>
-                <th>{{#str}}library:usagecount, cmi5{{/str}}</th>
-                <th>SHA256</th>
-                <th>{{#str}}library:timecreated, cmi5{{/str}}</th>
-                <th>{{#str}}library:changelog, cmi5{{/str}}</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{#versions}}
-            <tr{{#iscurrent}} class="table-active"{{/iscurrent}}>
-                <td>
-                    <a href="{{viewurl}}">v{{versionnumber}}</a>
-                    {{#iscurrent}} <span class="badge badge-primary bg-primary">current</span>{{/iscurrent}}
-                </td>
-                <td>{{source}}</td>
-                <td>{{usagecount}}</td>
-                <td><code class="small">{{sha256hash}}</code></td>
-                <td>{{timecreated}}</td>
-                <td>
+    {{^hasstructure}}
+    <div class="alert alert-info">{{#str}}noaus, cmi5{{/str}}</div>
+    {{/hasstructure}}
+    {{/isstructuretab}}
+
+    {{#isversionstab}}
+    <div class="mod-cmi5-lib-versions">
+        <div class="mod-cmi5-lib-row mod-cmi5-lib-tree-head" aria-hidden="true">
+            <span class="mod-cmi5-lib-cell-main">{{#str}}library:versions, cmi5{{/str}}</span>
+            <span class="mod-cmi5-lib-cell-usage">{{#str}}library:usagecount, cmi5{{/str}}</span>
+            <span class="mod-cmi5-lib-cell-action"></span>
+        </div>
+
+        {{#versions}}
+        <div class="mod-cmi5-lib-row mod-cmi5-lib-version{{#isviewing}} is-viewing{{/isviewing}}">
+            <span class="mod-cmi5-lib-cell-main">
+                <span class="mod-cmi5-lib-version-body">
+                    <span class="mod-cmi5-lib-version-line">
+                        <span class="mod-cmi5-lib-version-number">v{{versionnumber}}</span>
+                        {{#islatest}}<span class="mod-cmi5-pill mod-cmi5-status-satisfied">{{#str}}library:latest, cmi5{{/str}}</span>{{/islatest}}
+                        {{#isviewing}}<span class="mod-cmi5-lib-showing-tag">{{#str}}library:showingnow, cmi5{{/str}}</span>{{/isviewing}}
+                    </span>
+                    <span class="mod-cmi5-lib-version-meta">{{source}} &middot; {{uploadedlabel}}</span>
                     {{#haschangelog}}
-                    <ul class="list-unstyled mb-0 small">
+                    <ul class="mod-cmi5-lib-changelog">
                         {{#changelog}}
                         <li>{{description}}</li>
                         {{/changelog}}
                     </ul>
                     {{/haschangelog}}
                     {{^haschangelog}}
-                    &mdash;
+                    <span class="mod-cmi5-lib-version-meta">{{#str}}library:nochanges, cmi5{{/str}}</span>
                     {{/haschangelog}}
-                </td>
-            </tr>
-            {{/versions}}
-        </tbody>
-    </table>
-    {{/hasversions}}
+                </span>
+            </span>
+            <span class="mod-cmi5-lib-cell-usage">
+                {{#hasusage}}<a href="{{usageurl}}">{{usagelabel}}</a>{{/hasusage}}
+                {{^hasusage}}<span class="mod-cmi5-lib-none">{{usagelabel}}</span>{{/hasusage}}
+            </span>
+            <span class="mod-cmi5-lib-cell-action">
+                {{^isviewing}}
+                <a href="{{viewurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}library:showversion, cmi5{{/str}}</a>
+                {{/isviewing}}
+            </span>
+        </div>
+        {{/versions}}
+    </div>
+    {{/isversionstab}}
 
 </div>
+{{#js}}
+require(['mod_cmi5/library_detail'], function(detail) {
+    detail.init();
+});
+{{/js}}
