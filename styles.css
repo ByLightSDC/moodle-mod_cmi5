@@ -1815,8 +1815,23 @@
 /* Blocks: group headers the units sit inside. */
 
 .mod-cmi5-lib-block {
-    min-height: 48px;
+    min-height: 56px;
     background-color: var(--c5-sunken);
+}
+
+.mod-cmi5-lib-block-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.mod-cmi5-lib-block-line {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0 0.5rem;
+    min-width: 0;
 }
 
 .mod-cmi5-lib-block-icon {
@@ -1825,8 +1840,12 @@
 }
 
 .mod-cmi5-lib-block-title {
+    min-width: 0;
+    overflow: hidden;
     font-size: 0.9375rem;
     font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .mod-cmi5-lib-block-meta {
@@ -1836,9 +1855,9 @@
 }
 
 .mod-cmi5-lib-block-id {
+    display: block;
     min-width: 0;
-    margin-left: auto;
-    padding-left: 1rem;
+    max-width: 100%;
     color: var(--c5-ink-faint);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2032,12 +2051,6 @@
 
     .mod-cmi5-lib-cell-toggle {
         flex: 1 1 auto;
-    }
-
-    .mod-cmi5-lib-block-id {
-        flex: 1 1 100%;
-        margin-left: 0;
-        padding-left: 0;
     }
 
     .mod-cmi5-lib-au-detail {
