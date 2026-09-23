@@ -52,6 +52,16 @@ if ($action === 'delete' && $packageid && confirm_sesskey()) {
     redirect(new moodle_url('/mod/cmi5/library.php'));
 }
 
+// Download the original ZIP uploaded for a specific package version.
+if ($action === 'download') {
+    if (!$packageid || !$versionid) {
+        throw new invalid_parameter_exception('A package and version are required');
+    }
+
+    $archive = \mod_cmi5\content_library::get_version_archive($packageid, $versionid);
+    send_stored_file($archive, 0, 0, true);
+}
+
 if ($action === 'upload' && data_submitted() && confirm_sesskey()) {
     $title = optional_param('title', '', PARAM_TEXT);
     $description = optional_param('description', '', PARAM_TEXT);
@@ -427,6 +437,12 @@ if ($action === 'view' && $packageid) {
             ]))->out(false),
             'usageurl' => (new moodle_url('/mod/cmi5/library.php', [
                 'action' => 'usage',
+                'packageid' => $packageid,
+                'versionid' => $ver->id,
+            ]))->out(false),
+            'candownload' => ((int) $ver->source === \mod_cmi5\content_library::SOURCE_ZIP),
+            'downloadurl' => (new moodle_url('/mod/cmi5/library.php', [
+                'action' => 'download',
                 'packageid' => $packageid,
                 'versionid' => $ver->id,
             ]))->out(false),

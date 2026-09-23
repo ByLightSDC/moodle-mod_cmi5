@@ -365,6 +365,47 @@ class content_library {
     }
 
     /**
+     * Get the original ZIP uploaded for a package version.
+     *
+     * The package ID is checked as part of the lookup so a download URL cannot
+     * combine a valid version with a different package.
+     *
+     * @param int $packageid Package ID expected to own the version.
+     * @param int $versionid Package version ID.
+     * @return \stored_file The original uploaded ZIP.
+     * @throws \moodle_exception If the version is invalid or has no available archive.
+     */
+    public static function get_version_archive(int $packageid, int $versionid): \stored_file {
+        global $DB;
+
+        $version = $DB->get_record('cmi5_package_versions', [
+            'id' => $versionid,
+            'packageid' => $packageid,
+        ]);
+        if (!$version) {
+            throw new \moodle_exception('library:invalidpackageversion', 'cmi5');
+        }
+
+        if ((int) $version->source !== self::SOURCE_ZIP) {
+            throw new \moodle_exception('library:noarchiveforversion', 'cmi5');
+        }
+
+        $files = get_file_storage()->get_area_files(
+            \context_system::instance()->id,
+            'mod_cmi5',
+            'library_package',
+            $versionid,
+            'id ASC',
+            false
+        );
+        if (empty($files)) {
+            throw new \moodle_exception('library:archivefilemissing', 'cmi5');
+        }
+
+        return reset($files);
+    }
+
+    /**
      * Get all versions for a package, ordered by version number descending.
      *
      * @param int $packageid The package ID.

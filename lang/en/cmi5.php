@@ -326,6 +326,11 @@ $string['library:versionoption'] = 'v{$a->number} — {$a->date} ({$a->changes} 
 $string['library:nochanges'] = 'No changes recorded';
 $string['library:updateexternal'] = 'Update external AU';
 $string['library:versionuploaded'] = 'Version {$a} uploaded successfully.';
+$string['library:downloadoriginalzip'] = 'Download ZIP';
+$string['library:noarchive_help'] = 'External/API content has no uploaded ZIP.';
+$string['library:invalidpackageversion'] = 'The requested version does not belong to this package.';
+$string['library:noarchiveforversion'] = 'This version was created from external or API content and has no uploaded ZIP.';
+$string['library:archivefilemissing'] = 'The original ZIP for this version is missing from file storage.';
 
 // Content library package detail page.
 $string['library:structure'] = 'Structure';

@@ -382,6 +382,14 @@
                 {{^hasusage}}<span class="mod-cmi5-lib-none">{{usagelabel}}</span>{{/hasusage}}
             </span>
             <span class="mod-cmi5-lib-cell-action">
+                {{#candownload}}
+                <a href="{{downloadurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">
+                    {{#str}}library:downloadoriginalzip, cmi5{{/str}}
+                </a>
+                {{/candownload}}
+                {{^candownload}}
+                <span class="mod-cmi5-lib-none">{{#str}}library:noarchive_help, cmi5{{/str}}</span>
+                {{/candownload}}
                 {{^isviewing}}
                 <a href="{{viewurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}library:showversion, cmi5{{/str}}</a>
                 {{/isviewing}}

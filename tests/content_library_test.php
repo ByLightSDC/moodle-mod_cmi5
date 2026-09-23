@@ -29,6 +29,72 @@ defined('MOODLE_INTERNAL') || die();
 final class content_library_test extends \advanced_testcase {
 
     /**
+     * The original uploaded filename and content are retained for download.
+     */
+    public function test_get_version_archive_returns_original_zip(): void {
+        $this->resetAfterTest();
+
+        [$package, $version] = $this->create_versioned_package();
+        $filerecord = [
+            'contextid' => \context_system::instance()->id,
+            'component' => 'mod_cmi5',
+            'filearea' => 'library_package',
+            'itemid' => $version->id,
+            'filepath' => '/',
+            'filename' => 'original-course.zip',
+        ];
+        get_file_storage()->create_file_from_string($filerecord, 'original archive content');
+
+        $archive = content_library::get_version_archive($package->id, $version->id);
+
+        $this->assertSame('original-course.zip', $archive->get_filename());
+        $this->assertSame('original archive content', $archive->get_content());
+    }
+
+    /**
+     * A version cannot be downloaded through a different package ID.
+     */
+    public function test_get_version_archive_rejects_package_mismatch(): void {
+        $this->resetAfterTest();
+
+        [$package, $version] = $this->create_versioned_package();
+
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('library:invalidpackageversion', 'cmi5'));
+        content_library::get_version_archive($package->id + 1, $version->id);
+    }
+
+    /**
+     * External content explains that it has no original ZIP.
+     */
+    public function test_get_version_archive_rejects_external_version(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        [$package, $version] = $this->create_versioned_package();
+        $DB->set_field('cmi5_package_versions', 'source', content_library::SOURCE_API,
+            ['id' => $version->id]);
+
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('library:noarchiveforversion', 'cmi5'));
+        content_library::get_version_archive($package->id, $version->id);
+    }
+
+    /**
+     * A ZIP version with a missing stored file produces a specific error.
+     */
+    public function test_get_version_archive_reports_missing_file(): void {
+        $this->resetAfterTest();
+
+        [$package, $version] = $this->create_versioned_package();
+
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('library:archivefilemissing', 'cmi5'));
+        content_library::get_version_archive($package->id, $version->id);
+    }
+
+    /**
      * Actual activity references take precedence over cached usage counts.
      */
     public function test_usage_counts_are_derived_from_activity_references(): void {
