@@ -107,6 +107,83 @@ final class content_library_test extends \advanced_testcase {
     }
 
     /**
+     * Structure rows preserve nesting, ordering and package-wide AU numbering.
+     */
+    public function test_build_structure_tree_preserves_hierarchy_and_counts(): void {
+        $rootblock = (object) [
+            'id' => 1,
+            'parentblockid' => null,
+            'sortorder' => 1,
+        ];
+        $nestedblock = (object) [
+            'id' => 2,
+            'parentblockid' => 1,
+            'sortorder' => 2,
+        ];
+        $emptyblock = (object) [
+            'id' => 3,
+            'parentblockid' => null,
+            'sortorder' => 3,
+        ];
+        $rootau = (object) [
+            'id' => 10,
+            'parentblockid' => 1,
+            'sortorder' => 1,
+        ];
+        $nestedau = (object) [
+            'id' => 11,
+            'parentblockid' => 2,
+            'sortorder' => 1,
+        ];
+        $toplevelau = (object) [
+            'id' => 12,
+            'parentblockid' => null,
+            'sortorder' => 4,
+        ];
+
+        $rows = content_library::build_structure_tree(
+            [$rootblock, $nestedblock, $emptyblock],
+            [$rootau, $nestedau, $toplevelau]
+        );
+
+        $this->assertSame([
+            ['block', 1, 0, 2, null],
+            ['au', 10, 1, null, 1],
+            ['block', 2, 1, 1, null],
+            ['au', 11, 2, null, 2],
+            ['block', 3, 0, 0, null],
+            ['au', 12, 0, null, 3],
+        ], array_map(static function(array $row): array {
+            return [
+                $row['type'],
+                (int) $row['record']->id,
+                (int) $row['depth'],
+                isset($row['aucount']) ? (int) $row['aucount'] : null,
+                isset($row['index']) ? (int) $row['index'] : null,
+            ];
+        }, $rows));
+    }
+
+    /**
+     * Invalid parent links do not cause structure rows to disappear.
+     */
+    public function test_build_structure_tree_keeps_orphans_and_cycles(): void {
+        $cyclea = (object) ['id' => 1, 'parentblockid' => 2, 'sortorder' => 1];
+        $cycleb = (object) ['id' => 2, 'parentblockid' => 1, 'sortorder' => 2];
+        $cycleau = (object) ['id' => 10, 'parentblockid' => 1, 'sortorder' => 3];
+        $orphanau = (object) ['id' => 11, 'parentblockid' => 99, 'sortorder' => 4];
+
+        $rows = content_library::build_structure_tree([$cyclea, $cycleb], [$cycleau, $orphanau]);
+
+        $this->assertSame([1, 2, 10, 11], array_map(static function(array $row): int {
+            return (int) $row['record']->id;
+        }, $rows));
+        foreach ($rows as $row) {
+            $this->assertSame(0, (int) $row['depth']);
+        }
+    }
+
+    /**
      * Create a package containing two versions with intentionally stale counters.
      *
      * @return array Package, first version and second version records.

@@ -536,6 +536,7 @@ class content_library {
             $package->status = $version->status;
             $package->changelog = $version->changelog;
             $package->createdby = $version->createdby;
+            $package->versiontimecreated = $version->timecreated;
 
             $package->aus = array_values($DB->get_records('cmi5_package_aus',
                 ['versionid' => $versionid], 'sortorder ASC'));
@@ -548,6 +549,7 @@ class content_library {
             $package->source = 0;
             $package->usagecount = 0;
             $package->status = 1;
+            $package->versiontimecreated = 0;
             $package->aus = [];
             $package->blocks = [];
         }
@@ -1337,5 +1339,114 @@ class content_library {
      */
     private static function is_absolute_url(string $url): bool {
         return (bool) preg_match('#^https?://#i', $url);
+    }
+
+    /**
+     * Flatten a package version's blocks and AUs into ordered rows that carry the cmi5.xml nesting.
+     *
+     * Blocks and AUs both store parentblockid, so the hierarchy is rebuilt from those links and
+     * emitted in document order: a block, then its children (nested blocks and AUs interleaved by
+     * sortorder), and finally any AU that sits at the top level of the course. AUs are numbered
+     * across the whole tree in the order a learner meets them.
+     *
+     * Rows referencing a parent that is missing from this version, and rows caught in a parent
+     * cycle, are emitted at the top level so nothing is silently dropped.
+     *
+     * @param array $blocks Block records for one version, as returned by get_package_details().
+     * @param array $aus AU records for the same version.
+     * @return array List of rows: ['type' => 'block'|'au', 'record' => \stdClass, 'depth' => int]
+     *               where block rows also carry 'aucount' (AUs anywhere beneath them) and AU rows
+     *               carry 'index' (1-based position in the whole version).
+     */
+    public static function build_structure_tree(array $blocks, array $aus): array {
+        $blocksbyid = [];
+        foreach ($blocks as $block) {
+            $blocksbyid[(int) $block->id] = $block;
+        }
+
+        // A parent link only counts when it names a block of this same version, and when following
+        // it upwards actually reaches the top. Anything else is treated as a top-level row.
+        $parentof = static function($record) use ($blocksbyid): int {
+            $parentid = (int) ($record->parentblockid ?? 0);
+            return isset($blocksbyid[$parentid]) ? $parentid : 0;
+        };
+
+        $rooted = static function($record) use ($blocksbyid, $parentof): int {
+            $parentid = $parentof($record);
+            $seen = [];
+            $walk = $parentid;
+            while ($walk > 0) {
+                if (isset($seen[$walk])) {
+                    // Cycle: treat the row as top level rather than losing it.
+                    return 0;
+                }
+                $seen[$walk] = true;
+                $walk = $parentof($blocksbyid[$walk]);
+            }
+            return $parentid;
+        };
+
+        // Children of each block id, plus the top level under key 0.
+        $children = [0 => []];
+        foreach ($blocksbyid as $id => $block) {
+            $children[$id] = $children[$id] ?? [];
+        }
+        foreach ($blocks as $block) {
+            $children[$rooted($block)][] = ['type' => 'block', 'record' => $block];
+        }
+        foreach ($aus as $au) {
+            $children[$rooted($au)][] = ['type' => 'au', 'record' => $au];
+        }
+
+        // Within a parent, blocks and AUs are interleaved by sortorder, blocks first on a tie.
+        foreach ($children as $parentid => $list) {
+            usort($list, static function($a, $b) {
+                $order = (int) ($a['record']->sortorder ?? 0) <=> (int) ($b['record']->sortorder ?? 0);
+                if ($order !== 0) {
+                    return $order;
+                }
+                if ($a['type'] !== $b['type']) {
+                    return $a['type'] === 'block' ? -1 : 1;
+                }
+                return (int) $a['record']->id <=> (int) $b['record']->id;
+            });
+            $children[$parentid] = $list;
+        }
+
+        $rows = [];
+        $index = 0;
+
+        $descend = static function(int $parentid, int $depth) use (&$descend, &$rows, &$index, $children): int {
+            $aucount = 0;
+            foreach ($children[$parentid] ?? [] as $child) {
+                if ($child['type'] === 'block') {
+                    $position = count($rows);
+                    $rows[] = [
+                        'type' => 'block',
+                        'record' => $child['record'],
+                        'depth' => $depth,
+                        'aucount' => 0,
+                    ];
+                    // The count is only known once the whole subtree has been walked.
+                    $nested = $descend((int) $child['record']->id, $depth + 1);
+                    $rows[$position]['aucount'] = $nested;
+                    $aucount += $nested;
+                } else {
+                    $index++;
+                    $aucount++;
+                    $rows[] = [
+                        'type' => 'au',
+                        'record' => $child['record'],
+                        'depth' => $depth,
+                        'index' => $index,
+                    ];
+                }
+            }
+            return $aucount;
+        };
+
+        $descend(0, 0);
+
+        return $rows;
     }
 }
