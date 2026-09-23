@@ -1727,9 +1727,12 @@
 }
 
 .mod-cmi5-lib-cell-action {
-    flex: 0 0 172px;
+    flex: 0 0 260px;
     display: flex;
+    align-items: center;
     justify-content: flex-end;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 /* Course: the root of the cmi5 structure. */
