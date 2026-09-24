@@ -327,6 +327,10 @@
     --c5-accent-tint: #e9edf8;
     --c5-accent-tint-border: #c9d2ee;
     --c5-accent-tint-ink: #2f3f78;
+    --c5-danger: #c8413a;
+    --c5-danger-tint: #fbeae9;
+    --c5-danger-tint-border: #eec3c0;
+    --c5-danger-tint-ink: #a8261f;
     --c5-open-bg: #f5f7fd;
     --c5-live: #1f9d5c;
     --c5-live-halo: rgba(31, 157, 92, 0.2);
@@ -359,6 +363,10 @@
     --c5-accent-tint: rgba(119, 149, 248, 0.14);
     --c5-accent-tint-border: rgba(119, 149, 248, 0.38);
     --c5-accent-tint-ink: #c3cffd;
+    --c5-danger: #d9584f;
+    --c5-danger-tint: rgba(200, 65, 58, 0.16);
+    --c5-danger-tint-border: rgba(217, 88, 79, 0.42);
+    --c5-danger-tint-ink: #f6afaa;
     --c5-open-bg: rgba(119, 149, 248, 0.08);
     --c5-live: #3fbf7f;
     --c5-live-halo: rgba(63, 191, 127, 0.22);
@@ -1775,28 +1783,23 @@
     text-align: center;
 }
 
-.mod-cmi5-btn-danger {
-    border-color: #b42318;
-    color: #b42318;
+/* Destructive row actions: the plugin's failed-status red, quiet until hovered. */
+.mod-cmi5-btn.mod-cmi5-btn-danger,
+.mod-cmi5-btn.mod-cmi5-btn-danger:visited {
+    border-color: var(--c5-danger-tint-border);
+    background-color: var(--c5-surface);
+    color: var(--c5-danger-tint-ink);
 }
 
-.mod-cmi5-btn-danger:hover,
-.mod-cmi5-btn-danger:focus {
-    border-color: #912018;
-    background-color: #fff1f0;
-    color: #912018;
+.mod-cmi5-btn.mod-cmi5-btn-danger:hover,
+.mod-cmi5-btn.mod-cmi5-btn-danger:focus {
+    border-color: var(--c5-danger);
+    background-color: var(--c5-danger-tint);
+    color: var(--c5-danger-tint-ink);
 }
 
-[data-bs-theme=dark] .mod-cmi5-btn-danger {
-    border-color: #a8443c;
-    color: #f6afaa;
-}
-
-[data-bs-theme=dark] .mod-cmi5-btn-danger:hover,
-[data-bs-theme=dark] .mod-cmi5-btn-danger:focus {
-    border-color: #d9584f;
-    background-color: rgba(200, 65, 58, 0.18);
-    color: #f6afaa;
+.mod-cmi5-btn.mod-cmi5-btn-danger:focus-visible {
+    outline-color: var(--c5-danger);
 }
 
 /* Course: the root of the cmi5 structure. */
