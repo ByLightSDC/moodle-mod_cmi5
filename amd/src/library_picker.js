@@ -57,6 +57,7 @@ const SELECTORS = {
     root: '[data-region="cmi5-library-picker"]',
     selection: '[data-region="selection"]',
     clear: '[data-action="clear"]',
+    libraryLinks: '[data-region="library-links"]',
     browse: '[data-action="browse"]',
     browsePane: '[data-region="browse"]',
     detailPane: '[data-region="detail"]',
@@ -691,6 +692,13 @@ class Picker {
         if (clear) {
             clear.classList.toggle('hidden', !packageId);
             clear.classList.toggle('d-none', !packageId);
+        }
+
+        // The library shortcuts address the package the activity is saved against, so
+        // they stop applying the moment a different one is chosen.
+        const links = this.root.querySelector(SELECTORS.libraryLinks);
+        if (links) {
+            links.hidden = packageId !== this.currentPackageId;
         }
 
         return this.renderSelection(packageId, auValue);

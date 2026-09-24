@@ -75,6 +75,39 @@
     gap: 0.25rem;
 }
 
+/* Shortcuts to the library for the package this activity already uses. */
+
+.cmi5-picker-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 1rem;
+    margin-top: 0.5rem;
+}
+
+.cmi5-picker-links[hidden] {
+    display: none;
+}
+
+.cmi5-picker-link,
+.cmi5-picker-link:visited {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.cmi5-picker-link:hover,
+.cmi5-picker-link:focus {
+    text-decoration: underline;
+}
+
+.cmi5-picker-link svg {
+    flex: 0 0 auto;
+}
+
 /* Generated package tiles, shared by the control and the cards. */
 
 .cmi5-picker-tile {

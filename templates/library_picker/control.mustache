@@ -33,6 +33,10 @@
     * perpage - number of cards shown per page in the modal
     * haspackages - bool, the library contains at least one active package
     * total - total number of active packages
+    * haslibrarylinks - bool, the activity is already linked to a package the user can manage
+    * libraryurl - that package's page in the content library
+    * candownloadpackage - bool, the linked version was uploaded as a ZIP
+    * downloadurl - that version's original ZIP
     * hasselection - bool
     * selectedtitle - title of the selected package
     * selectedautitle - label describing the selected AU scope
@@ -51,6 +55,10 @@
         "perpage": 9,
         "haspackages": true,
         "total": 12,
+        "haslibrarylinks": false,
+        "libraryurl": "",
+        "candownloadpackage": false,
+        "downloadurl": "",
         "hasselection": false,
         "selectedtitle": "",
         "selectedautitle": "",
@@ -78,6 +86,23 @@
             {{/canclear}}
         </div>
     </div>
+
+    {{#haslibrarylinks}}
+    {{! Point at the package this activity is linked to now, so they are hidden by the
+        picker module as soon as a different package is chosen. }}
+    <div class="cmi5-picker-links" data-region="library-links">
+        <a href="{{libraryurl}}" class="cmi5-picker-link">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
+            {{#str}}picker:openinlibrary, cmi5{{/str}}
+        </a>
+        {{#candownloadpackage}}
+        <a href="{{downloadurl}}" class="cmi5-picker-link">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg>
+            {{#str}}picker:downloadpackage, cmi5{{/str}}
+        </a>
+        {{/candownloadpackage}}
+    </div>
+    {{/haslibrarylinks}}
     {{/haspackages}}
 
     {{^haspackages}}

@@ -117,7 +117,7 @@ class library_picker implements renderable, templatable {
         }
         $hasselection = $selectedtitle !== '';
 
-        return [
+        return array_merge([
             'contextid' => $this->contextid,
             'currentpackageid' => $this->currentpackageid,
             'currentversionid' => $this->currentversionid,
@@ -134,6 +134,53 @@ class library_picker implements renderable, templatable {
             'tone' => $hasselection ? self::tone($selectedtitle) : 1,
             'modaljson' => json_encode(self::modal_context(),
                 JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT),
+        ], $this->linked_package_links());
+    }
+
+    /**
+     * Shortcuts to the library for the package this activity is already linked to.
+     *
+     * Both destinations are the library management pages, so they are only offered to
+     * users who can reach them; the download is only offered where a ZIP was uploaded,
+     * since external and API packages have no archive to send.
+     *
+     * @return array Template context: haslibrarylinks, libraryurl, candownloadpackage, downloadurl.
+     */
+    protected function linked_package_links(): array {
+        $none = [
+            'haslibrarylinks' => false,
+            'libraryurl' => '',
+            'candownloadpackage' => false,
+            'downloadurl' => '',
+        ];
+
+        if (empty($this->currentpackageid) || empty($this->currentversionid)) {
+            return $none;
+        }
+        if (!has_capability('mod/cmi5:managelibrary', \context_system::instance())) {
+            return $none;
+        }
+
+        $version = content_library::get_version($this->currentversionid);
+        if (!$version || (int) $version->packageid !== (int) $this->currentpackageid) {
+            return $none;
+        }
+
+        $candownload = ((int) $version->source === content_library::SOURCE_ZIP);
+
+        return [
+            'haslibrarylinks' => true,
+            'libraryurl' => (new \moodle_url('/mod/cmi5/library.php', [
+                'action' => 'view',
+                'packageid' => $this->currentpackageid,
+                'versionid' => $this->currentversionid,
+            ]))->out(false),
+            'candownloadpackage' => $candownload,
+            'downloadurl' => $candownload ? (new \moodle_url('/mod/cmi5/library.php', [
+                'action' => 'download',
+                'packageid' => $this->currentpackageid,
+                'versionid' => $this->currentversionid,
+            ]))->out(false) : '',
         ];
     }
 
