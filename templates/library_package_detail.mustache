@@ -24,6 +24,8 @@
     * title, description, hasdescription - package title and description
     * courseid_iri, source, timecreated, uploadername - version facts
     * usagecount, hasusage, usagelabel - activities using the shown version
+    * hasupdates, updatesalert, updatesalerthelp, updatesurl - activities of this package that
+      are behind its latest version, and the link to upgrade them
     * hasprofile, profilename - launch parameter profile
     * versionnumber, versioncount, islatest, isolderversion - version state
     * latestversionnumber, latestversionurl - where to go when an older version is shown
@@ -51,6 +53,10 @@
         "uploadername": "Dana Whitfield",
         "usagelabel": "6 activities",
         "hasusage": true,
+        "hasupdates": true,
+        "updatesalert": "3 activities are on an older version of this course.",
+        "updatesalerthelp": "They can be upgraded to v4.",
+        "updatesurl": "#",
         "versionnumber": 4,
         "versioncount": 4,
         "islatest": true,
@@ -177,6 +183,22 @@
         </details>
         {{/canaddversion}}
     </div>
+
+    {{#hasupdates}}
+    <section class="mod-cmi5-lib-updatealert" aria-labelledby="mod-cmi5-lib-updates-title">
+        <span class="mod-cmi5-lib-updatealert-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>
+        </span>
+        <span class="mod-cmi5-lib-updatealert-text">
+            <span class="mod-cmi5-lib-updatealert-title" id="mod-cmi5-lib-updates-title">{{updatesalert}}</span>
+            <span class="mod-cmi5-lib-updatealert-help">{{updatesalerthelp}}</span>
+        </span>
+        <a href="{{updatesurl}}" class="mod-cmi5-btn mod-cmi5-btn-primary">
+            {{#str}}library:reviewupgrades, cmi5{{/str}}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
+        </a>
+    </section>
+    {{/hasupdates}}
 
     {{#isolderversion}}
     <section class="mod-cmi5-update" aria-labelledby="mod-cmi5-lib-older-title">

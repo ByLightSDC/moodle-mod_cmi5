@@ -209,13 +209,20 @@ if (!empty($cmi5->packageid) && has_capability('mod/cmi5:managecontent', $contex
             $changecount = count($updateinfo->changelog);
             $changelogsummary = $changecount > 0 ? $changecount . ' ' .
                 get_string('library:changes', 'cmi5') : '';
-            $syncurl = (new moodle_url('/course/modedit.php', [
-                'update' => $cm->id,
+            // Into the same review flow the upgrades list uses, so a single activity gets
+            // the same validation, the same learner-data explanation and the same result
+            // reporting as a batch.
+            $syncurl = (new moodle_url('/mod/cmi5/upgrades.php', [
+                'courseid' => $cm->course,
             ]))->out(false);
             // Build changelog entries for template.
             foreach ($updateinfo->changelog as $entry) {
-                $desc = is_array($entry) ? ($entry['description'] ?? '') : (string) $entry;
-                $changelogentries[] = ['description' => $desc];
+                $desc = is_array($entry)
+                    ? \mod_cmi5\content_library::describe_change($entry)
+                    : (string) $entry;
+                if ($desc !== '') {
+                    $changelogentries[] = ['description' => $desc];
+                }
             }
         }
     }

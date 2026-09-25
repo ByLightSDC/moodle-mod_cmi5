@@ -267,6 +267,81 @@ final class content_library_test extends \advanced_testcase {
     }
 
     /**
+     * Upgrade and repair queries distinguish valid older references from missing ones.
+     */
+    public function test_upgrade_and_repair_candidates_use_live_version_references(): void {
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course();
+        [$package, $version1, $version2] = $this->create_versioned_package();
+        $upgradeid = $this->create_activity($course->id, 'Upgrade me', $package->id, $version1->id);
+        $this->create_activity($course->id, 'Already current', $package->id, $version2->id);
+        $repairid = $this->create_activity($course->id, 'Repair me', $package->id, null);
+
+        $candidates = content_library::get_upgrade_candidates(['courseid' => $course->id]);
+        $repairs = content_library::get_repair_candidates(['courseid' => $course->id]);
+
+        $this->assertCount(1, $candidates);
+        $this->assertSame($upgradeid, (int) $candidates[0]->cmi5id);
+        $this->assertSame(1, content_library::count_upgrade_candidates(['packageid' => $package->id]));
+        $this->assertSame(1, content_library::get_package_upgrade_counts()[$package->id]);
+        $this->assertCount(1, $repairs);
+        $this->assertSame($repairid, (int) $repairs[0]->cmi5id);
+    }
+
+    /**
+     * Cumulative changelogs collapse repeated AU changes across every skipped version.
+     */
+    public function test_cumulative_changelog_collapses_changes_by_au_iri(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        [$package, $version1, $version2] = $this->create_versioned_package();
+
+        $version2changes = [
+            ['type' => 'au_added', 'auid' => 'au-a', 'title' => 'A'],
+            ['type' => 'au_changed', 'auid' => 'au-b', 'title' => 'B', 'field' => 'title'],
+        ];
+        $DB->set_field('cmi5_package_versions', 'changelog', json_encode($version2changes),
+            ['id' => $version2->id]);
+
+        $version3 = clone $version2;
+        unset($version3->id);
+        $version3->versionnumber = 3;
+        $version3->changelog = json_encode([
+            ['type' => 'au_changed', 'auid' => 'au-a', 'title' => 'A', 'field' => 'url'],
+            ['type' => 'au_removed', 'auid' => 'au-b', 'title' => 'B'],
+            ['type' => 'block_added', 'blockid' => 'block-a', 'title' => 'Block A'],
+        ]);
+        $version3->id = $DB->insert_record('cmi5_package_versions', $version3);
+
+        $changes = content_library::get_cumulative_changelog(
+            $package->id, $version1->versionnumber, $version3->versionnumber);
+
+        $this->assertTrue($changes->available);
+        $this->assertCount(2, $changes->versions);
+        $this->assertCount(5, $changes->entries);
+        $this->assertSame(1, $changes->added);
+        $this->assertSame(0, $changes->changed);
+        $this->assertSame(1, $changes->removed);
+    }
+
+    /**
+     * A stale caller cannot overwrite an activity that moved while it was waiting.
+     */
+    public function test_sync_rejects_a_stale_expected_version(): void {
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course();
+        [$package, $version1, $version2] = $this->create_versioned_package();
+        $activityid = $this->create_activity($course->id, 'Moved activity', $package->id, $version2->id);
+
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('upgrade:reason_changed', 'cmi5'));
+        content_library::sync_activity_to_version($activityid, $version2->id, null, $version1->id);
+    }
+
+    /**
      * Usage details include hidden courses and activities without course-module rows.
      */
     public function test_usage_details_include_incomplete_activity_references(): void {

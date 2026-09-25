@@ -1,0 +1,127 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/upgrades_changes
+
+    Everything that changed between the version an activity is on and the version it would
+    move to, including any version being skipped over.
+
+    Notes come from the uploaded package, so a version with none says so rather than reading
+    as though nothing changed.
+
+    Context variables required:
+    * heading, packagetitle - what these changes belong to
+    * fromlabel, tolabel, rangelabel - the range covered
+    * hasunits, hasadded, addedlabel, haschanged, changedlabel - the unit-level effect
+    * versions - newest first; each has versionlabel, istarget, meta, entries, hasentries
+    * backurl - back to the list
+
+    Example context (json):
+    {
+        "heading": "Changes for Flight Basics",
+        "packagetitle": "Aviation Safety Fundamentals",
+        "fromlabel": "v2", "tolabel": "v4",
+        "rangelabel": "2 versions, 9 changes",
+        "hasunits": true, "hasadded": true, "addedlabel": "2 units added",
+        "haschanged": true, "changedlabel": "5 units updated",
+        "backurl": "#",
+        "hasversions": true,
+        "versions": [{
+            "versionlabel": "v4", "istarget": true, "meta": "14/08/26",
+            "hasentries": true,
+            "entries": [{"description": "Added the assignable unit “Post-incident reporting”."}]
+        }]
+    }
+}}
+
+<div class="mod-cmi5-library mod-cmi5-upgrades">
+
+    <a href="{{backurl}}" class="mod-cmi5-lib-back">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5"/><path d="M11 19l-7-7 7-7"/></svg>
+        {{#str}}upgrade:backtolist, cmi5{{/str}}
+    </a>
+
+    <div class="mod-cmi5-lib-head">
+        <div class="mod-cmi5-lib-head-text">
+            <h2 class="mod-cmi5-lib-title">{{heading}}</h2>
+            <p class="mod-cmi5-lib-desc">{{packagetitle}} &middot; {{#str}}upgrade:changesintro, cmi5{{/str}}</p>
+        </div>
+    </div>
+
+    <div class="mod-cmi5-upg-range">
+        <span class="mod-cmi5-upg-current">{{fromlabel}}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" class="mod-cmi5-upg-arrow"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
+        <span class="mod-cmi5-upg-target">{{tolabel}}</span>
+        <span class="mod-cmi5-upg-rangemeta">{{rangelabel}}</span>
+    </div>
+
+    {{#hasunits}}
+    <section class="mod-cmi5-upg-units">
+        <h3 class="mod-cmi5-upg-subhead">{{#str}}upgrade:unitsheading, cmi5{{/str}}</h3>
+        <ul class="mod-cmi5-upg-unitlist">
+            {{#haschanged}}
+            <li class="mod-cmi5-upg-unit">
+                <span class="mod-cmi5-upg-unit-icon is-changed" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M20 11.5A8.5 8.5 0 1 0 5.6 18"/><path d="M20 5v6h-6"/></svg>
+                </span>
+                <span class="mod-cmi5-upg-unit-text">
+                    <span class="mod-cmi5-upg-unit-title">{{changedlabel}}</span>
+                    <span class="mod-cmi5-upg-unit-help">{{#str}}upgrade:unitschangedhelp, cmi5{{/str}}</span>
+                </span>
+            </li>
+            {{/haschanged}}
+            {{#hasadded}}
+            <li class="mod-cmi5-upg-unit">
+                <span class="mod-cmi5-upg-unit-icon is-added" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                </span>
+                <span class="mod-cmi5-upg-unit-text">
+                    <span class="mod-cmi5-upg-unit-title">{{addedlabel}}</span>
+                    <span class="mod-cmi5-upg-unit-help">{{#str}}upgrade:unitsaddedhelp, cmi5{{/str}}</span>
+                </span>
+            </li>
+            {{/hasadded}}
+        </ul>
+    </section>
+    {{/hasunits}}
+
+    <section class="mod-cmi5-upg-notes">
+        <h3 class="mod-cmi5-upg-subhead">{{#str}}upgrade:notesheading, cmi5{{/str}}</h3>
+        {{#versions}}
+        <div class="mod-cmi5-upg-note{{#istarget}} is-target{{/istarget}}">
+            <p class="mod-cmi5-upg-noteline">
+                <span class="mod-cmi5-upg-notenumber">{{versionlabel}}</span>
+                <span class="mod-cmi5-upg-notemeta">
+                    {{meta}}{{#istarget}} &middot; {{#str}}upgrade:istarget, cmi5{{/str}}{{/istarget}}{{^istarget}} &middot; {{#str}}upgrade:isskipped, cmi5{{/str}}{{/istarget}}
+                </span>
+            </p>
+            {{#hasentries}}
+            <ul class="mod-cmi5-upg-notelist">
+                {{#entries}}<li>{{description}}</li>{{/entries}}
+            </ul>
+            {{/hasentries}}
+            {{^hasentries}}
+            <p class="mod-cmi5-upg-notemeta">{{#str}}upgrade:changesunavailable, cmi5{{/str}}</p>
+            {{/hasentries}}
+        </div>
+        {{/versions}}
+        {{^hasversions}}
+        <p class="mod-cmi5-upg-notemeta">{{#str}}upgrade:changesunavailable, cmi5{{/str}}</p>
+        {{/hasversions}}
+    </section>
+
+</div>
