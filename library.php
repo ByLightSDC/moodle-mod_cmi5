@@ -416,8 +416,25 @@ if ($action === 'view' && $packageid) {
         $usagerows = cmi5_build_usage_rows((int) $package->versionid, $page, $perpage);
     }
 
+    // How many activities anywhere on the site are behind this package's latest version.
+    // Counted from live references, the same way the library list counts them, so the two
+    // screens never report different numbers for the same package.
+    $packageupgrades = \mod_cmi5\content_library::count_upgrade_candidates([
+        'packageid' => $packageid,
+    ]);
+
     $templatedata = [
         'title' => format_string($package->title),
+        'hasupdates' => ($packageupgrades > 0),
+        'updatesalert' => $packageupgrades === 1
+            ? get_string('library:packageupdatesalert_one', 'cmi5')
+            : get_string('library:packageupdatesalert', 'cmi5', $packageupgrades),
+        'updatesalerthelp' => $packageupgrades === 1
+            ? get_string('library:packageupdatesalerthelp_one', 'cmi5', $latestversionnumber)
+            : get_string('library:packageupdatesalerthelp', 'cmi5', $latestversionnumber),
+        'updatesurl' => (new moodle_url('/mod/cmi5/upgrades.php', [
+            'packageid' => $packageid,
+        ]))->out(false),
         'description' => format_text($package->description ?? '', FORMAT_PLAIN),
         'hasdescription' => trim((string) ($package->description ?? '')) !== '',
         'courseid_iri' => $package->courseid_iri ?? '',
@@ -632,7 +649,7 @@ if ($action === 'add') {
 
 // List courses.
 $filter = optional_param('filter', 'all', PARAM_ALPHA);
-if (!in_array($filter, ['all', 'inuse', 'unused'], true)) {
+if (!in_array($filter, ['all', 'inuse', 'unused', 'updates'], true)) {
     $filter = 'all';
 }
 
@@ -652,10 +669,21 @@ $sourcestrings = [
     \mod_cmi5\content_library::SOURCE_API => get_string('library:source_api', 'cmi5'),
 ];
 
+// Derived from current references rather than the cached counter, so a package's badge and
+// the rows behind it always describe the same set of activities.
+$upgradecounts = \mod_cmi5\content_library::get_package_upgrade_counts();
+$repaircounts = [];
+foreach (\mod_cmi5\content_library::get_repair_candidates() as $repair) {
+    $key = (int) $repair->packageid;
+    $repaircounts[$key] = ($repaircounts[$key] ?? 0) + 1;
+}
+
 $inuse = [];
 $unused = [];
+$updates = [];
 $versionstotal = 0;
 $activitiestotal = 0;
+$updatestotal = 0;
 foreach ($matching as $pkg) {
     $versionstotal += (int) $pkg->versioncount;
     $activitiestotal += (int) $pkg->usagecount;
@@ -664,11 +692,17 @@ foreach ($matching as $pkg) {
     } else {
         $unused[] = $pkg;
     }
+    $pkgupgrades = (int) ($upgradecounts[(int) $pkg->id] ?? 0);
+    if ($pkgupgrades > 0) {
+        $updates[] = $pkg;
+        $updatestotal += $pkgupgrades;
+    }
 }
 
 $allcount = count($matching);
 $inusecount = count($inuse);
 $unusedcount = count($unused);
+$updatescount = count($updates);
 
 switch ($filter) {
     case 'inuse':
@@ -676,6 +710,9 @@ switch ($filter) {
         break;
     case 'unused':
         $filtered = $unused;
+        break;
+    case 'updates':
+        $filtered = $updates;
         break;
     default:
         $filtered = $matching;
@@ -711,8 +748,23 @@ foreach ($rows as $pkg) {
         'user' => $uploader ? fullname($uploader) : '',
     ];
 
+    $pkgupgrades = (int) ($upgradecounts[(int) $pkg->id] ?? 0);
+    $pkgrepairs = (int) ($repaircounts[(int) $pkg->id] ?? 0);
+
     $packagesdata[] = [
         'id' => (int) $pkg->id,
+        'hasupdates' => ($pkgupgrades > 0),
+        'updatelabel' => $pkgupgrades === 1
+            ? get_string('library:reviewpackageupdates_one', 'cmi5')
+            : get_string('library:reviewpackageupdates', 'cmi5', $pkgupgrades),
+        'updatesurl' => (new moodle_url('/mod/cmi5/upgrades.php', [
+            'packageid' => $pkg->id,
+        ]))->out(false),
+        'hasrepairs' => ($pkgrepairs > 0),
+        'repairlabel' => $pkgrepairs === 1
+            ? get_string('library:needsrepair_one', 'cmi5')
+            : get_string('library:needsrepair', 'cmi5', $pkgrepairs),
+        'uptodate' => ($pkgupgrades === 0 && $pkgrepairs === 0 && (int) $pkg->usagecount > 0),
         'title' => format_string($pkg->title),
         'versionnumber' => (int) $pkg->versionnumber,
         'statusactive' => ((int) $pkg->status === \mod_cmi5\content_library::STATUS_ACTIVE),
@@ -737,6 +789,7 @@ foreach ($rows as $pkg) {
             'sesskey' => sesskey(),
         ]))->out(false),
         'deleteconfirm' => get_string('library:deleteconfirm', 'cmi5', format_string($pkg->title)),
+        'deletelabel' => get_string('library:deletecoursenamed', 'cmi5', format_string($pkg->title)),
         'candelete' => ($usagecount === 0),
     ];
 }
@@ -797,12 +850,27 @@ $templatedata = [
     'isalltab' => ($filter === 'all'),
     'isinusetab' => ($filter === 'inuse'),
     'isunusedtab' => ($filter === 'unused'),
+    'isupdatestab' => ($filter === 'updates'),
     'taballurl' => $filterurl('all'),
     'tabinuseurl' => $filterurl('inuse'),
     'tabunusedurl' => $filterurl('unused'),
+    'tabupdatesurl' => $filterurl('updates'),
     'allcount' => $allcount,
     'inusecount' => $inusecount,
     'unusedcount' => $unusedcount,
+    'updatescount' => $updatescount,
+    'hasupdatesalert' => ($updatestotal > 0),
+    'updatesalert' => $updatestotal === 1
+        ? get_string('library:updatesalert_one', 'cmi5')
+        : ($updatescount === 1
+            ? get_string('library:updatesalert_onepackage', 'cmi5', (object) [
+                'activities' => cmi5_usage_label($updatestotal),
+            ])
+            : get_string('library:updatesalert', 'cmi5', (object) [
+                'activities' => cmi5_usage_label($updatestotal),
+                'packages' => $updatescount,
+            ])),
+    'upgradesurl' => (new moodle_url('/mod/cmi5/upgrades.php'))->out(false),
     'packages' => $packagesdata,
     'hasresults' => !empty($packagesdata),
     'nomatchestitle' => $hassearch

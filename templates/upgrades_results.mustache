@@ -1,0 +1,134 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/upgrades_results
+
+    What actually happened to each activity in a batch.
+
+    Every row reports its own outcome and, when it is not a success, why. The counts never
+    describe the batch as complete when only part of it changed, and a failed row is the only
+    one offered a retry, because the others have nothing to retry.
+
+    Context variables required:
+    * upgradedcount, skippedcount, failedcount, hasfailures, summary - the outcome tallies
+    * rows - each has isupgraded, isskipped, isfailed, statuslabel, activityname, coursename,
+      activityurl, hasactivityurl, detail
+    * backurl - back to the list, with filters intact
+    * islibraryscope, libraryurl, courseurl - where the trailing links go
+
+    Example context (json):
+    {
+        "upgradedcount": 2, "skippedcount": 1, "failedcount": 1, "hasfailures": true,
+        "summary": "2 upgraded, 1 skipped, 1 failed.",
+        "backurl": "#", "islibraryscope": true, "libraryurl": "#",
+        "rows": [
+            {"isupgraded": true, "statuslabel": "Upgraded", "activityname": "Flight Basics",
+                "coursename": "Pilot Training 2026", "hasactivityurl": true, "activityurl": "#",
+                "detail": "Moved v2 to v4."},
+            {"isfailed": true, "statuslabel": "Failed", "activityname": "Marshalling Signals",
+                "coursename": "Ground Crew Onboarding", "hasactivityurl": false,
+                "detail": "The unit this activity launches is not in the target version."}
+        ]
+    }
+}}
+
+<div class="mod-cmi5-library mod-cmi5-upgrades">
+
+    <div class="mod-cmi5-lib-head">
+        <div class="mod-cmi5-lib-head-text">
+            <h2 class="mod-cmi5-lib-title">{{#str}}upgrade:resultsheading, cmi5{{/str}}</h2>
+            <p class="mod-cmi5-lib-desc">{{summary}}</p>
+        </div>
+    </div>
+
+    <div class="mod-cmi5-upg-tallies" role="status">
+        <div class="mod-cmi5-upg-tally is-upgraded">
+            <span class="mod-cmi5-upg-tally-icon" aria-hidden="true">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M4 12.5l5 5L20 6.5"/></svg>
+            </span>
+            <span class="mod-cmi5-upg-tally-text">
+                <span class="mod-cmi5-upg-tally-number">{{upgradedcount}}</span>
+                <span class="mod-cmi5-upg-tally-label">{{#str}}upgrade:status_upgraded, cmi5{{/str}}</span>
+            </span>
+        </div>
+        <div class="mod-cmi5-upg-tally is-skipped">
+            <span class="mod-cmi5-upg-tally-icon" aria-hidden="true">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M5 12h14"/></svg>
+            </span>
+            <span class="mod-cmi5-upg-tally-text">
+                <span class="mod-cmi5-upg-tally-number">{{skippedcount}}</span>
+                <span class="mod-cmi5-upg-tally-label">{{#str}}upgrade:status_skipped, cmi5{{/str}}</span>
+            </span>
+        </div>
+        <div class="mod-cmi5-upg-tally is-failed{{^hasfailures}} is-quiet{{/hasfailures}}">
+            <span class="mod-cmi5-upg-tally-icon" aria-hidden="true">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M12 9v5"/><path d="M12 17.5v.5"/><path d="M10.3 3.9L2.5 18a1.8 1.8 0 0 0 1.6 2.7h15.8A1.8 1.8 0 0 0 21.5 18L13.7 3.9a1.9 1.9 0 0 0-3.4 0z"/></svg>
+            </span>
+            <span class="mod-cmi5-upg-tally-text">
+                <span class="mod-cmi5-upg-tally-number">{{failedcount}}</span>
+                <span class="mod-cmi5-upg-tally-label">{{#str}}upgrade:status_failed, cmi5{{/str}}</span>
+            </span>
+        </div>
+    </div>
+
+    <div class="mod-cmi5-lib-tree">
+        <div class="mod-cmi5-lib-row mod-cmi5-lib-tree-head mod-cmi5-upg-resultrow">
+            <span class="mod-cmi5-upg-cell-status">{{#str}}upgrade:col_outcome, cmi5{{/str}}</span>
+            <span class="mod-cmi5-upg-cell-main">{{#str}}upgrade:col_activity, cmi5{{/str}}</span>
+            <span class="mod-cmi5-upg-cell-detail">{{#str}}upgrade:col_detail, cmi5{{/str}}</span>
+            <span class="mod-cmi5-upg-cell-action">{{#str}}upgrade:col_action, cmi5{{/str}}</span>
+        </div>
+
+        {{#rows}}
+        <div class="mod-cmi5-lib-row mod-cmi5-upg-resultrow{{#isskipped}} is-quietrow{{/isskipped}}">
+            <div class="mod-cmi5-upg-cell-status">
+                <span class="mod-cmi5-upg-status{{#isupgraded}} is-upgraded{{/isupgraded}}{{#isskipped}} is-skipped{{/isskipped}}{{#isfailed}} is-failed{{/isfailed}}">
+                    {{#isupgraded}}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 12.5l5 5L20 6.5"/></svg>{{/isupgraded}}
+                    {{#isskipped}}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/></svg>{{/isskipped}}
+                    {{#isfailed}}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 9v5"/><path d="M12 17.5v.5"/><path d="M10.3 3.9L2.5 18a1.8 1.8 0 0 0 1.6 2.7h15.8A1.8 1.8 0 0 0 21.5 18L13.7 3.9a1.9 1.9 0 0 0-3.4 0z"/></svg>{{/isfailed}}
+                    {{statuslabel}}
+                </span>
+            </div>
+            <div class="mod-cmi5-upg-cell-main">
+                <span class="mod-cmi5-upg-activity">
+                    {{#hasactivityurl}}<a href="{{activityurl}}">{{activityname}}</a>{{/hasactivityurl}}
+                    {{^hasactivityurl}}{{activityname}}{{/hasactivityurl}}
+                </span>
+                <span class="mod-cmi5-upg-course">{{coursename}}</span>
+            </div>
+            <div class="mod-cmi5-upg-cell-detail{{#isfailed}} is-failedtext{{/isfailed}}">{{detail}}</div>
+            <div class="mod-cmi5-upg-cell-action">
+                {{#isfailed}}
+                <a href="{{backurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}upgrade:retry, cmi5{{/str}}</a>
+                {{/isfailed}}
+            </div>
+        </div>
+        {{/rows}}
+    </div>
+
+    <div class="mod-cmi5-upg-resultfoot">
+        <p class="mod-cmi5-upg-actionhelp">{{#str}}upgrade:auditnotice, cmi5{{/str}}</p>
+        <a href="{{backurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}upgrade:backtolist, cmi5{{/str}}</a>
+        {{#islibraryscope}}
+        <a href="{{libraryurl}}" class="mod-cmi5-btn mod-cmi5-btn-tinted">{{#str}}contentlibrary, cmi5{{/str}}</a>
+        {{/islibraryscope}}
+        {{^islibraryscope}}
+        <a href="{{courseurl}}" class="mod-cmi5-btn mod-cmi5-btn-tinted">{{#str}}upgrade:backtocourse, cmi5{{/str}}</a>
+        {{/islibraryscope}}
+    </div>
+
+</div>

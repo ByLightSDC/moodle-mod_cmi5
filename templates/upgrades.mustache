@@ -1,0 +1,245 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_cmi5/upgrades
+
+    The cmi5 content upgrades list: activities grouped by library course and by the version
+    they are on, with a target version per row.
+
+    Rows carry their own target selector and their own checkbox, so the page works with the
+    keyboard and without JavaScript. The group and page-wide selectors are conveniences that
+    only appear once the script that drives them has loaded.
+
+    Context variables required:
+    * heading, intro - page title and the count sentence beneath it
+    * backurl, backlabel - where the breadcrumb link goes
+    * iscoursescope, scopelabel - marks the page as limited to one Moodle course
+    * search, hassearch, searchurl, clearurl, hiddenparams - the search form and its scope
+    * formurl, sesskey - the selection form's target
+    * groups - one per library course and current version; each has packagetitle, currentlabel,
+      countlabel, groupid, groupselectlabel, grouptargetlabel, grouptargets, rows
+    * groups[].rows - each has cmi5id, checkid, expectedversionid, activityname, activityurl,
+      hasactivityurl, coursename, ishidden, hiddenlabel, currentlabel, canmanage, blockedreason,
+      targets, selectlabel, targetlabel, changesurl
+    * hasgroups, selectalllabel, pagescopelabel
+    * hasrepair, repairheading, repairrows
+    * emptytitle, emptyhelp - shown when nothing matches
+
+    Example context (json):
+    {
+        "heading": "cmi5 content upgrades",
+        "intro": "12 activities can move to a newer version of their library course.",
+        "backurl": "#", "backlabel": "Content library",
+        "searchurl": "#", "formurl": "#", "sesskey": "abc123",
+        "hasgroups": true,
+        "selectalllabel": "Select all 2 eligible activities on this page",
+        "pagescopelabel": "Selection covers this page only — page 1 of 2",
+        "groups": [{
+            "groupid": "cmi5-group-1-4", "packagetitle": "Aviation Safety Fundamentals",
+            "currentlabel": "v2", "countlabel": "2 activities",
+            "groupselectlabel": "Select every activity", "grouptargetlabel": "Target for this group",
+            "grouptargets": [{"versionid": 9, "label": "v4 (latest)", "selected": true}],
+            "rows": [{
+                "cmi5id": 3, "checkid": "cmi5-upgrade-3", "expectedversionid": 7,
+                "activityname": "Flight Basics", "hasactivityurl": true, "activityurl": "#",
+                "coursename": "Pilot Training 2026", "currentlabel": "v2", "canmanage": true,
+                "selectlabel": "Upgrade Flight Basics in Pilot Training 2026",
+                "targetlabel": "Target version for Flight Basics",
+                "targets": [{"versionid": 9, "label": "v4 (latest)", "selected": true}],
+                "changesurl": "#"
+            }]
+        }]
+    }
+}}
+
+<div class="mod-cmi5-library mod-cmi5-upgrades">
+
+    <a href="{{backurl}}" class="mod-cmi5-lib-back">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5"/><path d="M11 19l-7-7 7-7"/></svg>
+        {{backlabel}}
+    </a>
+
+    <div class="mod-cmi5-lib-head">
+        <div class="mod-cmi5-lib-head-text">
+            <h2 class="mod-cmi5-lib-title">{{heading}}</h2>
+            <p class="mod-cmi5-lib-desc">{{intro}}</p>
+        </div>
+    </div>
+
+    <form method="get" action="{{searchurl}}" class="mod-cmi5-upg-search">
+        {{#hiddenparams}}<input type="hidden" name="{{name}}" value="{{value}}">{{/hiddenparams}}
+        {{#iscoursescope}}
+        <span class="mod-cmi5-upg-scope">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6.5h16"/><path d="M7 12h10"/><path d="M10 17.5h4"/></svg>
+            {{scopelabel}}
+        </span>
+        {{/iscoursescope}}
+        <label class="mod-cmi5-lib-showing" for="cmi5-upg-search">{{#str}}upgrade:searchlabel, cmi5{{/str}}</label>
+        <input type="search" id="cmi5-upg-search" name="search" value="{{search}}" class="form-control"
+               placeholder="{{#str}}upgrade:searchplaceholder, cmi5{{/str}}">
+        <button type="submit" class="mod-cmi5-btn mod-cmi5-btn-row">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.2-4.2"/></svg>
+            {{#str}}library:searchsubmit, cmi5{{/str}}
+        </button>
+        {{#hassearch}}
+        <a href="{{clearurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}upgrade:clearsearch, cmi5{{/str}}</a>
+        {{/hassearch}}
+    </form>
+
+    {{#hasgroups}}
+    <form method="post" action="{{formurl}}" class="mod-cmi5-upg-form" data-region="cmi5-upgrades">
+        <input type="hidden" name="sesskey" value="{{sesskey}}">
+        <input type="hidden" name="action" value="review">
+        {{#hiddenparams}}<input type="hidden" name="{{name}}" value="{{value}}">{{/hiddenparams}}
+
+        {{! Only useful once the script that syncs the rows below has loaded. }}
+        <div class="mod-cmi5-upg-selectall mod-cmi5-upg-jshidden" data-region="selectall-bar">
+            <label class="mod-cmi5-upg-check">
+                <input type="checkbox" data-action="select-all">
+                {{selectalllabel}}
+            </label>
+            <span class="mod-cmi5-upg-pagescope">{{pagescopelabel}}</span>
+        </div>
+
+        {{#groups}}
+        <section class="mod-cmi5-upg-group" data-region="group">
+            <div class="mod-cmi5-upg-grouphead">
+                <label class="mod-cmi5-upg-check mod-cmi5-upg-jshidden">
+                    <input type="checkbox" data-action="select-group" aria-label="{{groupselectlabel}}">
+                </label>
+                <div class="mod-cmi5-upg-grouptext">
+                    <p class="mod-cmi5-upg-grouptitle">{{packagetitle}}</p>
+                    <p class="mod-cmi5-upg-groupmeta">
+                        {{#str}}upgrade:groupmeta, cmi5, {{currentlabel}}{{/str}} &middot; {{countlabel}}
+                    </p>
+                </div>
+                <div class="mod-cmi5-upg-grouptarget mod-cmi5-upg-jshidden">
+                    <label for="{{groupid}}-target">{{#str}}upgrade:grouptarget, cmi5{{/str}}</label>
+                    <select id="{{groupid}}-target" class="custom-select" data-action="group-target"
+                            aria-label="{{grouptargetlabel}}">
+                        {{#grouptargets}}
+                        <option value="{{versionid}}" {{#selected}}selected{{/selected}}>{{label}}</option>
+                        {{/grouptargets}}
+                    </select>
+                </div>
+            </div>
+
+            {{#rows}}
+            <div class="mod-cmi5-upg-row{{^canmanage}} is-blocked{{/canmanage}}" data-region="row">
+                <div class="mod-cmi5-upg-cell-check">
+                    {{#canmanage}}
+                    <input type="checkbox" id="{{checkid}}" name="selected[]" value="{{cmi5id}}"
+                           data-region="row-check" aria-label="{{selectlabel}}">
+                    <input type="hidden" name="expected[{{cmi5id}}]" value="{{expectedversionid}}">
+                    {{/canmanage}}
+                </div>
+
+                <div class="mod-cmi5-upg-cell-main">
+                    <span class="mod-cmi5-upg-activity">
+                        {{#hasactivityurl}}<a href="{{activityurl}}">{{activityname}}</a>{{/hasactivityurl}}
+                        {{^hasactivityurl}}{{activityname}}{{/hasactivityurl}}
+                        {{#ishidden}}
+                        <span class="mod-cmi5-upg-flag">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 3l18 18"/><path d="M10.6 5.1A9.4 9.4 0 0 1 12 5c5 0 9 4.5 10 7-.5 1.2-1.6 2.9-3.3 4.3"/><path d="M6.2 6.8C3.9 8.3 2.4 10.4 2 12c1 2.5 5 7 10 7 1.6 0 3-.4 4.3-1.1"/></svg>
+                            {{hiddenlabel}}
+                        </span>
+                        {{/ishidden}}
+                    </span>
+                    <span class="mod-cmi5-upg-course">{{coursename}}</span>
+                </div>
+
+                <div class="mod-cmi5-upg-cell-version">
+                    <span class="mod-cmi5-upg-current">{{currentlabel}}</span>
+                    {{#canmanage}}
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" class="mod-cmi5-upg-arrow"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
+                    <select name="target[{{cmi5id}}]" class="custom-select" data-region="row-target"
+                            aria-label="{{targetlabel}}">
+                        {{#targets}}
+                        <option value="{{versionid}}" {{#selected}}selected{{/selected}}>{{label}}</option>
+                        {{/targets}}
+                    </select>
+                    {{/canmanage}}
+                </div>
+
+                <div class="mod-cmi5-upg-cell-action">
+                    {{#canmanage}}
+                    <a href="{{changesurl}}" class="mod-cmi5-btn mod-cmi5-btn-row" data-region="changes-link">{{#str}}upgrade:viewchanges, cmi5{{/str}}</a>
+                    {{/canmanage}}
+                    {{^canmanage}}
+                    <span class="mod-cmi5-upg-blocked">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 9v5"/><path d="M12 17.5v.5"/><path d="M10.3 3.9L2.5 18a1.8 1.8 0 0 0 1.6 2.7h15.8A1.8 1.8 0 0 0 21.5 18L13.7 3.9a1.9 1.9 0 0 0-3.4 0z"/></svg>
+                        {{blockedreason}}
+                    </span>
+                    {{/canmanage}}
+                </div>
+            </div>
+            {{/rows}}
+        </section>
+        {{/groups}}
+
+        <div class="mod-cmi5-upg-actionbar">
+            <div class="mod-cmi5-upg-actiontext">
+                <p class="mod-cmi5-upg-count" role="status" data-region="count">{{#str}}upgrade:selectnone, cmi5{{/str}}</p>
+                <p class="mod-cmi5-upg-actionhelp">{{#str}}upgrade:actionhelp, cmi5{{/str}}</p>
+            </div>
+            <button type="submit" class="mod-cmi5-btn mod-cmi5-btn-primary">
+                {{#str}}upgrade:reviewselected, cmi5{{/str}}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
+            </button>
+        </div>
+    </form>
+    {{/hasgroups}}
+
+    {{^hasgroups}}
+    <div class="mod-cmi5-lib-empty">
+        <div class="mod-cmi5-lib-empty-inner">
+            <h3 class="mod-cmi5-lib-empty-title">{{emptytitle}}</h3>
+            <p class="mod-cmi5-lib-empty-body">{{emptyhelp}}</p>
+        </div>
+    </div>
+    {{/hasgroups}}
+
+    {{#hasrepair}}
+    <section class="mod-cmi5-upg-repair">
+        <div class="mod-cmi5-upg-repairhead">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 9v5"/><path d="M12 17.5v.5"/><path d="M10.3 3.9L2.5 18a1.8 1.8 0 0 0 1.6 2.7h15.8A1.8 1.8 0 0 0 21.5 18L13.7 3.9a1.9 1.9 0 0 0-3.4 0z"/></svg>
+            <div class="mod-cmi5-upg-grouptext">
+                <p class="mod-cmi5-upg-repairtitle">{{repairheading}}</p>
+                <p class="mod-cmi5-upg-groupmeta">{{#str}}upgrade:repairhelp, cmi5{{/str}}</p>
+            </div>
+        </div>
+        {{#repairrows}}
+        <div class="mod-cmi5-upg-row">
+            <div class="mod-cmi5-upg-cell-check"></div>
+            <div class="mod-cmi5-upg-cell-main">
+                <span class="mod-cmi5-upg-activity">{{activityname}}</span>
+                <span class="mod-cmi5-upg-course">{{coursename}} &middot; {{packagetitle}}</span>
+            </div>
+            <div class="mod-cmi5-upg-cell-version">
+                <span class="mod-cmi5-upg-noversion">{{#str}}upgrade:noversionref, cmi5{{/str}}</span>
+            </div>
+            <div class="mod-cmi5-upg-cell-action">
+                {{#hasactivityurl}}
+                <a href="{{activityurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}upgrade:opensettings, cmi5{{/str}}</a>
+                {{/hasactivityurl}}
+            </div>
+        </div>
+        {{/repairrows}}
+    </section>
+    {{/hasrepair}}
+
+</div>

@@ -227,41 +227,50 @@ function cmi5_update_instance($data, $mform = null) {
 
     // Handle switching to a library package, including an upload-based activity.
     if ($newpackageid && $newpackageid !== (int) $cmi5->packageid) {
-        $selection = \mod_cmi5\content_library::resolve_package_selection(
-            $newpackageid, (string) ($data->libraryauid ?? ''));
-        $versionid = (int) $selection->version->id;
-        $versionlock = \mod_cmi5\content_library::acquire_version_lock($versionid);
+        $activitylock = \mod_cmi5\content_library::acquire_activity_lock((int) $data->id);
         try {
-            $selection = \mod_cmi5\content_library::resolve_package_selection(
-                $newpackageid,
-                (string) ($data->libraryauid ?? ''),
-                $versionid
-            );
-            $transaction = $DB->start_delegated_transaction();
-            try {
-                \mod_cmi5\content_library::copy_structure_to_activity(
-                    $versionid, $data->id, $selection->singleauid);
-                if (!empty($cmi5->packageversionid)) {
-                    \mod_cmi5\content_library::decrement_usage((int) $cmi5->packageversionid);
-                }
-                \mod_cmi5\content_library::increment_usage($versionid);
+            // Another request may have changed the package while this request waited.
+            $cmi5 = $DB->get_record('cmi5', ['id' => $data->id], '*', MUST_EXIST);
+            if ($newpackageid !== (int) $cmi5->packageid) {
+                $selection = \mod_cmi5\content_library::resolve_package_selection(
+                    $newpackageid, (string) ($data->libraryauid ?? ''));
+                $versionid = (int) $selection->version->id;
+                $versionlock = \mod_cmi5\content_library::acquire_version_lock($versionid);
+                try {
+                    $selection = \mod_cmi5\content_library::resolve_package_selection(
+                        $newpackageid,
+                        (string) ($data->libraryauid ?? ''),
+                        $versionid
+                    );
+                    $transaction = $DB->start_delegated_transaction();
+                    try {
+                        \mod_cmi5\content_library::copy_structure_to_activity(
+                            $versionid, $data->id, $selection->singleauid);
+                        if (!empty($cmi5->packageversionid)) {
+                            \mod_cmi5\content_library::decrement_usage((int) $cmi5->packageversionid);
+                        }
+                        \mod_cmi5\content_library::increment_usage($versionid);
 
-                $updated = (object) [
-                    'id' => $data->id,
-                    'packageid' => $newpackageid,
-                    'packageversionid' => $versionid,
-                    'courseid_iri' => $selection->version->courseid_iri ?? null,
-                ];
-                if (empty($record->profileid) && !empty($selection->version->profileid)) {
-                    $updated->profileid = (int) $selection->version->profileid;
+                        $updated = (object) [
+                            'id' => $data->id,
+                            'packageid' => $newpackageid,
+                            'packageversionid' => $versionid,
+                            'courseid_iri' => $selection->version->courseid_iri ?? null,
+                        ];
+                        if (empty($record->profileid) && !empty($selection->version->profileid)) {
+                            $updated->profileid = (int) $selection->version->profileid;
+                        }
+                        $DB->update_record('cmi5', $updated);
+                        $transaction->allow_commit();
+                    } catch (\Throwable $e) {
+                        $transaction->rollback($e);
+                    }
+                } finally {
+                    $versionlock->release();
                 }
-                $DB->update_record('cmi5', $updated);
-                $transaction->allow_commit();
-            } catch (\Throwable $e) {
-                $transaction->rollback($e);
             }
         } finally {
-            $versionlock->release();
+            $activitylock->release();
         }
     }
 
@@ -280,18 +289,33 @@ function cmi5_update_instance($data, $mform = null) {
             if ($singleauid !== null && $syncversion !== $currentversionid) {
                 $singleauid = \mod_cmi5\content_library::map_au_to_version($singleauid, $syncversion);
             }
-            \mod_cmi5\content_library::sync_activity_to_version($data->id, $syncversion, $singleauid);
+            \mod_cmi5\content_library::sync_activity_to_version(
+                $data->id, $syncversion, $singleauid, $currentversionid);
         } else {
             $currentvalue = \mod_cmi5\content_library::get_activity_au_selection(
                 $data->id, $newpackageid, $currentversionid);
             if ($currentvalue !== (string) ($data->libraryauid ?? '')) {
-                $transaction = $DB->start_delegated_transaction();
+                // Narrowing or widening the AU selection rewrites the same rows an upgrade
+                // does, so it takes the activity lock too.
+                $activitylock = \mod_cmi5\content_library::acquire_activity_lock((int) $data->id);
                 try {
-                    \mod_cmi5\content_library::copy_structure_to_activity(
-                        $currentversionid, $data->id, $selection->singleauid);
-                    $transaction->allow_commit();
-                } catch (\Throwable $e) {
-                    $transaction->rollback($e);
+                    $lockedcmi5 = $DB->get_record('cmi5', ['id' => $data->id], '*', MUST_EXIST);
+                    if ((int) $lockedcmi5->packageid !== $newpackageid
+                            || (int) $lockedcmi5->packageversionid !== $currentversionid) {
+                        throw new \moodle_exception('upgrade:reason_changed', 'cmi5');
+                    }
+                    $selection = \mod_cmi5\content_library::resolve_package_selection(
+                        $newpackageid, (string) ($data->libraryauid ?? ''), $currentversionid, false);
+                    $transaction = $DB->start_delegated_transaction();
+                    try {
+                        \mod_cmi5\content_library::copy_structure_to_activity(
+                            $currentversionid, $data->id, $selection->singleauid);
+                        $transaction->allow_commit();
+                    } catch (\Throwable $e) {
+                        $transaction->rollback($e);
+                    }
+                } finally {
+                    $activitylock->release();
                 }
             }
         }
@@ -640,6 +664,36 @@ function cmi5_theme_workplace_menu_items(): array {
  */
 function cmi5_extend_navigation(navigation_node $navref, stdClass $course, stdClass $module, cm_info $cm) {
     // No custom navigation nodes needed.
+}
+
+/**
+ * Add the cmi5 content upgrades link to a course's navigation.
+ *
+ * Shown only where there is something to act on: a teacher who can edit cmi5 activities in
+ * a course that actually has an upgrade waiting. This is what gives an instructor the bulk
+ * workflow without any access to the site content library.
+ *
+ * @param navigation_node $navigation The course navigation node.
+ * @param stdClass $course The course.
+ * @param context_course $context The course context.
+ */
+function cmi5_extend_navigation_course(navigation_node $navigation, stdClass $course, context_course $context) {
+    if (!has_capability('mod/cmi5:managecontent', $context)) {
+        return;
+    }
+
+    if (\mod_cmi5\content_library::count_upgrade_candidates(['courseid' => (int) $course->id]) === 0) {
+        return;
+    }
+
+    $navigation->add(
+        get_string('upgrade:navlink', 'cmi5'),
+        new moodle_url('/mod/cmi5/upgrades.php', ['courseid' => $course->id]),
+        navigation_node::TYPE_SETTING,
+        null,
+        'cmi5upgrades',
+        new pix_icon('icon', '', 'mod_cmi5')
+    );
 }
 
 /**

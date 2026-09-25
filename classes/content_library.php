@@ -57,6 +57,18 @@ class content_library {
     /** @var string Lock factory used to coordinate version assignment and deletion. */
     const VERSION_LOCK_FACTORY = 'mod_cmi5_content_library';
 
+    /** @var string Lock factory guarding which version an activity points at. */
+    const ACTIVITY_LOCK_FACTORY = 'mod_cmi5_activity_upgrade';
+
+    /** @var string The activity moved to the requested version. */
+    const UPGRADE_UPGRADED = 'upgraded';
+
+    /** @var string Nothing was changed, and nothing needed to be. */
+    const UPGRADE_SKIPPED = 'skipped';
+
+    /** @var string The activity could not be moved; it is unchanged. */
+    const UPGRADE_FAILED = 'failed';
+
     /** @var array AU fields tracked for changelog computation. */
     const TRACKED_AU_FIELDS = [
         'title', 'description', 'url', 'launchmethod', 'moveoncriteria',
@@ -1426,6 +1438,509 @@ class content_library {
     }
 
     /**
+     * Return the FROM/WHERE fragment shared by every upgrade-candidate query.
+     *
+     * An activity is upgradeable only when its package and version references are whole and
+     * agree with each other: the version it names must belong to the package it names, the
+     * package must have a latest version of its own, and that version must be active and
+     * numbered higher. Anything less is a repair case, not an upgrade.
+     *
+     * @param array $filters Optional 'packageid', 'courseid' and 'search' keys.
+     * @return array The SQL body after SELECT and the parameters it needs.
+     */
+    private static function upgrade_candidate_parts(array $filters): array {
+        global $DB;
+
+        $params = [
+            'moduleid' => (int) $DB->get_field('modules', 'id', ['name' => 'cmi5']),
+            'activestatus' => self::STATUS_ACTIVE,
+        ];
+        $conditions = [
+            'latest.versionnumber > cur.versionnumber',
+            'latest.status = :activestatus',
+        ];
+
+        if (!empty($filters['packageid'])) {
+            $conditions[] = 'p.id = :filterpackageid';
+            $params['filterpackageid'] = (int) $filters['packageid'];
+        }
+
+        if (!empty($filters['courseid'])) {
+            $conditions[] = 'c.course = :filtercourseid';
+            $params['filtercourseid'] = (int) $filters['courseid'];
+        }
+
+        // One box searches all three names a user might remember the row by.
+        $search = trim((string) ($filters['search'] ?? ''));
+        if ($search !== '') {
+            $like = '%' . $DB->sql_like_escape($search) . '%';
+            $parts = [
+                $DB->sql_like('p.title', ':searchpackage', false),
+                $DB->sql_like('c.name', ':searchactivity', false),
+                $DB->sql_like('cr.fullname', ':searchcourse', false),
+            ];
+            $conditions[] = '(' . implode(' OR ', $parts) . ')';
+            $params['searchpackage'] = $like;
+            $params['searchactivity'] = $like;
+            $params['searchcourse'] = $like;
+        }
+
+        $body = "FROM {cmi5} c
+                  JOIN {cmi5_package_versions} cur
+                    ON cur.id = c.packageversionid AND cur.packageid = c.packageid
+                  JOIN {cmi5_packages} p ON p.id = c.packageid
+                  JOIN {cmi5_package_versions} latest
+                    ON latest.id = p.latestversion AND latest.packageid = p.id
+             LEFT JOIN {course} cr ON cr.id = c.course
+             LEFT JOIN {course_modules} cm
+                    ON cm.course = c.course AND cm.instance = c.id AND cm.module = :moduleid
+                 WHERE " . implode(' AND ', $conditions);
+
+        return [$body, $params];
+    }
+
+    /**
+     * List activities that can move to a newer version of the library package they use.
+     *
+     * This is the single source the library counts, the upgrades list and the execution
+     * preflight all read from, so the screens cannot disagree about what is upgradeable.
+     * Authorization is not applied here; callers filter by module context.
+     *
+     * @param array $filters Optional 'packageid', 'courseid' and 'search' keys.
+     * @return array Candidate rows ordered by package, then current version, then course.
+     */
+    public static function get_upgrade_candidates(array $filters = []): array {
+        global $DB;
+
+        [$body, $params] = self::upgrade_candidate_parts($filters);
+
+        $sql = "SELECT c.id AS cmi5id, c.name AS activityname, c.course AS courseid,
+                       cr.fullname AS coursename, cr.visible AS coursevisible,
+                       cm.id AS cmid, cm.visible AS activityvisible, cm.deletioninprogress,
+                       p.id AS packageid, p.title AS packagetitle,
+                       cur.id AS currentversionid, cur.versionnumber AS currentversionnumber,
+                       latest.id AS latestversionid, latest.versionnumber AS latestversionnumber
+                  {$body}
+              ORDER BY p.title ASC, cur.versionnumber ASC, cr.fullname ASC, c.name ASC, c.id ASC";
+
+        return array_values($DB->get_records_sql($sql, $params));
+    }
+
+    /**
+     * Count activities that can move to a newer version.
+     *
+     * @param array $filters Optional 'packageid', 'courseid' and 'search' keys.
+     * @return int Number of upgradeable activities.
+     */
+    public static function count_upgrade_candidates(array $filters = []): int {
+        global $DB;
+
+        [$body, $params] = self::upgrade_candidate_parts($filters);
+
+        return (int) $DB->count_records_sql("SELECT COUNT(1) {$body}", $params);
+    }
+
+    /**
+     * Count upgradeable activities per library package.
+     *
+     * Derived from live references rather than the cached usage counter, so a package's
+     * badge and the rows behind it always describe the same set.
+     *
+     * @param array $filters Optional 'courseid' and 'search' keys.
+     * @return array Package ID to number of upgradeable activities, for packages with at least one.
+     */
+    public static function get_package_upgrade_counts(array $filters = []): array {
+        global $DB;
+
+        [$body, $params] = self::upgrade_candidate_parts($filters);
+
+        $sql = "SELECT p.id AS packageid, COUNT(1) AS upgradecount {$body} GROUP BY p.id";
+
+        $counts = [];
+        foreach ($DB->get_records_sql($sql, $params) as $record) {
+            $counts[(int) $record->packageid] = (int) $record->upgradecount;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * List activities that name a library package but no usable version of it.
+     *
+     * These cannot be upgraded: without a baseline version there is nothing to upgrade
+     * from, and resolving them through the package's latest version would silently invent
+     * one. They are reported separately so they are fixed rather than overlooked.
+     *
+     * @param array $filters Optional 'packageid', 'courseid' and 'search' keys.
+     * @return array Rows describing each activity needing repair.
+     */
+    public static function get_repair_candidates(array $filters = []): array {
+        global $DB;
+
+        $params = [
+            'moduleid' => (int) $DB->get_field('modules', 'id', ['name' => 'cmi5']),
+        ];
+        $conditions = [
+            'c.packageid > 0',
+            '(c.packageversionid IS NULL OR c.packageversionid = 0 OR cur.id IS NULL)',
+        ];
+
+        if (!empty($filters['packageid'])) {
+            $conditions[] = 'p.id = :filterpackageid';
+            $params['filterpackageid'] = (int) $filters['packageid'];
+        }
+
+        if (!empty($filters['courseid'])) {
+            $conditions[] = 'c.course = :filtercourseid';
+            $params['filtercourseid'] = (int) $filters['courseid'];
+        }
+
+        $search = trim((string) ($filters['search'] ?? ''));
+        if ($search !== '') {
+            $like = '%' . $DB->sql_like_escape($search) . '%';
+            $parts = [
+                $DB->sql_like('p.title', ':searchpackage', false),
+                $DB->sql_like('c.name', ':searchactivity', false),
+                $DB->sql_like('cr.fullname', ':searchcourse', false),
+            ];
+            $conditions[] = '(' . implode(' OR ', $parts) . ')';
+            $params['searchpackage'] = $like;
+            $params['searchactivity'] = $like;
+            $params['searchcourse'] = $like;
+        }
+
+        $sql = "SELECT c.id AS cmi5id, c.name AS activityname, c.course AS courseid,
+                       cr.fullname AS coursename, cm.id AS cmid, cm.deletioninprogress,
+                       p.id AS packageid, p.title AS packagetitle
+                  FROM {cmi5} c
+                  JOIN {cmi5_packages} p ON p.id = c.packageid
+             LEFT JOIN {cmi5_package_versions} cur
+                    ON cur.id = c.packageversionid AND cur.packageid = c.packageid
+             LEFT JOIN {course} cr ON cr.id = c.course
+             LEFT JOIN {course_modules} cm
+                    ON cm.course = c.course AND cm.instance = c.id AND cm.module = :moduleid
+                 WHERE " . implode(' AND ', $conditions) . "
+              ORDER BY p.title ASC, cr.fullname ASC, c.name ASC, c.id ASC";
+
+        return array_values($DB->get_records_sql($sql, $params));
+    }
+
+    /**
+     * List the versions an activity on a given version number may be moved to.
+     *
+     * Only later versions of the same package qualify. A downgrade is not an upgrade, and
+     * a version of another package is a different course entirely.
+     *
+     * @param int $packageid Package ID.
+     * @param int $currentnumber The version number the activity is on.
+     * @return array Version records ordered newest first.
+     */
+    public static function get_valid_targets(int $packageid, int $currentnumber): array {
+        global $DB;
+
+        $params = [
+            'packageid' => $packageid,
+            'currentnumber' => $currentnumber,
+            'activestatus' => self::STATUS_ACTIVE,
+        ];
+        $where = 'packageid = :packageid AND versionnumber > :currentnumber AND status = :activestatus';
+
+        return array_values($DB->get_records_select('cmi5_package_versions', $where, $params,
+            'versionnumber DESC'));
+    }
+
+    /**
+     * Summarise everything that changed between two version numbers of a package.
+     *
+     * The range is exclusive of the version the activity is on and inclusive of the target,
+     * so skipping intermediate versions still shows what they contained. Absent or invalid
+     * changelog JSON is reported as unavailable rather than as "no changes", and never
+     * blocks an otherwise valid upgrade.
+     *
+     * @param int $packageid Package ID.
+     * @param int $fromnumber The version number the activity is on, exclusive.
+     * @param int $tonumber The target version number, inclusive.
+     * @return \stdClass Entries, per-kind counts, the versions covered and an availability flag.
+     */
+    public static function get_cumulative_changelog(int $packageid, int $fromnumber, int $tonumber): \stdClass {
+        global $DB;
+
+        $result = (object) [
+            'entries' => [],
+            'versions' => [],
+            'added' => 0,
+            'changed' => 0,
+            'removed' => 0,
+            'available' => false,
+        ];
+
+        if ($tonumber <= $fromnumber) {
+            return $result;
+        }
+
+        $versions = $DB->get_records_select(
+            'cmi5_package_versions',
+            'packageid = :packageid AND versionnumber > :fromnumber AND versionnumber <= :tonumber',
+            ['packageid' => $packageid, 'fromnumber' => $fromnumber, 'tonumber' => $tonumber],
+            'versionnumber ASC'
+        );
+
+        // Counted by IRI across the whole range: a unit touched in two versions is one
+        // changed unit, and a unit added then removed nets out to neither.
+        $added = [];
+        $changed = [];
+        $removed = [];
+
+        foreach ($versions as $version) {
+            $decoded = json_decode((string) $version->changelog, true);
+            $hasentries = is_array($decoded) && !empty($decoded);
+            $result->versions[] = (object) [
+                'version' => $version,
+                'entries' => $hasentries ? $decoded : [],
+                'available' => $hasentries,
+            ];
+
+            if (!$hasentries) {
+                continue;
+            }
+
+            $result->available = true;
+            foreach ($decoded as $entry) {
+                if (!is_array($entry) || empty($entry['type'])) {
+                    continue;
+                }
+                $result->entries[] = $entry;
+                $auid = (string) ($entry['auid'] ?? '');
+                if ($auid === '') {
+                    continue;
+                }
+                switch ($entry['type']) {
+                    case 'au_added':
+                        $added[$auid] = true;
+                        unset($removed[$auid]);
+                        break;
+                    case 'au_changed':
+                        if (!isset($added[$auid])) {
+                            $changed[$auid] = true;
+                        }
+                        break;
+                    case 'au_removed':
+                        $removed[$auid] = true;
+                        unset($added[$auid], $changed[$auid]);
+                        break;
+                }
+            }
+        }
+
+        $result->added = count($added);
+        $result->changed = count($changed);
+        $result->removed = count($removed);
+
+        return $result;
+    }
+
+    /**
+     * Turn one changelog entry into a line a person can read.
+     *
+     * Titles come from the uploaded package, so everything interpolated here is escaped: a
+     * package is content, not a trusted source of markup.
+     *
+     * @param array $change One decoded changelog entry.
+     * @return string The description, or an empty string for an entry of an unknown shape.
+     */
+    public static function describe_change(array $change): string {
+        $title = s((string) ($change['title'] ?? ''));
+
+        switch ($change['type'] ?? '') {
+            case 'au_added':
+                return get_string('upgrade:change_auadded', 'cmi5', $title);
+            case 'au_removed':
+                return get_string('upgrade:change_auremoved', 'cmi5', $title);
+            case 'au_changed':
+                return get_string('upgrade:change_auchanged', 'cmi5', (object) [
+                    'title' => $title,
+                    'field' => s((string) ($change['field'] ?? '')),
+                ]);
+            case 'block_added':
+                return get_string('upgrade:change_blockadded', 'cmi5', $title);
+            case 'block_removed':
+                return get_string('upgrade:change_blockremoved', 'cmi5', $title);
+            default:
+                return '';
+        }
+    }
+
+    /**
+     * Acquire the exclusive lock for changing which version an activity uses.
+     *
+     * Every path that reassigns an activity takes this before the version lock, so two
+     * users cannot overwrite each other's choice or double-count a version's usage.
+     * Callers must always release it.
+     *
+     * @param int $cmi5id Activity instance ID.
+     * @return \core\lock\lock Acquired lock.
+     * @throws \moodle_exception If the lock cannot be acquired promptly.
+     */
+    public static function acquire_activity_lock(int $cmi5id): \core\lock\lock {
+        $factory = \core\lock\lock_config::get_lock_factory(self::ACTIVITY_LOCK_FACTORY);
+        $lock = $factory->get_lock('activity-' . $cmi5id, 10);
+        if (!$lock) {
+            throw new \moodle_exception('upgrade:reason_locked', 'cmi5');
+        }
+        return $lock;
+    }
+
+    /**
+     * Move one activity to a newer version of its library package.
+     *
+     * Everything the browser sent is resolved and rechecked here rather than trusted: the
+     * activity is reauthorized, the version it is actually on is compared against the one
+     * the review step was built from, and the target is revalidated against the same rules
+     * that listed it. Each call is independent and atomic, so a caller working through a
+     * batch can continue past a row that fails.
+     *
+     * @param int $cmi5id Activity instance ID.
+     * @param int $expectedversionid The version the activity was on when it was selected.
+     * @param int $targetversionid The version to move to.
+     * @param string $batchid Correlation ID when this is part of a batch.
+     * @return \stdClass Outcome with 'status', 'reason', version numbers and display names.
+     */
+    public static function upgrade_activity(int $cmi5id, int $expectedversionid, int $targetversionid,
+            string $batchid = ''): \stdClass {
+        global $DB;
+
+        $outcome = (object) [
+            'cmi5id' => $cmi5id,
+            'status' => self::UPGRADE_FAILED,
+            'reason' => 'upgrade:reason_failed',
+            'activityname' => '',
+            'coursename' => '',
+            'cmid' => 0,
+            'fromnumber' => 0,
+            'tonumber' => 0,
+        ];
+
+        $cmi5 = $DB->get_record('cmi5', ['id' => $cmi5id]);
+        if (!$cmi5) {
+            $outcome->reason = 'upgrade:reason_deleted';
+            return $outcome;
+        }
+        $outcome->activityname = $cmi5->name;
+
+        $cm = get_coursemodule_from_instance('cmi5', $cmi5id, 0, false, IGNORE_MISSING);
+        if (!$cm || !empty($cm->deletioninprogress)) {
+            $outcome->reason = 'upgrade:reason_deleted';
+            return $outcome;
+        }
+        $outcome->cmid = (int) $cm->id;
+        $outcome->coursename = (string) $DB->get_field('course', 'fullname', ['id' => $cmi5->course]);
+
+        // Rechecked here and not only at display time: permission can be withdrawn between
+        // the review screen loading and this request arriving.
+        $modulecontext = \context_module::instance((int) $cm->id, IGNORE_MISSING);
+        if (!$modulecontext || !has_capability('mod/cmi5:managecontent', $modulecontext)) {
+            $outcome->reason = 'upgrade:reason_nopermission';
+            return $outcome;
+        }
+
+        try {
+            $lock = self::acquire_activity_lock($cmi5id);
+        } catch (\moodle_exception $e) {
+            $outcome->reason = 'upgrade:reason_locked';
+            return $outcome;
+        }
+
+        try {
+            // Re-read under the lock: the row may have moved while this request queued.
+            $cmi5 = $DB->get_record('cmi5', ['id' => $cmi5id], '*', MUST_EXIST);
+            $currentversionid = (int) ($cmi5->packageversionid ?? 0);
+            $packageid = (int) ($cmi5->packageid ?? 0);
+
+            if (!$packageid || !$currentversionid) {
+                $outcome->reason = 'upgrade:reason_needsrepair';
+                return $outcome;
+            }
+
+            $current = $DB->get_record('cmi5_package_versions', [
+                'id' => $currentversionid,
+                'packageid' => $packageid,
+            ]);
+            if (!$current) {
+                $outcome->reason = 'upgrade:reason_needsrepair';
+                return $outcome;
+            }
+            $outcome->fromnumber = (int) $current->versionnumber;
+
+            $target = $DB->get_record('cmi5_package_versions', [
+                'id' => $targetversionid,
+                'packageid' => $packageid,
+            ]);
+            if (!$target || (int) $target->status !== self::STATUS_ACTIVE) {
+                $outcome->reason = 'upgrade:reason_invalidtarget';
+                return $outcome;
+            }
+            $outcome->tonumber = (int) $target->versionnumber;
+
+            // Already there, or past it: a repeat submission is safe, not an error.
+            if ((int) $current->versionnumber >= (int) $target->versionnumber) {
+                $outcome->status = self::UPGRADE_SKIPPED;
+                $outcome->reason = 'upgrade:reason_already';
+                return $outcome;
+            }
+
+            // The review step was built from a version this activity is no longer on, so
+            // the change the user approved is not the change that would be applied.
+            if ($expectedversionid > 0 && $expectedversionid !== $currentversionid) {
+                $outcome->status = self::UPGRADE_SKIPPED;
+                $outcome->reason = 'upgrade:reason_changed';
+                return $outcome;
+            }
+
+            // An activity pinned to one unit must land on the same unit in the target.
+            // Expanding it to the whole package instead would quietly change what learners get.
+            $singleauid = null;
+            $selection = self::get_activity_au_selection($cmi5id, $packageid, $currentversionid);
+            if ($selection !== '') {
+                $sourceauid = (int) explode(':', $selection)[1];
+                try {
+                    $singleauid = self::map_au_to_version($sourceauid, $targetversionid);
+                } catch (\moodle_exception $e) {
+                    $outcome->reason = 'upgrade:reason_aumissing';
+                    return $outcome;
+                }
+            }
+
+            $event = \mod_cmi5\event\activity_version_upgraded::create([
+                'context' => $modulecontext,
+                'objectid' => $cmi5id,
+                'other' => [
+                    'packageid' => $packageid,
+                    'fromversionid' => $currentversionid,
+                    'fromversionnumber' => (int) $current->versionnumber,
+                    'toversionid' => $targetversionid,
+                    'toversionnumber' => (int) $target->versionnumber,
+                    'bulk' => $batchid !== '',
+                    'batchid' => $batchid,
+                ],
+            ]);
+            self::sync_activity_to_version_locked(
+                $cmi5id, $targetversionid, $singleauid, $currentversionid, $event);
+
+            $outcome->status = self::UPGRADE_UPGRADED;
+            $outcome->reason = '';
+            return $outcome;
+        } catch (\Throwable $e) {
+            // Reported by its reason, never by its exception text: the message can name
+            // database internals the user has no business seeing.
+            $outcome->status = self::UPGRADE_FAILED;
+            $outcome->reason = 'upgrade:reason_failed';
+            return $outcome;
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
      * Sync an activity to a new package version.
      *
      * Copies the new version's structure to the activity, updates the packageversionid,
@@ -1434,10 +1949,34 @@ class content_library {
      * @param int $cmi5id The activity instance ID.
      * @param int $newversionid The target version ID (0 = latest).
      * @param int|null $singleauid If set, only sync this specific AU.
+     * @param int $expectedversionid The version the caller believes the activity is on; 0 skips the check.
      * @return \stdClass Result with 'success', 'newversionid', 'changelog'.
      */
     public static function sync_activity_to_version(int $cmi5id, int $newversionid = 0,
-            ?int $singleauid = null): \stdClass {
+            ?int $singleauid = null, int $expectedversionid = 0): \stdClass {
+        $lock = self::acquire_activity_lock($cmi5id);
+        try {
+            return self::sync_activity_to_version_locked($cmi5id, $newversionid, $singleauid, $expectedversionid);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Perform the version change for a caller that already holds the activity lock.
+     *
+     * Split out so the bulk path can hold one activity lock across its own validation and
+     * this mutation, rather than taking and dropping it around each step.
+     *
+     * @param int $cmi5id The activity instance ID.
+     * @param int $newversionid The target version ID (0 = latest).
+     * @param int|null $singleauid If set, only sync this specific AU.
+     * @param int $expectedversionid The version the caller believes the activity is on; 0 skips the check.
+     * @param \core\event\base|null $event Event to trigger atomically with the version change.
+     * @return \stdClass Result with 'success', 'newversionid', 'changelog'.
+     */
+    private static function sync_activity_to_version_locked(int $cmi5id, int $newversionid = 0,
+            ?int $singleauid = null, int $expectedversionid = 0, ?\core\event\base $event = null): \stdClass {
         global $DB;
 
         $cmi5 = $DB->get_record('cmi5', ['id' => $cmi5id], '*', MUST_EXIST);
@@ -1465,6 +2004,13 @@ class content_library {
             // Revalidate only after locking, in case deletion completed while waiting.
             $newversion = $DB->get_record('cmi5_package_versions',
                 ['id' => $newversionid, 'packageid' => $cmi5->packageid], '*', MUST_EXIST);
+
+            // Re-read under both locks: another request may have moved this activity while
+            // this one waited, which would make the change the caller approved the wrong one.
+            $cmi5 = $DB->get_record('cmi5', ['id' => $cmi5id], '*', MUST_EXIST);
+            if ($expectedversionid > 0 && (int) ($cmi5->packageversionid ?? 0) !== $expectedversionid) {
+                throw new \moodle_exception('upgrade:reason_changed', 'cmi5');
+            }
             if ($singleauid !== null && !$DB->record_exists('cmi5_package_aus', [
                 'id' => $singleauid,
                 'versionid' => $newversionid,
@@ -1489,6 +2035,9 @@ class content_library {
 
                 // Increment new version usage.
                 self::increment_usage($newversionid);
+                if ($event) {
+                    $event->trigger();
+                }
                 $transaction->allow_commit();
             } catch (\Throwable $e) {
                 $transaction->rollback($e);

@@ -2657,3 +2657,997 @@
         margin-left: 0;
     }
 }
+
+/* ---------------------------------------------------------------------------
+ * Content upgrades: the library alert, the upgrades list, review and results.
+ * The pages wrap in .mod-cmi5-library so they inherit the same token block as
+ * the rest of the library, and reuse its row, button and tab components.
+ * ------------------------------------------------------------------------- */
+
+/* Outcome colours. Each also differs in lightness, so the three statuses are
+ * still distinguishable without colour. */
+.mod-cmi5-library {
+    --c5-good: #156b41;
+    --c5-good-tint: rgba(31, 157, 92, 0.14);
+    --c5-good-tint-border: rgba(31, 157, 92, 0.32);
+}
+
+[data-bs-theme=dark] .mod-cmi5-library {
+    --c5-good: #7ddaa6;
+    --c5-good-tint: rgba(31, 157, 92, 0.2);
+    --c5-good-tint-border: rgba(125, 218, 166, 0.36);
+}
+
+/* The alert above the library filters. */
+
+.mod-cmi5-lib-updatealert {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+    padding: 0.875rem 1.125rem;
+    border: 1px solid var(--c5-update-border);
+    border-left: 4px solid var(--c5-accent);
+    border-radius: 12px;
+    background-color: var(--c5-update-bg);
+}
+
+.mod-cmi5-lib-updatealert-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: var(--c5-update-icon-bg);
+    color: var(--c5-accent-tint-ink);
+}
+
+.mod-cmi5-lib-updatealert-text {
+    flex: 1 1 18rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mod-cmi5-lib-updatealert-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-lib-updatealert-help {
+    color: var(--c5-ink-2);
+    font-size: 0.8125rem;
+}
+
+.mod-cmi5-lib-repairflag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--c5-danger-tint-ink);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Upgrades page shell. */
+
+.mod-cmi5-upg-search {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.625rem 0.75rem;
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--c5-line);
+    border-radius: 12px;
+    background-color: var(--c5-sunken);
+}
+
+.mod-cmi5-upg-search .form-control {
+    flex: 1 1 16rem;
+    min-width: 0;
+    min-height: 34px;
+}
+
+.mod-cmi5-upg-scope {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4375rem;
+    height: 26px;
+    padding: 0 0.6875rem;
+    border-radius: 999px;
+    background-color: var(--c5-accent-tint);
+    color: var(--c5-accent-tint-ink);
+    font-size: 0.78125rem;
+    font-weight: 600;
+}
+
+/* Controls that only work once their script has loaded stay out of the page
+ * until it has, so nothing on screen is inert. */
+.mod-cmi5-upg-jshidden {
+    display: none !important;
+}
+
+.mod-cmi5-upg-selectall {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0 0.25rem;
+}
+
+.mod-cmi5-upg-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5625rem;
+    min-height: 44px;
+    margin: 0;
+    font-size: 0.84375rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.mod-cmi5-upg-pagescope {
+    color: var(--c5-ink-3);
+    font-size: 0.78125rem;
+}
+
+/* A group: one library course, one current version, one target choice. */
+
+.mod-cmi5-upg-group {
+    margin-bottom: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--c5-line);
+    border-radius: 14px;
+    background-color: var(--c5-surface);
+}
+
+.mod-cmi5-upg-grouphead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    box-sizing: border-box;
+    min-height: 60px;
+    padding: 0.625rem 1.25rem;
+    border-bottom: 1px solid var(--c5-line);
+    background-color: var(--c5-sunken);
+}
+
+.mod-cmi5-upg-grouptext {
+    flex: 1 1 16rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.mod-cmi5-upg-grouptitle {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 650;
+}
+
+.mod-cmi5-upg-groupmeta {
+    margin: 0;
+    color: var(--c5-ink-3);
+    font-size: 0.78125rem;
+}
+
+.mod-cmi5-upg-grouptarget {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5625rem;
+}
+
+.mod-cmi5-upg-grouptarget label {
+    margin: 0;
+    color: var(--c5-ink-2);
+    font-size: 0.78125rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-upg-grouptarget select,
+.mod-cmi5-upg-cell-version select {
+    min-height: 34px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--c5-control-border);
+    border-radius: 6px;
+    background-color: var(--c5-surface);
+    color: var(--c5-ink);
+    font-size: 0.84375rem;
+    font-weight: 600;
+}
+
+/* Rows, shared by the list, the review step and the results. */
+
+.mod-cmi5-upg-row,
+.mod-cmi5-upg-reviewrow,
+.mod-cmi5-upg-resultrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    box-sizing: border-box;
+    padding: 0.5625rem 1.25rem;
+}
+
+.mod-cmi5-upg-row {
+    min-height: 64px;
+    border-top: 1px solid var(--c5-line-soft);
+}
+
+.mod-cmi5-upg-row.is-blocked {
+    background-color: var(--c5-sunken);
+}
+
+.mod-cmi5-upg-resultrow.is-quietrow {
+    background-color: var(--c5-sunken);
+}
+
+.mod-cmi5-upg-cell-check {
+    flex: 0 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+}
+
+.mod-cmi5-upg-cell-main {
+    flex: 1 1 16rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.mod-cmi5-upg-cell-version {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 10.5rem;
+}
+
+.mod-cmi5-upg-cell-units {
+    flex: 1 1 18rem;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+.mod-cmi5-upg-cell-detail {
+    flex: 1 1 20rem;
+    min-width: 0;
+    color: var(--c5-ink-2);
+    font-size: 0.8125rem;
+}
+
+.mod-cmi5-upg-cell-detail.is-failedtext {
+    color: var(--c5-danger-tint-ink);
+}
+
+.mod-cmi5-upg-cell-status {
+    flex: 0 0 7.5rem;
+}
+
+.mod-cmi5-upg-cell-action {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-left: auto;
+}
+
+.mod-cmi5-upg-activity {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    font-size: 0.90625rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.mod-cmi5-upg-activity a,
+.mod-cmi5-upg-activity a:visited {
+    color: var(--c5-ink);
+    text-decoration: none;
+}
+
+.mod-cmi5-upg-activity a:hover {
+    text-decoration: underline;
+}
+
+.mod-cmi5-upg-course {
+    color: var(--c5-ink-3);
+    font-size: 0.78125rem;
+    overflow-wrap: anywhere;
+}
+
+.mod-cmi5-upg-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3125rem;
+    padding: 1px 0.5rem;
+    border: 1px solid var(--c5-control-border);
+    border-radius: 999px;
+    color: var(--c5-ink-2);
+    font-size: 0.71875rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-upg-current,
+.mod-cmi5-upg-target {
+    font-size: 0.84375rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.mod-cmi5-upg-arrow {
+    flex: 0 0 auto;
+    color: var(--c5-ink-3);
+}
+
+.mod-cmi5-upg-blocked {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--c5-danger-tint-ink);
+    font-size: 0.78125rem;
+    font-weight: 600;
+    text-align: right;
+}
+
+.mod-cmi5-upg-noversion,
+.mod-cmi5-upg-nochanges {
+    color: var(--c5-ink-faint);
+    font-size: 0.8125rem;
+}
+
+/* The bar that carries the selection count and the step's primary action. */
+
+.mod-cmi5-upg-actionbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    margin-top: 1.25rem;
+    padding: 0.875rem 1.25rem;
+    border: 1px solid var(--c5-line);
+    border-radius: 12px;
+    background-color: var(--c5-sunken);
+}
+
+.mod-cmi5-upg-actiontext {
+    flex: 1 1 18rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mod-cmi5-upg-count {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 650;
+}
+
+.mod-cmi5-upg-actionhelp {
+    margin: 0;
+    color: var(--c5-ink-3);
+    font-size: 0.78125rem;
+}
+
+/* Activities that cannot be upgraded until their references are repaired. */
+
+.mod-cmi5-upg-repair {
+    margin-top: 1.25rem;
+    overflow: hidden;
+    border: 1px solid var(--c5-danger-tint-border);
+    border-radius: 14px;
+    background-color: var(--c5-surface);
+}
+
+.mod-cmi5-upg-repairhead {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-sizing: border-box;
+    min-height: 56px;
+    padding: 0.625rem 1.25rem;
+    border-bottom: 1px solid var(--c5-danger-tint-border);
+    background-color: var(--c5-danger-tint);
+    color: var(--c5-danger-tint-ink);
+}
+
+.mod-cmi5-upg-repairtitle {
+    margin: 0;
+    color: var(--c5-danger-tint-ink);
+    font-size: 0.875rem;
+    font-weight: 650;
+}
+
+/* Review: the learner-data explanation and the per-row unit chips. */
+
+.mod-cmi5-upg-notice {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 1rem 1.125rem;
+    border: 1px solid var(--c5-update-border);
+    border-radius: 12px;
+    background-color: var(--c5-update-bg);
+}
+
+.mod-cmi5-upg-notice-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: var(--c5-update-icon-bg);
+    color: var(--c5-accent-tint-ink);
+}
+
+.mod-cmi5-upg-notice-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.mod-cmi5-upg-notice-title {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 650;
+}
+
+.mod-cmi5-upg-notice-list {
+    margin: 0;
+    padding-left: 1.125rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.84375rem;
+    line-height: 1.45;
+}
+
+.mod-cmi5-upg-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 0.625rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-upg-chip.is-added {
+    background-color: var(--c5-good-tint);
+    color: var(--c5-good);
+}
+
+.mod-cmi5-upg-chip.is-changed {
+    background-color: var(--c5-accent-tint);
+    color: var(--c5-accent-tint-ink);
+}
+
+.mod-cmi5-upg-chip.is-removed {
+    background-color: var(--c5-danger-tint);
+    color: var(--c5-danger-tint-ink);
+}
+
+/* Results: the tallies and the per-row outcome. */
+
+.mod-cmi5-upg-tallies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.875rem;
+    margin-bottom: 1.25rem;
+}
+
+.mod-cmi5-upg-tally {
+    flex: 1 1 12rem;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.125rem;
+    border: 1px solid var(--c5-line);
+    border-radius: 12px;
+    background-color: var(--c5-surface);
+}
+
+.mod-cmi5-upg-tally.is-failed {
+    border-color: var(--c5-danger-tint-border);
+    background-color: var(--c5-danger-tint);
+    color: var(--c5-danger-tint-ink);
+}
+
+/* Nothing failed, so the tile states the zero without shouting it. */
+.mod-cmi5-upg-tally.is-failed.is-quiet {
+    border-color: var(--c5-line);
+    background-color: var(--c5-surface);
+    color: inherit;
+}
+
+.mod-cmi5-upg-tally-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: var(--c5-sunken);
+    color: var(--c5-ink-2);
+}
+
+.mod-cmi5-upg-tally.is-upgraded .mod-cmi5-upg-tally-icon {
+    background-color: var(--c5-good-tint);
+    color: var(--c5-good);
+}
+
+.mod-cmi5-upg-tally.is-failed:not(.is-quiet) .mod-cmi5-upg-tally-icon {
+    background-color: var(--c5-danger-tint-border);
+    color: var(--c5-danger-tint-ink);
+}
+
+.mod-cmi5-upg-tally-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.mod-cmi5-upg-tally-number {
+    font-size: 1.375rem;
+    font-weight: 650;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+.mod-cmi5-upg-tally-label {
+    color: var(--c5-ink-2);
+    font-size: 0.8125rem;
+}
+
+.mod-cmi5-upg-tally.is-failed:not(.is-quiet) .mod-cmi5-upg-tally-label {
+    color: inherit;
+}
+
+.mod-cmi5-upg-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4375rem;
+    height: 26px;
+    padding: 0 0.6875rem;
+    border-radius: 999px;
+    background-color: var(--c5-sunken);
+    color: var(--c5-ink-2);
+    font-size: 0.78125rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-upg-status.is-upgraded {
+    background-color: var(--c5-good-tint);
+    color: var(--c5-good);
+}
+
+.mod-cmi5-upg-status.is-failed {
+    background-color: var(--c5-danger-tint);
+    color: var(--c5-danger-tint-ink);
+}
+
+.mod-cmi5-upg-resultfoot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.mod-cmi5-upg-resultfoot .mod-cmi5-upg-actionhelp {
+    flex: 1 1 18rem;
+    min-width: 0;
+}
+
+/* The cumulative changes page. */
+
+.mod-cmi5-upg-range {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.625rem;
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 1.125rem;
+    border: 1px solid var(--c5-line);
+    border-radius: 12px;
+    background-color: var(--c5-sunken);
+}
+
+.mod-cmi5-upg-rangemeta {
+    color: var(--c5-ink-3);
+    font-size: 0.8125rem;
+}
+
+.mod-cmi5-upg-subhead {
+    margin: 0 0 0.625rem;
+    color: var(--c5-ink-3);
+    font-size: 0.75rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.mod-cmi5-upg-units,
+.mod-cmi5-upg-notes {
+    margin-bottom: 1.5rem;
+}
+
+.mod-cmi5-upg-unitlist {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4375rem;
+}
+
+.mod-cmi5-upg-unit {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5625rem 0.75rem;
+    border: 1px solid var(--c5-line);
+    border-radius: 10px;
+    background-color: var(--c5-surface);
+}
+
+.mod-cmi5-upg-unit-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+}
+
+.mod-cmi5-upg-unit-icon.is-changed {
+    background-color: var(--c5-accent-tint);
+    color: var(--c5-accent-tint-ink);
+}
+
+.mod-cmi5-upg-unit-icon.is-added {
+    background-color: var(--c5-good-tint);
+    color: var(--c5-good);
+}
+
+.mod-cmi5-upg-unit-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.mod-cmi5-upg-unit-title {
+    font-size: 0.84375rem;
+    font-weight: 600;
+}
+
+.mod-cmi5-upg-unit-help {
+    color: var(--c5-ink-3);
+    font-size: 0.75rem;
+}
+
+.mod-cmi5-upg-note {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 0.875rem;
+    padding-left: 0.875rem;
+    border-left: 2px solid var(--c5-line);
+}
+
+.mod-cmi5-upg-note.is-target {
+    border-left-color: var(--c5-accent-tint-border);
+}
+
+.mod-cmi5-upg-noteline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.mod-cmi5-upg-notenumber {
+    font-size: 0.84375rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+}
+
+.mod-cmi5-upg-notemeta {
+    margin: 0;
+    color: var(--c5-ink-3);
+    font-size: 0.75rem;
+}
+
+.mod-cmi5-upg-notelist {
+    margin: 0;
+    padding-left: 1.125rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1875rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+/* Narrow viewports: the version and action cells drop under the activity name
+ * rather than squeezing the name to nothing. */
+@media (max-width: 767px) {
+    .mod-cmi5-upg-cell-action {
+        margin-left: 0;
+        justify-content: flex-start;
+    }
+
+    .mod-cmi5-upg-cell-status {
+        flex: 1 1 100%;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * Checkboxes.
+ *
+ * Scoped to the plugin's own containers on purpose: a plugin's styles.css is
+ * served on every page of the site, so an unscoped input rule would restyle
+ * every checkbox in Moodle, including core forms this plugin has no business
+ * touching.
+ *
+ * The native control is replaced rather than tinted with accent-color, because
+ * accent-color leaves the platform's own box, radius and focus ring in place,
+ * and those differ enough between browsers that a row of them never lines up
+ * with the rest of the interface.
+ * ------------------------------------------------------------------------- */
+
+.mod-cmi5-view input[type="checkbox"],
+.mod-cmi5-library input[type="checkbox"],
+.mod-cmi5-launch-frame input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 17px;
+    height: 17px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--c5-control-border);
+    border-radius: 4px;
+    background-color: var(--c5-surface);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 12px 12px;
+    box-shadow: 0 1px 1px rgba(27, 32, 51, 0.04);
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.mod-cmi5-view input[type="checkbox"]:hover:not(:disabled),
+.mod-cmi5-library input[type="checkbox"]:hover:not(:disabled),
+.mod-cmi5-launch-frame input[type="checkbox"]:hover:not(:disabled) {
+    border-color: var(--c5-ink-3);
+    background-color: var(--c5-sunken);
+}
+
+/* The tick is a mark on the accent fill, so it is drawn in the same colour the
+ * accent buttons use for their label. */
+.mod-cmi5-view input[type="checkbox"]:checked,
+.mod-cmi5-library input[type="checkbox"]:checked,
+.mod-cmi5-launch-frame input[type="checkbox"]:checked {
+    border-color: var(--c5-accent);
+    background-color: var(--c5-accent);
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5l5 5L20 6.5'/%3E%3C/svg%3E");
+}
+
+.mod-cmi5-view input[type="checkbox"]:checked:hover:not(:disabled),
+.mod-cmi5-library input[type="checkbox"]:checked:hover:not(:disabled),
+.mod-cmi5-launch-frame input[type="checkbox"]:checked:hover:not(:disabled) {
+    border-color: var(--c5-accent-hover);
+    background-color: var(--c5-accent-hover);
+}
+
+/* Part of a group is selected. Drawn as a dash rather than left looking empty,
+ * so "some" is never mistaken for "none". */
+.mod-cmi5-view input[type="checkbox"]:indeterminate,
+.mod-cmi5-library input[type="checkbox"]:indeterminate,
+.mod-cmi5-launch-frame input[type="checkbox"]:indeterminate {
+    border-color: var(--c5-accent);
+    background-color: var(--c5-accent);
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.4' stroke-linecap='round'%3E%3Cpath d='M6 12h12'/%3E%3C/svg%3E");
+}
+
+/* Keyboard focus only: the same ring the buttons and tabs use. Bootstrap's own
+ * focus shadow is cleared so the two do not stack into a fuzzy double outline. */
+.mod-cmi5-view input[type="checkbox"]:focus,
+.mod-cmi5-library input[type="checkbox"]:focus,
+.mod-cmi5-launch-frame input[type="checkbox"]:focus {
+    box-shadow: 0 1px 1px rgba(27, 32, 51, 0.04);
+    outline: none;
+}
+
+.mod-cmi5-view input[type="checkbox"]:focus-visible,
+.mod-cmi5-library input[type="checkbox"]:focus-visible,
+.mod-cmi5-launch-frame input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--c5-accent);
+    outline-offset: 2px;
+}
+
+.mod-cmi5-view input[type="checkbox"]:disabled,
+.mod-cmi5-library input[type="checkbox"]:disabled,
+.mod-cmi5-launch-frame input[type="checkbox"]:disabled {
+    border-color: var(--c5-line);
+    background-color: var(--c5-sunken);
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+/* Dark mode inverts the mark: the accent is light there, so a white tick on it
+ * would not meet contrast. */
+[data-bs-theme=dark] .mod-cmi5-view input[type="checkbox"]:checked,
+[data-bs-theme=dark] .mod-cmi5-library input[type="checkbox"]:checked,
+[data-bs-theme=dark] .mod-cmi5-launch-frame input[type="checkbox"]:checked {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230e1530' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5l5 5L20 6.5'/%3E%3C/svg%3E");
+}
+
+[data-bs-theme=dark] .mod-cmi5-view input[type="checkbox"]:indeterminate,
+[data-bs-theme=dark] .mod-cmi5-library input[type="checkbox"]:indeterminate,
+[data-bs-theme=dark] .mod-cmi5-launch-frame input[type="checkbox"]:indeterminate {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230e1530' stroke-width='3.4' stroke-linecap='round'%3E%3Cpath d='M6 12h12'/%3E%3C/svg%3E");
+}
+
+[data-bs-theme=dark] .mod-cmi5-view input[type="checkbox"],
+[data-bs-theme=dark] .mod-cmi5-library input[type="checkbox"],
+[data-bs-theme=dark] .mod-cmi5-launch-frame input[type="checkbox"] {
+    box-shadow: none;
+}
+
+/* Windows high contrast mode drops background images and colours, so the state
+ * is restated with a border the forced palette keeps. */
+@media (forced-colors: active) {
+    .mod-cmi5-view input[type="checkbox"],
+    .mod-cmi5-library input[type="checkbox"],
+    .mod-cmi5-launch-frame input[type="checkbox"] {
+        appearance: auto;
+        -webkit-appearance: auto;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * The library course list, as a table.
+ *
+ * Scoped to .mod-cmi5-lib-packages so the structure tree and the version
+ * history, which share the row component, keep their own flex layout.
+ *
+ * Grid rather than flex because the header and every row then read their widths
+ * from one track definition, so a column cannot drift out of line with its
+ * heading when a row gains or loses a control. The previous fixed-width action
+ * cell could not shrink, so a third button overflowed it and spilled over the
+ * usage column beside it.
+ * ------------------------------------------------------------------------- */
+
+.mod-cmi5-lib-packages .mod-cmi5-lib-row {
+    display: grid;
+    /* Every track is a fixed size or a fraction, never content-sized. Each row is
+     * its own grid container, so a content-sized track resolves separately per
+     * row: the header, whose action cell holds only the word "Actions", would
+     * size that column to the word and shift every other column away from the
+     * rows beneath it. Fixed tracks make all rows resolve identically. */
+    grid-template-columns: minmax(0, 1fr) 9rem 11.5rem 10rem;
+    align-items: center;
+    column-gap: 1.25rem;
+}
+
+.mod-cmi5-lib-packages .mod-cmi5-lib-cell-usage,
+.mod-cmi5-lib-packages .mod-cmi5-lib-cell-updates {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+}
+
+/* Two slots: the details button, then a square for the delete icon. The square
+ * is reserved whether or not the row can be deleted, so the details button is at
+ * the same position on every row. */
+.mod-cmi5-lib-packages .mod-cmi5-lib-cell-rowactions {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.125rem;
+    align-items: center;
+    justify-items: end;
+    column-gap: 0.5rem;
+}
+
+/* Every state in the update column starts on the same text edge as its heading:
+ * the link, "Up to date" and the em dash are all plain text at the cell's left
+ * edge. A bordered button here would inset its label by its own border and
+ * padding and sit out of line with the rows around it. */
+.mod-cmi5-lib-updatelink,
+.mod-cmi5-lib-updatelink:visited {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--c5-accent);
+    text-decoration: none;
+}
+
+.mod-cmi5-lib-updatelink:hover,
+.mod-cmi5-lib-updatelink:focus {
+    color: var(--c5-accent-hover);
+    text-decoration: underline;
+}
+
+.mod-cmi5-lib-updatelink svg {
+    flex: 0 0 auto;
+}
+
+/* Narrow viewports: the columns stack under the course name rather than
+ * crushing it, and the header stops describing a layout that no longer holds. */
+@media (max-width: 991px) {
+    .mod-cmi5-lib-packages .mod-cmi5-lib-tree-head {
+        display: none;
+    }
+
+    .mod-cmi5-lib-packages .mod-cmi5-lib-row {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 0.625rem;
+        padding-top: 0.875rem;
+        padding-bottom: 0.875rem;
+    }
+
+    .mod-cmi5-lib-packages .mod-cmi5-lib-cell-usage,
+    .mod-cmi5-lib-packages .mod-cmi5-lib-cell-updates {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 1rem;
+    }
+
+    .mod-cmi5-lib-packages .mod-cmi5-lib-cell-rowactions {
+        justify-items: start;
+        grid-template-columns: auto 2.125rem;
+        column-gap: 0.75rem;
+    }
+}
+
+/* Icon-only button: a square the same height as the labelled buttons, so a row
+ * mixing the two keeps one baseline. The name lives in aria-label and title,
+ * because there is no visible text to read. */
+.mod-cmi5-btn.mod-cmi5-btn-icon {
+    width: 34px;
+    min-width: 0;
+    padding: 0;
+}
+
+.mod-cmi5-btn.mod-cmi5-btn-icon svg {
+    width: 15px;
+    height: 15px;
+}

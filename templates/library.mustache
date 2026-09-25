@@ -30,11 +30,14 @@
     * hastotals - show the summary facts (false while searching)
     * versionstotal, inuselabel, unusedlabel - the summary facts
     * search, hassearch, searchurl, clearurl - the search form and its current term
-    * isalltab, isinusetab, isunusedtab - which filter is active
+    * isalltab, isinusetab, isunusedtab, isupdatestab - which filter is active
+    * hasupdatesalert, updatesalert, upgradesurl - the alert above the filters
+    * updatescount, tabupdatesurl - the Updates filter
     * taballurl, tabinuseurl, tabunusedurl - filter links
     * allcount, inusecount, unusedcount - filter counts
     * packages - the rows; each has viewurl, title, versionnumber, statusactive, meta,
-      usagelabel, hasusage, usageurl, candelete, deleteurl, deleteconfirm
+      usagelabel, hasusage, usageurl, candelete, deleteurl, deleteconfirm, deletelabel, hasupdates,
+      updatelabel, updatesurl, hasrepairs, repairlabel, uptodate
     * hasresults - the current filter matched at least one course
     * nomatchestitle, nomatcheshelp - the no-results copy
 
@@ -96,6 +99,22 @@
         </form>
     </section>
 
+    {{#hasupdatesalert}}
+    <div class="mod-cmi5-lib-updatealert">
+        <span class="mod-cmi5-lib-updatealert-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>
+        </span>
+        <span class="mod-cmi5-lib-updatealert-text">
+            <span class="mod-cmi5-lib-updatealert-title">{{updatesalert}}</span>
+            <span class="mod-cmi5-lib-updatealert-help">{{#str}}library:updatesalerthelp, cmi5{{/str}}</span>
+        </span>
+        <a href="{{upgradesurl}}" class="mod-cmi5-btn mod-cmi5-btn-primary">
+            {{#str}}library:reviewupgrades, cmi5{{/str}}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
+        </a>
+    </div>
+    {{/hasupdatesalert}}
+
     <nav aria-label="{{#str}}library:libraryfilters, cmi5{{/str}}">
         <ul class="mod-cmi5-tabs">
             <li class="mod-cmi5-tab{{#isalltab}} is-active{{/isalltab}}">
@@ -116,16 +135,23 @@
                     <span class="mod-cmi5-tab-count">{{unusedcount}}</span>
                 </a>
             </li>
+            <li class="mod-cmi5-tab{{#isupdatestab}} is-active{{/isupdatestab}}">
+                <a class="mod-cmi5-tab-link" href="{{tabupdatesurl}}"{{#isupdatestab}} aria-current="page"{{/isupdatestab}}>
+                    {{#str}}library:tab_updates, cmi5{{/str}}
+                    <span class="mod-cmi5-tab-count">{{updatescount}}</span>
+                </a>
+            </li>
         </ul>
     </nav>
     {{/isempty}}
 
-    <div class="mod-cmi5-lib-tree">
+    <div class="mod-cmi5-lib-tree mod-cmi5-lib-packages">
 
         {{#hasresults}}
         <div class="mod-cmi5-lib-row mod-cmi5-lib-tree-head" aria-hidden="true">
             <span class="mod-cmi5-lib-cell-main">{{#str}}library:coursecolumn, cmi5{{/str}}</span>
             <span class="mod-cmi5-lib-cell-usage">{{#str}}library:usagecolumn, cmi5{{/str}}</span>
+            <span class="mod-cmi5-lib-cell-updates">{{#str}}library:updatecolumn, cmi5{{/str}}</span>
             <span class="mod-cmi5-lib-cell-rowactions">{{#str}}library:actions, cmi5{{/str}}</span>
         </div>
 
@@ -153,16 +179,36 @@
                 {{#hasusage}}<a href="{{usageurl}}">{{usagelabel}}</a>{{/hasusage}}
                 {{^hasusage}}<span class="mod-cmi5-lib-none">{{#str}}library:notused, cmi5{{/str}}</span>{{/hasusage}}
             </span>
+            <span class="mod-cmi5-lib-cell-updates">
+                {{! A link, not a button: this column reports status, and a link shares a text
+                    edge with the plain states beside it. The buttons live under Actions. }}
+                {{#hasupdates}}
+                <a href="{{updatesurl}}" class="mod-cmi5-lib-updatelink">{{updatelabel}}</a>
+                {{/hasupdates}}
+                {{#uptodate}}
+                <span class="mod-cmi5-lib-none">{{#str}}library:uptodate, cmi5{{/str}}</span>
+                {{/uptodate}}
+                {{! Nothing uses this course, so there is no update state to report. }}
+                {{^hasupdates}}{{^uptodate}}
+                <span class="mod-cmi5-lib-none" aria-hidden="true">&mdash;</span>
+                {{/uptodate}}{{/hasupdates}}
+                {{#hasrepairs}}
+                <span class="mod-cmi5-lib-repairflag">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 9v5"/><path d="M12 17.5v.5"/><path d="M10.3 3.9L2.5 18a1.8 1.8 0 0 0 1.6 2.7h15.8A1.8 1.8 0 0 0 21.5 18L13.7 3.9a1.9 1.9 0 0 0-3.4 0z"/></svg>
+                    {{repairlabel}}
+                </span>
+                {{/hasrepairs}}
+            </span>
             <span class="mod-cmi5-lib-cell-rowactions">
                 <a href="{{viewurl}}" class="mod-cmi5-btn mod-cmi5-btn-row">{{#str}}library:viewdetails, cmi5{{/str}}</a>
+                {{! The slot is held open on rows that cannot be deleted, so the button beside
+                    it lands in the same place on every row. }}
                 {{#candelete}}
-                <a href="{{deleteurl}}" class="mod-cmi5-btn mod-cmi5-btn-row mod-cmi5-btn-danger"
-                   data-action="cmi5-confirm" data-confirm="{{deleteconfirm}}">
-                    {{#str}}library:deletecourse, cmi5{{/str}}
+                <a href="{{deleteurl}}" class="mod-cmi5-btn mod-cmi5-btn-icon mod-cmi5-btn-danger"
+                   data-action="cmi5-confirm" data-confirm="{{deleteconfirm}}"
+                   aria-label="{{deletelabel}}" title="{{deletelabel}}">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/></svg>
                 </a>
-                {{/candelete}}
-                {{^candelete}}
-                <span class="mod-cmi5-lib-blocked">{{#str}}library:deleteblocked, cmi5{{/str}}</span>
                 {{/candelete}}
             </span>
         </div>

@@ -252,7 +252,7 @@ $string['library:isexternal'] = 'External';
 $string['library:packageuploaded'] = 'Package uploaded successfully.';
 $string['library:auregistered'] = 'External AU registered successfully.';
 $string['library:packagedeleted'] = 'Package deleted successfully.';
-$string['library:viewdetails'] = 'View details';
+$string['library:viewdetails'] = 'View';
 $string['library:backtolist'] = 'Back to library';
 $string['library:backtolibrary'] = 'Back to library';
 $string['library:createdby'] = 'Created by';
@@ -561,3 +561,145 @@ $string['library:orphanunits'] = '{$a} units sit outside a block. That is allowe
 $string['library:orphanunits_one'] = 'One unit sits outside a block. That is allowed &mdash; it will launch on its own.';
 $string['library:structureheading'] = 'Structure';
 $string['library:sessionexpired'] = 'That upload is no longer available. Please choose the file again.';
+
+// Content library update badges and the alert above the list.
+$string['library:tab_updates'] = 'Updates';
+$string['library:updatesalert'] = '{$a->activities} across {$a->packages} library courses have updates available.';
+$string['library:updatesalert_onepackage'] = '{$a->activities} in one library course have updates available.';
+$string['library:updatesalert_one'] = 'One activity has an update available.';
+$string['library:updatesalerthelp'] = 'Nothing changes for learners until you review and confirm each upgrade.';
+$string['library:reviewupgrades'] = 'Review upgrades';
+$string['library:reviewpackageupdates'] = '{$a} updates';
+$string['library:reviewpackageupdates_one'] = '1 update';
+$string['library:uptodate'] = 'Up to date';
+$string['library:needsrepair'] = '{$a} need repair';
+$string['library:needsrepair_one'] = '1 needs repair';
+
+// cmi5 content upgrades.
+$string['upgrade:heading'] = 'cmi5 content upgrades';
+$string['upgrade:navlink'] = 'cmi5 content upgrades';
+$string['upgrade:intro'] = '{$a} activities can move to a newer version of their library course. Each upgrade is applied on its own, so one failure never rolls back the rest.';
+$string['upgrade:intro_one'] = 'One activity can move to a newer version of its library course.';
+$string['upgrade:scopecourse'] = 'This course only';
+$string['upgrade:backtocourse'] = 'Back to course';
+$string['upgrade:backtolist'] = 'Back to upgrades';
+$string['upgrade:searchlabel'] = 'Search';
+$string['upgrade:searchplaceholder'] = 'Library course, Moodle course or activity';
+$string['upgrade:clearsearch'] = 'Clear search';
+$string['upgrade:emptyheading'] = 'Everything is on its latest version';
+$string['upgrade:emptyhelp'] = 'Activities appear here when a newer version of the library course they use is published.';
+$string['upgrade:nomatches'] = 'No upgrades match "{$a}"';
+
+// Version labels, shared by every screen in the flow.
+$string['upgrade:versionlabel'] = 'v{$a}';
+$string['upgrade:versionlatest'] = 'v{$a} (latest)';
+
+// The list: groups, rows and the selection bar.
+$string['upgrade:groupmeta'] = 'Currently on {$a}';
+$string['upgrade:grouptarget'] = 'Target for this group';
+$string['upgrade:groupcount'] = '{$a} activities';
+$string['upgrade:groupcount_one'] = '1 activity';
+$string['upgrade:selectgroup'] = 'Select every activity on {$a->package} {$a->version}';
+$string['upgrade:targetgroup'] = 'Target version for every activity on {$a->package} {$a->version}';
+$string['upgrade:selectrow'] = 'Upgrade {$a->activity} in {$a->course}';
+$string['upgrade:targetrow'] = 'Target version for {$a->activity} in {$a->course}';
+$string['upgrade:selectall'] = 'Select all {$a} eligible activities on this page';
+$string['upgrade:selectall_one'] = 'Select the one eligible activity on this page';
+$string['upgrade:selectionpagescope'] = 'Selection covers this page only &mdash; page {$a->page} of {$a->pages}';
+$string['upgrade:selectionsinglepage'] = 'Everything that can be upgraded is on this page.';
+$string['upgrade:selectnone'] = 'No activities selected';
+$string['upgrade:selectone'] = '1 activity selected';
+$string['upgrade:selectcount'] = '{$a} activities selected';
+$string['upgrade:actionhelp'] = 'You will see the full change list and confirm before anything is applied.';
+$string['upgrade:reviewselected'] = 'Review upgrades';
+$string['upgrade:viewchanges'] = 'View changes';
+$string['upgrade:activityhidden'] = 'Activity hidden';
+$string['upgrade:coursehidden'] = 'Course hidden';
+
+// Activities that name a package but no version.
+$string['upgrade:repairheading'] = '{$a} activities need repair before they can be upgraded';
+$string['upgrade:repairheading_one'] = '1 activity needs repair before it can be upgraded';
+$string['upgrade:repairhelp'] = 'These activities name a library course but no version, so there is no baseline to upgrade from.';
+$string['upgrade:noversionref'] = 'No version reference';
+$string['upgrade:opensettings'] = 'Open settings';
+
+// Change summaries.
+$string['upgrade:unitsadded'] = '{$a} units added';
+$string['upgrade:unitschanged'] = '{$a} units updated';
+$string['upgrade:unitsremoved'] = '{$a} units removed';
+$string['upgrade:changesunavailable'] = 'Change details unavailable';
+$string['upgrade:changesheading'] = 'Changes for {$a}';
+$string['upgrade:changesintro'] = 'everything between the version this activity is on and its target, including any version being skipped.';
+$string['upgrade:changerange'] = '{$a->versions} versions, {$a->changes} changes';
+$string['upgrade:unitsheading'] = 'Assignable units after the upgrade';
+$string['upgrade:unitschangedhelp'] = 'Same IRI, so registrations, statements and grades carry over untouched.';
+$string['upgrade:unitsaddedhelp'] = 'These start with no learner progress.';
+$string['upgrade:notesheading'] = 'Version notes';
+$string['upgrade:istarget'] = 'the target';
+$string['upgrade:isskipped'] = 'skipped by this activity';
+$string['upgrade:change_auadded'] = 'Added the assignable unit "{$a}".';
+$string['upgrade:change_auremoved'] = 'Retired the assignable unit "{$a}".';
+$string['upgrade:change_auchanged'] = 'Changed {$a->field} on "{$a->title}".';
+$string['upgrade:change_blockadded'] = 'Added the block "{$a}".';
+$string['upgrade:change_blockremoved'] = 'Removed the block "{$a}".';
+
+// Review and confirmation.
+$string['upgrade:reviewheading'] = 'Review {$a} upgrades';
+$string['upgrade:reviewheading_one'] = 'Review 1 upgrade';
+$string['upgrade:reviewintro'] = 'Confirming applies each upgrade separately. Activities that have already moved on are skipped rather than overwritten.';
+$string['upgrade:confirm'] = 'Confirm {$a} upgrades';
+$string['upgrade:confirm_one'] = 'Confirm 1 upgrade';
+$string['upgrade:willupgrade'] = '{$a} activities will be upgraded';
+$string['upgrade:willupgrade_one'] = '1 activity will be upgraded';
+$string['upgrade:revalidatenotice'] = 'Each activity is re-checked for permission and version at the moment it is applied.';
+$string['upgrade:nothingtoreview'] = 'Nothing in that selection can still be upgraded. The list below is up to date.';
+$string['upgrade:rowunavailable'] = 'That activity cannot be upgraded, or you cannot manage it.';
+$string['upgrade:learnerdataheading'] = 'What happens to learner progress';
+$string['upgrade:learnerdata_kept'] = 'An assignable unit that keeps its IRI keeps its history: registrations, sessions, statements, grades and course completion are untouched.';
+$string['upgrade:learnerdata_retired'] = 'A removed unit is retired and hidden. Its past learner data stays in place and stays reportable.';
+$string['upgrade:learnerdata_new'] = 'A new unit &mdash; including a unit whose IRI changed &mdash; starts with no progress. A renamed IRI does not carry history across.';
+$string['upgrade:learnerdata_noundo'] = 'Nothing is reset, and this screen cannot roll an upgrade back.';
+
+// Column headings.
+$string['upgrade:col_activity'] = 'Activity';
+$string['upgrade:col_version'] = 'Version';
+$string['upgrade:col_units'] = 'Units affected';
+$string['upgrade:col_changes'] = 'Changes';
+$string['upgrade:col_outcome'] = 'Outcome';
+$string['upgrade:col_detail'] = 'Detail';
+$string['upgrade:col_action'] = 'Action';
+
+// Results.
+$string['upgrade:resultsheading'] = 'Upgrade results';
+$string['upgrade:resultsummary'] = '{$a->upgraded} upgraded, {$a->skipped} skipped, {$a->failed} failed.';
+$string['upgrade:status_upgraded'] = 'Upgraded';
+$string['upgrade:status_skipped'] = 'Skipped';
+$string['upgrade:status_failed'] = 'Failed';
+$string['upgrade:movedto'] = 'Moved {$a->from} to {$a->to}.';
+$string['upgrade:retry'] = 'Retry';
+$string['upgrade:auditnotice'] = 'Every successful upgrade is written to the Moodle log with its from and to version.';
+
+// Why one activity was skipped or failed.
+$string['upgrade:reason_already'] = 'Already on that version or a later one.';
+$string['upgrade:reason_changed'] = 'The version changed after you reviewed it, so nothing was applied.';
+$string['upgrade:reason_deleted'] = 'The activity was deleted or is being deleted.';
+$string['upgrade:reason_nopermission'] = 'You cannot manage this activity';
+$string['upgrade:reason_locked'] = 'Another change to this activity is in progress. Try again shortly.';
+$string['upgrade:reason_needsrepair'] = 'This activity has no usable version reference to upgrade from.';
+$string['upgrade:reason_invalidtarget'] = 'The target version is missing, disabled, or belongs to another library course.';
+$string['upgrade:reason_aumissing'] = 'The unit this activity launches is not in the target version. Choose a unit in the activity settings, then retry.';
+$string['upgrade:reason_failed'] = 'The upgrade could not be completed and nothing was changed.';
+
+// Events.
+$string['eventactivityversionupgraded'] = 'cmi5 activity version upgraded';
+
+// The update alert on a library course's own page.
+$string['library:packageupdatesalert'] = '{$a} activities are on an older version of this course.';
+$string['library:packageupdatesalert_one'] = 'One activity is on an older version of this course.';
+$string['library:packageupdatesalerthelp'] = 'They can be upgraded to v{$a}. Nothing changes for learners until you review and confirm.';
+$string['library:packageupdatesalerthelp_one'] = 'It can be upgraded to v{$a}. Nothing changes for learners until you review and confirm.';
+$string['library:updatecolumn'] = 'Update status';
+$string['library:deletecoursenamed'] = 'Delete {$a}';
+$string['upgrade:unitsadded_one'] = '1 unit added';
+$string['upgrade:unitschanged_one'] = '1 unit updated';
+$string['upgrade:unitsremoved_one'] = '1 unit removed';
