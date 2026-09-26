@@ -3556,7 +3556,7 @@
      * row: the header, whose action cell holds only the word "Actions", would
      * size that column to the word and shift every other column away from the
      * rows beneath it. Fixed tracks make all rows resolve identically. */
-    grid-template-columns: minmax(0, 1fr) 9rem 11.5rem 10rem;
+    grid-template-columns: minmax(0, 1fr) 9rem 11.5rem 11rem;
     align-items: center;
     column-gap: 1.25rem;
 }
@@ -3575,12 +3575,17 @@
 /* Two slots: the details button, then a square for the delete icon. The square
  * is reserved whether or not the row can be deleted, so the details button is at
  * the same position on every row. */
+/* Left-aligned like every other column, so the heading sits above the left edge
+ * of the button rather than above its right edge with the button hanging out to
+ * the left of the word. The second slot is the delete icon's square, reserved
+ * whether or not the row can be deleted, so the details button never moves. */
 .mod-cmi5-lib-packages .mod-cmi5-lib-cell-rowactions {
     min-width: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 2.125rem;
+    grid-template-columns: max-content 2.125rem;
     align-items: center;
-    justify-items: end;
+    justify-content: start;
+    justify-items: start;
     column-gap: 0.5rem;
 }
 
