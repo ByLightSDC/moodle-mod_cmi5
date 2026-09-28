@@ -28,4 +28,4 @@ $plugin->component = 'mod_cmi5';
 $plugin->version = 2026092400;
 $plugin->requires = 2022112800; // Moodle 4.1+.
 $plugin->maturity = MATURITY_ALPHA;
-$plugin->release = '0.1.0';
+$plugin->release = '0.2.0';
