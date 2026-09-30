@@ -13,3 +13,5 @@ CLAUDE.md
 # Node (build tooling)
 node_modules/
 package-lock.json
+
+test-results

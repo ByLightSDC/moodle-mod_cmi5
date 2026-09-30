@@ -10,7 +10,8 @@ import { Page } from '@playwright/test';
  * Throws with a readable message if the login is rejected.
  */
 export async function loginAs(page: Page, username: string, password: string): Promise<void> {
-  await page.goto('/login/index.php');
+  // Use installed English strings consistently for the login controls.
+  await page.goto('/login/index.php?lang=en');
 
   // The Moodle login page finishes wiring up the password field (the
   // show/hide-password widget) via an async template load AFTER 'load'.
